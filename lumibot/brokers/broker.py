@@ -1986,7 +1986,17 @@ class Broker(ABC):
         result = []
         if broker_orders is not None:
             for broker_order in broker_orders:
-                order = self._parse_broker_order(broker_order, strategy_name, strategy_object=strategy_object)
+                try:
+                    order = self._parse_broker_order(broker_order, strategy_name, strategy_object=strategy_object)
+                except Exception as e:
+                    # If a broker order fails parsing, log and skip it so one malformed
+                    # broker order cannot break the entire sync flow.
+                    self.logger.warning(
+                        "Skipping broker order during parse (strategy=%s): %s",
+                        strategy_name,
+                        str(e),
+                    )
+                    continue
                 # skip if parsing returned None
                 if order is None:
                     continue

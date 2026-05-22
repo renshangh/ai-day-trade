@@ -1,6 +1,32 @@
-# LumiBot Agent Instructions (Theta / Downloader Focus)
+# LumiBot Agent Instructions (Codex Canonical)
 
-These rules are mandatory whenever you work on ThetaData integrations.
+These are the canonical AI-agent instructions for this repository. Codex should
+read and follow this file directly. Claude Code should use `CLAUDE.md`, which
+imports this file with `@AGENTS.md` and only adds Claude-specific notes.
+
+## Rule #1: Never Fabricate Backtest Data
+
+Fake, synthesized, default-filled, interpolated, or carry-forward market data is
+strictly forbidden. Missing data is acceptable; fake data is not.
+
+- If real bars are unavailable for a day, symbol, or timeframe, return empty data or surface the absence explicitly.
+- Do not invent placeholder bars, carry forward the last price, substitute constants, or interpolate missing market data.
+- This applies to every provider path: IBKR, ThetaData, Polygon/Massive, Yahoo, DataBento, custom providers, and every timestep.
+- Placeholder rows used for cache bookkeeping must never be returned to a strategy as real bars.
+- If you find code that fabricates market data to keep a strategy alive, fix it by returning empty data, warning clearly, or making the strategy skip.
+- Full details live in `docs/BACKTESTING_ARCHITECTURE.md` under "RULE #1". Read that section before touching data-fetching code.
+
+## Codex Startup Checklist
+
+At the start of a Codex session:
+
+1. Treat `AGENTS.md` as the shared source of truth for repo-wide agent rules.
+2. Check for scoped instruction files before editing nested areas; currently `tests/AGENTS.md` applies under `tests/`.
+3. Read task-relevant docs in `docs/` or `docsrc/` only as needed; keep deep runbooks out of startup context.
+4. Do not assume `CLAUDE.md` is authoritative for Codex-only work. It exists for Claude Code compatibility.
+
+The ThetaData and Data Downloader rules below are mandatory whenever you work
+on those integrations.
 
 ## Image Generation Rule (CRITICAL)
 

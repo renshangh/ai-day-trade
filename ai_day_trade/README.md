@@ -38,11 +38,35 @@ ALPACA_API_SECRET=...
 
 ## Pilot Run
 
+Find the top three same-day candidates from a liquid watchlist:
+
+```bash
+python -m ai_day_trade.find_day_trade_candidates --top 3
+```
+
+The candidate scanner is read-only. It pulls real Alpaca intraday bars, scores
+relative strength versus QQQ, VWAP state, high-of-day proximity, gap, and volume
+participation, then optionally asks an OpenAI model to rerank and explain the
+watchlist. If `OPENAI_API_KEY` is unavailable or the model call fails, the
+scanner falls back to deterministic scoring. It writes the full report to
+`reports/day_trade_candidates_latest.json`.
+
 Start with a one-symbol paper pilot:
 
 ```bash
 python -m ai_day_trade.alpaca_day_trade --symbol NVDA --max-notional 1000
 ```
+
+By default, the pilot waits for a simple intraday entry gate before submitting
+the bracket order:
+
+- price is above VWAP,
+- the prior 5-minute bar closed above VWAP,
+- the prior 5-minute bar made a higher low versus the bar before it,
+- current price breaks the prior 5-minute bar high.
+
+To intentionally submit immediately after launch, pass
+`--entry-strategy immediate`.
 
 This uses Lumibot's Alpaca broker integration. Keep it paper-only until we have:
 

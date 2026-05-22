@@ -91,6 +91,16 @@ MyStrategy.backtest(
 python my_strategy.py
 ```
 
+### Install and Run This Repo Locally
+
+```bash
+cd /Users/danielshan/Documents/Codex/github/ai-day-trade
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -e .
+python -m ai_day_trade.alpaca_day_trade --symbol NVDA --max-notional 1000
+```
+
 That same strategy code works with live brokers. Just swap the broker class.
 
 For full setup guides, broker tutorials, AI-agent docs, examples, and deployment notes, use the **[Lumibot documentation](https://lumibot.lumiwealth.com/)**.
