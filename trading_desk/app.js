@@ -249,7 +249,7 @@ function renderRankChart() {
       </div>
       <div class="val">${fmtPct(v)}</div>`;
 
-    const pick = () => { state.group = r.group; renderAll(); };
+    const pick = () => selectGroup(r.group);
     row.onclick = pick;
     row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
     box.appendChild(row);
@@ -782,21 +782,43 @@ function renderRankTable() {
   const slice = currentSlice();
   const box = $('rank-table');
   if (!slice) { box.innerHTML = ''; return; }
-  const rows = slice.rankings.map((r, i) => `<tr>
-    <td>${i + 1}</td><td>${r.group}</td><td>${r.kind}</td>
-    <td>${fmtPct(r.mean_return_pct)}</td><td>${fmtPct(r.median_return_pct)}</td>
-    <td>${r.breadth_pct.toFixed(0)}%</td><td>${r.member_count}</td>
-    <td>${r.etf || '—'}</td><td>${r.etf_return_pct == null ? '—' : fmtPct(r.etf_return_pct)}</td>
-    <td>${r.top.map(m => `${m.symbol} ${fmtPct(m.return_pct)}`).join(', ')}</td>
-  </tr>`).join('');
+  const active = activeGroup();
+  const rows = slice.rankings.map((r, i) => {
+    const isActive = active && r.group === active.group;
+    return `<tr class="pick-row${isActive ? ' selected' : ''}" data-group="${r.group
+      .replace(/"/g, '&quot;')}" tabindex="0" role="button"
+      aria-label="Show top movers for ${r.group}" aria-pressed="${isActive}">
+      <td>${i + 1}</td><td>${r.group}</td><td>${r.kind}</td>
+      <td>${fmtPct(r.mean_return_pct)}</td><td>${fmtPct(r.median_return_pct)}</td>
+      <td>${r.breadth_pct.toFixed(0)}%</td><td>${r.member_count}</td>
+      <td>${r.etf || '—'}</td><td>${r.etf_return_pct == null ? '—' : fmtPct(r.etf_return_pct)}</td>
+      <td>${r.top.map(m => `${m.symbol} ${fmtPct(m.return_pct)}`).join(', ')}</td>
+    </tr>`;
+  }).join('');
   const bench = slice.benchmarks
     .map(b => `${b.symbol} ${b.return_pct == null ? '—' : fmtPct(b.return_pct)}`).join(' · ');
+  // Read the count off the payload so the header can't drift from the server.
+  const topN = slice.rankings.length ? slice.rankings[0].top.length : 5;
   box.innerHTML = `<table>
     <thead><tr>
       <th>#</th><th>Group</th><th>Kind</th><th>Mean</th><th>Median</th><th>Breadth</th>
-      <th>Members</th><th>ETF</th><th>ETF ret</th><th>Top ${5}</th>
+      <th>Members</th><th>ETF</th><th>ETF ret</th><th>Top ${topN}</th>
     </tr></thead><tbody>${rows}</tbody></table>
     <p class="sub" style="margin-top:10px">Benchmarks over the same window: ${bench}</p>`;
+
+  // Rows drive the Top 5 strip, same as the bar chart above.
+  box.querySelectorAll('.pick-row').forEach(tr => {
+    const pick = () => selectGroup(tr.dataset.group);
+    tr.onclick = pick;
+    tr.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
+  });
+}
+
+/** Switch the Top 5 strip (and the chart) to a group, from either picker. */
+function selectGroup(name) {
+  state.group = name;
+  renderAll();
+  $('leaders-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function renderDetail() {

@@ -324,6 +324,13 @@ th {
 th:first-child, td:first-child { text-align: left; }
 tbody tr:hover { background: var(--surface-3); }
 
+/* Ranking-table rows are pickers for the Top 5 strip, same as the bar chart. */
+tr.pick-row { cursor: pointer; }
+tr.pick-row:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+tr.pick-row.selected td { background: var(--surface-3); color: var(--text-primary); }
+/* A left rule marks the selection, so it does not rely on the fill alone. */
+tr.pick-row.selected td:first-child { box-shadow: inset 3px 0 0 var(--series-1); font-weight: 600; }
+
 /* ---------------------------------------------------------------- states */
 .notice {
   padding: 10px 13px;
