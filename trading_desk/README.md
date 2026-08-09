@@ -38,7 +38,40 @@ Then open <http://localhost:8799>.
 | Group ranking | All 14 groups as a diverging bar chart; click a row to load its leaders. |
 | Top 5 | The leaders inside the selected group, with a 30-day sparkline. |
 | Detail chart | Candlesticks + overlays, with volume, RSI and MACD panes on a shared crosshair. |
+| Company detail | Market cap, trailing P/E, 52-week range, volatility, SEC filings, news, research links. |
 | Ranking table | The same board in text form — every value readable without color. |
+
+### Company detail
+
+Below the chart, for the selected symbol:
+
+- **Key stats** — market cap (SEC shares outstanding × last price), trailing P/E,
+  TTM diluted EPS, 52-week range with the current position marked, ATR-based
+  daily volatility, and 20-day average / dollar volume.
+- **Latest SEC filings** — revenue, gross profit, operating income, net income,
+  EPS, R&D, assets, liabilities, equity, cash, and operating cash flow. Every
+  row shows the form (10-K/10-Q), the period it covers, and the filing date.
+- **Recent news** — headlines from the Alpaca News API, linked to the source.
+- **Research & analyst coverage** — links out to Yahoo Finance analysis, Finviz,
+  StockAnalysis, TradingView, and the company's SEC EDGAR filing index.
+
+#### How P/E is computed
+
+Companies do not file a Q4 10-Q, so the four most recent quarters are never all
+present as quarterly XBRL rows. TTM diluted EPS is reconstructed as:
+
+```
+TTM = last full fiscal year + current year-to-date - prior-year year-to-date
+```
+
+The exact arithmetic is shown under the P/E tile, so the figure is auditable. If
+that reconstruction is not possible, P/E reads `n/a` with the reason rather than
+falling back to a single quarter's EPS (which would understate it ~4×). Negative
+trailing earnings show `n/a` rather than a meaningless negative multiple.
+
+Where a company has migrated XBRL revenue tags, the tag with the most recent
+period wins — picking by a fixed tag order would surface a long-abandoned tag as
+if it were current.
 
 ### Indicators
 
@@ -55,6 +88,7 @@ Range selector: 3M / 6M / 1Y / 2Y.
 |---|---|
 | `GET /api/board` | Rankings for all five lookbacks. `?force=1` bypasses the cache. |
 | `GET /api/stock?symbol=X` | ~2 years of daily bars plus every indicator series. |
+| `GET /api/detail?symbol=X` | Fundamentals, price stats, news, and research links. |
 | `GET /api/health` | Credential and cache status. |
 
 Both routes cache for 5 minutes. Only the board is persisted to `cache.json`
@@ -95,7 +129,15 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `server.py` | HTTP server, Alpaca client, ranking, caching |
 | `universe.py` | Sector/theme constituents |
 | `indicators.py` | Indicator math (pure stdlib) |
+| `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
+
+## Dependencies
+
+Price data, indicators, news and the UI are **stdlib only**. Fundamentals reuse
+Lumibot's `SECFundamentals` (already in this repo) for SEC XBRL access, imported
+lazily — if Lumibot is unavailable the panel reports fundamentals as unavailable
+and everything else still works.
 
 ## Design notes
 

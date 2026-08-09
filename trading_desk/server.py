@@ -32,7 +32,11 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
+# Running `python3 trading_desk/server.py` puts only trading_desk/ on sys.path,
+# so the repo root has to be added for the optional `lumibot` SEC import.
+sys.path.append(str(REPO_ROOT))
 
+import fundamentals  # noqa: E402
 import indicators  # noqa: E402
 import universe  # noqa: E402
 
@@ -47,10 +51,13 @@ TOP_N = 5
 # Per-symbol payloads are ~200 KB each. Cap the in-memory cache so browsing every
 # group cannot grow it without bound.
 STOCK_CACHE_MAX = 60
+# Filings change quarterly and headlines hourly; 15 minutes is plenty.
+DETAIL_TTL = 900
+DETAIL_CACHE_MAX = 60
 
 _lock = threading.Lock()
 _board_build_lock = threading.Lock()
-_cache: dict = {"board": None, "board_ts": 0.0, "stocks": {}}
+_cache: dict = {"board": None, "board_ts": 0.0, "stocks": {}, "details": {}}
 
 
 # --------------------------------------------------------------------------
@@ -332,6 +339,80 @@ def get_stock(symbol: str, force: bool = False) -> dict:
     return data
 
 
+def get_detail(symbol: str, force: bool = False) -> dict:
+    """Company detail: SEC fundamentals, price-derived stats, news, and links.
+
+    Each block degrades independently -- a SEC outage must not take the news
+    list down with it, and vice versa.
+    """
+    symbol = symbol.upper().strip()
+    with _lock:
+        entry = _cache["details"].get(symbol)
+        if entry and not force and time.time() - entry["ts"] < DETAIL_TTL:
+            return entry["data"]
+
+    # Price context comes from the bars we already fetch for the chart.
+    last_price = None
+    stats: dict = {}
+    try:
+        stock = get_stock(symbol)
+        bars = stock.get("bars") or []
+        ind = stock.get("indicators") or {}
+        if bars:
+            last_price = bars[-1]["c"]
+            year = bars[-252:] if len(bars) >= 252 else bars
+            highs = [b["h"] for b in year]
+            lows = [b["l"] for b in year]
+            hi, lo = max(highs), min(lows)
+            atr = (ind.get("atr14") or [None])[-1]
+            vol20 = (ind.get("vol_sma20") or [None])[-1]
+            stats = {
+                "last_price": last_price,
+                "session": bars[-1]["t"],
+                "week52_high": hi,
+                "week52_low": lo,
+                # Where price sits inside the 52w range, 0 = at low, 100 = at high.
+                "range_position_pct": ((last_price - lo) / (hi - lo) * 100) if hi > lo else None,
+                "atr14": atr,
+                "atr_pct": (atr / last_price * 100) if (atr and last_price) else None,
+                "avg_volume_20d": vol20,
+                "dollar_volume_20d": (vol20 * last_price) if (vol20 and last_price) else None,
+                "bars_used_for_52w": len(year),
+            }
+    except Exception as e:  # noqa: BLE001
+        stats = {"error": str(e)}
+
+    try:
+        fund = fundamentals.get_fundamentals(symbol, last_price)
+    except Exception as e:  # noqa: BLE001
+        fund = {"available": False, "reason": f"fundamentals error: {e}"}
+
+    try:
+        news = fundamentals.get_news(
+            symbol, HEADERS["APCA-API-KEY-ID"], HEADERS["APCA-API-SECRET-KEY"]
+        )
+        news_error = None
+    except Exception as e:  # noqa: BLE001
+        news, news_error = [], str(e)
+
+    data = {
+        "symbol": symbol,
+        "stats": stats,
+        "fundamentals": fund,
+        "news": news,
+        "news_error": news_error,
+        "links": fundamentals.research_links(symbol, fund.get("cik")),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with _lock:
+        details = _cache["details"]
+        details[symbol] = {"ts": time.time(), "data": data}
+        if len(details) > DETAIL_CACHE_MAX:
+            for old in sorted(details, key=lambda s: details[s]["ts"])[: len(details) - DETAIL_CACHE_MAX]:
+                del details[old]
+    return data
+
+
 # --------------------------------------------------------------------------
 # Cache persistence (last-good survives restarts; a failed fetch never wipes it)
 # --------------------------------------------------------------------------
@@ -421,13 +502,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": str(e)}, 502)
             return
 
-        if path == "/api/stock":
+        if path in ("/api/stock", "/api/detail"):
             sym = (qs.get("symbol") or [""])[0].upper().strip()
             if not sym or not sym.replace(".", "").isalnum():
                 self._json({"error": "invalid symbol"}, 400)
                 return
+            fetch = get_stock if path == "/api/stock" else get_detail
             try:
-                self._json(get_stock(sym, force=qs.get("force", ["0"])[0] == "1"))
+                self._json(fetch(sym, force=qs.get("force", ["0"])[0] == "1"))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
             return

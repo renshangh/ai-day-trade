@@ -103,6 +103,7 @@ async function fetchStock(symbol, force) {
     state.symbol = symbol;
     state.hover = null;
     renderDetail();
+    fetchDetail(symbol);  // fundamentals/news load independently of the chart
   } catch (e) {
     $('d-sym').textContent = symbol;
     $('d-px').textContent = '';
@@ -832,6 +833,195 @@ function selectGroup(name) {
   state.group = name;
   renderAll();
   $('leaders-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ------------------------------------------------------- company detail
+function fmtBig(v) {
+  if (v == null) return '—';
+  const a = Math.abs(v);
+  if (a >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
+  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  if (a >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
+  return `$${v.toFixed(2)}`;
+}
+
+function statBox(label, value, note, opts = {}) {
+  const el = document.createElement('div');
+  el.className = 'stat-box';
+  const k = document.createElement('div');
+  k.className = 'k';
+  k.textContent = label;
+  const v = document.createElement('div');
+  v.className = 'v' + (opts.na ? ' v na' : '');
+  v.textContent = value;
+  el.append(k, v);
+  if (note) {
+    const n = document.createElement('div');
+    n.className = 'n';
+    n.textContent = note;
+    el.append(n);
+  }
+  return el;
+}
+
+async function fetchDetail(symbol) {
+  const card = $('company-card');
+  card.classList.add('refetching');
+  $('c-title').textContent = `Company detail — ${symbol}`;
+  try {
+    const res = await fetch(`/api/detail?symbol=${encodeURIComponent(symbol)}`);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    // A slower detail response must not overwrite a symbol the user has since
+    // clicked away from.
+    if (d.symbol !== state.symbol) return;
+    renderCompany(d);
+  } catch (e) {
+    $('c-stats').replaceChildren(statBox('Company detail', 'unavailable', e.message, { na: true }));
+  } finally {
+    card.classList.remove('refetching');
+  }
+}
+
+function renderCompany(d) {
+  const f = d.fundamentals || {};
+  const s = d.stats || {};
+
+  $('c-title').textContent = `Company detail — ${d.symbol}`;
+  $('c-entity').textContent = f.entity_name ? `${f.entity_name}${f.cik ? ` · CIK ${f.cik}` : ''}` : '';
+  $('c-source').textContent = f.available
+    ? 'Fundamentals from SEC XBRL filings · news from Alpaca'
+    : 'Price stats from Alpaca · fundamentals unavailable';
+
+  // ---- key stats
+  const boxes = [];
+  boxes.push(statBox(
+    'Market cap',
+    fmtBig(f.market_cap),
+    f.shares_outstanding
+      ? `${f.shares_outstanding.toLocaleString('en-US')} shares as of ${f.shares_as_of}`
+      : (f.available ? 'shares outstanding not reported' : (f.reason || '')),
+    { na: f.market_cap == null }));
+
+  boxes.push(statBox(
+    'P/E (trailing)',
+    f.pe_ratio != null ? f.pe_ratio.toFixed(1) : 'n/a',
+    f.pe_note || '',
+    { na: f.pe_ratio == null }));
+
+  boxes.push(statBox(
+    'EPS (trailing 12m)',
+    f.ttm_eps != null ? `$${f.ttm_eps.toFixed(2)}` : 'n/a',
+    f.ttm_eps != null ? 'diluted, reconstructed from filings' : (f.ttm_eps_note || ''),
+    { na: f.ttm_eps == null }));
+
+  if (s.week52_high != null) {
+    const box = document.createElement('div');
+    box.className = 'stat-box';
+    const pos = s.range_position_pct == null ? 50 : Math.max(0, Math.min(100, s.range_position_pct));
+    box.innerHTML = `<div class="k">52-week range</div>
+      <div class="range-track"><div class="mark" style="left:${pos}%"></div></div>
+      <div class="range-ends"><span>${fmtPx(s.week52_low)}</span><span>${fmtPx(s.week52_high)}</span></div>`;
+    const n = document.createElement('div');
+    n.className = 'n';
+    n.textContent = `at ${pos.toFixed(0)}% of range · ${s.bars_used_for_52w} sessions`;
+    box.append(n);
+    boxes.push(box);
+  }
+
+  boxes.push(statBox(
+    'Daily volatility',
+    s.atr_pct != null ? `${s.atr_pct.toFixed(1)}%` : '—',
+    s.atr14 != null ? `ATR(14) = ${fmtPx(s.atr14)} per day` : '',
+    { na: s.atr_pct == null }));
+
+  boxes.push(statBox(
+    'Avg volume (20d)',
+    s.avg_volume_20d != null ? fmtVol(s.avg_volume_20d) : '—',
+    s.dollar_volume_20d != null ? `${fmtBig(s.dollar_volume_20d)}/day on IEX` : '',
+    { na: s.avg_volume_20d == null }));
+
+  $('c-stats').replaceChildren(...boxes);
+
+  // ---- SEC facts
+  const factsBox = $('c-facts');
+  if (f.available && (f.facts || []).length) {
+    $('c-facts-hint').textContent = '— each figure with the filing it came from';
+    const rows = f.facts.map(x => {
+      const isPerShare = (x.unit || '').includes('shares');
+      const val = isPerShare ? `$${Number(x.value).toFixed(2)}` : fmtBig(x.value);
+      const period = x.start ? `${x.start} → ${x.end}` : (x.end || '');
+      return `<tr><td>${x.label}</td><td>${val}</td><td>${x.form || ''} ${x.fp || ''}${x.fy || ''}</td>
+              <td>${period}</td><td>${x.filed || ''}</td></tr>`;
+    }).join('');
+    factsBox.innerHTML = `<table><thead><tr>
+      <th>Metric</th><th>Value</th><th>Form</th><th>Period</th><th>Filed</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  } else {
+    $('c-facts-hint').textContent = '';
+    factsBox.innerHTML = `<p class="sub">${f.reason || 'No SEC facts available for this symbol.'}</p>`;
+  }
+
+  // ---- news. This is the only third-party content the page renders, so it is
+  // built with DOM APIs (never innerHTML) and only http(s) links are followed.
+  const newsBox = $('c-news');
+  newsBox.replaceChildren();
+  if (d.news_error) {
+    const p = document.createElement('p');
+    p.className = 'sub';
+    p.textContent = `News unavailable: ${d.news_error}`;
+    newsBox.append(p);
+  } else if (!(d.news || []).length) {
+    const p = document.createElement('p');
+    p.className = 'sub';
+    p.textContent = 'No recent headlines for this symbol.';
+    newsBox.append(p);
+  } else {
+    d.news.forEach(a => {
+      const safe = typeof a.url === 'string' && /^https?:\/\//i.test(a.url);
+      const item = document.createElement(safe ? 'a' : 'div');
+      item.className = 'news-item';
+      if (safe) {
+        item.href = a.url;
+        item.target = '_blank';
+        item.rel = 'noopener noreferrer';
+      }
+      const h = document.createElement('div');
+      h.className = 'h';
+      h.textContent = a.headline || '(untitled)';
+      const m = document.createElement('div');
+      m.className = 'm';
+      m.textContent = `${(a.created_at || '').slice(0, 10)} · ${a.source || 'unknown source'}`;
+      (a.symbols || []).filter(x => x !== d.symbol).slice(0, 3).forEach(sym => {
+        const t = document.createElement('span');
+        t.className = 'tag';
+        t.textContent = sym;
+        m.append(t);
+      });
+      item.append(h, m);
+      newsBox.append(item);
+    });
+  }
+
+  // ---- research links
+  const linkBox = $('c-links');
+  linkBox.replaceChildren();
+  (d.links || []).forEach(l => {
+    if (!/^https?:\/\//i.test(l.url || '')) return;
+    const a = document.createElement('a');
+    a.className = 'linkchip';
+    a.href = l.url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    const t = document.createElement('span');
+    t.textContent = l.label;
+    const n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = l.note || '';
+    a.append(t, n);
+    linkBox.append(a);
+  });
 }
 
 function renderDetail() {
