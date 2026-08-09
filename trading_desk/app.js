@@ -222,7 +222,9 @@ function renderHero() {
     </div>`;
 
   $('asof').textContent = state.board.as_of_session
-    ? `session ${state.board.as_of_session} · ${state.board.feed.toUpperCase()} feed · ${state.board.universe_size} symbols`
+    ? `session ${state.board.as_of_session} · ${state.board.feed.toUpperCase()} feed`
+      + `${state.board.feed_note ? ` (${state.board.feed_note})` : ''}`
+      + ` · ${state.board.universe_size} symbols`
     : '';
   $('lookback-note').textContent =
     `${state.lookback} trading session${state.lookback > 1 ? 's' : ''} through ${state.board.as_of_session || '—'}`;
@@ -939,28 +941,54 @@ function renderCompany(d) {
   boxes.push(statBox(
     'Avg volume (20d)',
     s.avg_volume_20d != null ? fmtVol(s.avg_volume_20d) : '—',
-    s.dollar_volume_20d != null ? `${fmtBig(s.dollar_volume_20d)}/day on IEX` : '',
+    s.dollar_volume_20d != null ? `${fmtBig(s.dollar_volume_20d)} traded per day` : '',
     { na: s.avg_volume_20d == null }));
 
   $('c-stats').replaceChildren(...boxes);
 
   // ---- SEC facts
+  // Form/period/filed strings come from third-party XBRL, and `reason` can carry
+  // an exception message, so this table is built with DOM APIs for the same
+  // reason the news list is -- not interpolated into innerHTML.
   const factsBox = $('c-facts');
+  factsBox.replaceChildren();
   if (f.available && (f.facts || []).length) {
     $('c-facts-hint').textContent = '— each figure with the filing it came from';
-    const rows = f.facts.map(x => {
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const hrow = document.createElement('tr');
+    ['Metric', 'Value', 'Form', 'Period', 'Filed'].forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      hrow.append(th);
+    });
+    thead.append(hrow);
+    const tbody = document.createElement('tbody');
+    f.facts.forEach(x => {
       const isPerShare = (x.unit || '').includes('shares');
-      const val = isPerShare ? `$${Number(x.value).toFixed(2)}` : fmtBig(x.value);
-      const period = x.start ? `${x.start} → ${x.end}` : (x.end || '');
-      return `<tr><td>${x.label}</td><td>${val}</td><td>${x.form || ''} ${x.fp || ''}${x.fy || ''}</td>
-              <td>${period}</td><td>${x.filed || ''}</td></tr>`;
-    }).join('');
-    factsBox.innerHTML = `<table><thead><tr>
-      <th>Metric</th><th>Value</th><th>Form</th><th>Period</th><th>Filed</th>
-    </tr></thead><tbody>${rows}</tbody></table>`;
+      const cells = [
+        x.label,
+        isPerShare ? `$${Number(x.value).toFixed(2)}` : fmtBig(x.value),
+        `${x.form || ''} ${x.fp || ''}${x.fy || ''}`.trim(),
+        x.start ? `${x.start} → ${x.end}` : (x.end || ''),
+        x.filed || '',
+      ];
+      const tr = document.createElement('tr');
+      cells.forEach(c => {
+        const td = document.createElement('td');
+        td.textContent = c;
+        tr.append(td);
+      });
+      tbody.append(tr);
+    });
+    table.append(thead, tbody);
+    factsBox.append(table);
   } else {
     $('c-facts-hint').textContent = '';
-    factsBox.innerHTML = `<p class="sub">${f.reason || 'No SEC facts available for this symbol.'}</p>`;
+    const p = document.createElement('p');
+    p.className = 'sub';
+    p.textContent = f.reason || 'No SEC facts available for this symbol.';
+    factsBox.append(p);
   }
 
   // ---- news. This is the only third-party content the page renders, so it is

@@ -17,13 +17,15 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-import os
+import threading
 import urllib.parse
 import urllib.request
 from typing import Any
 
 _sec: Any = None
 _sec_error: str | None = None
+# The server is threaded, so two requests can race to build the client.
+_sec_lock = threading.Lock()
 
 
 def _get_sec() -> Any:
@@ -31,12 +33,15 @@ def _get_sec() -> Any:
     global _sec, _sec_error
     if _sec is not None or _sec_error is not None:
         return _sec
-    try:
-        from lumibot.fundamentals.sec import SECFundamentals
+    with _sec_lock:
+        if _sec is not None or _sec_error is not None:
+            return _sec
+        try:
+            from lumibot.fundamentals.sec import SECFundamentals
 
-        _sec = SECFundamentals()
-    except Exception as e:  # noqa: BLE001 - optional dependency
-        _sec_error = f"SEC fundamentals unavailable: {e}"
+            _sec = SECFundamentals()
+        except Exception as e:  # noqa: BLE001 - optional dependency
+            _sec_error = f"SEC fundamentals unavailable: {e}"
     return _sec
 
 

@@ -18,8 +18,18 @@ For each lookback window (1, 2, 3, 4 and 5 trading days) the board:
 2. surfaces the hottest group, and
 3. lists that group's 5 best performers, each chartable with full indicators.
 
-Data comes from the Alpaca market data API on the **IEX feed** using the paper
-credentials already in the repo-root `.env`. No pip installs — stdlib only.
+Data comes from the Alpaca market data API using the paper credentials already
+in the repo-root `.env`.
+
+**Feed:** the server prefers the **SIP consolidated tape** (all US venues) with a
+16-minute-delayed request window, and falls back to **IEX** if the subscription
+refuses SIP. The feed in use is shown in the page header and in `/api/health`.
+IEX is real-time but is a single venue carrying only ~2.5–4% of consolidated
+volume, so IEX volume understates true liquidity by roughly 25–40× (measured:
+AXTI 488k shares on IEX vs 19.2M on SIP for the same session). Closes agree to
+within 0.2%, so rankings are the same either way — but liquidity is not worth
+being an order of magnitude wrong about. Since the board runs on daily bars, the
+16-minute cutoff costs nothing.
 
 ## Run it
 
@@ -111,9 +121,11 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 
 ## Known limitations
 
-- **IEX feed, not SIP.** This Alpaca key is not SIP-entitled, so prices reflect
-  IEX volume only and can differ slightly from a consolidated-tape terminal.
-  Rankings are directionally reliable; exact percentages may not match Bloomberg.
+- **Daily bars only, and SIP is 16 minutes behind.** The board is built for
+  multi-day horizons. For intraday work Alpaca also serves 1Min/5Min/15Min/1Hour
+  bars and tick-level trades and quotes (nanosecond timestamps) — but sub-minute
+  *bars* are not offered, and real-time (undelayed) access is IEX-only on this
+  subscription.
 - **Group membership is hand-curated** in `universe.py`, not pulled from an index
   provider. It covers liquid names per sector, not the full index.
 - **Themes have no ETF proxy**, so their `etf_return_pct` is `null` by design.

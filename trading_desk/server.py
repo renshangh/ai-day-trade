@@ -41,8 +41,24 @@ import indicators  # noqa: E402
 import universe  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
-FEED = "iex"  # this key is not SIP-entitled; IEX is what it can actually read
 CACHE_PATH = HERE / "cache.json"
+
+# Feed selection.
+#
+# IEX is real-time but is a single venue: measured against SIP it carries only
+# ~2.5-4% of consolidated volume, so every volume and dollar-volume figure taken
+# from it is understated by roughly 25-40x. Closing prices agree to within 0.2%,
+# so rankings are unaffected either way -- but liquidity is not something to be
+# wrong about by an order of magnitude when it is being read as tradability.
+#
+# This subscription can query SIP as long as the window ends at least 15 minutes
+# ago ("subscription does not permit querying recent SIP data" otherwise). The
+# board runs on daily bars, where a 15-minute-old cutoff is worth nothing during
+# a session and nothing at all outside one, so SIP is the better trade. We probe
+# once at startup and fall back to IEX if SIP is not permitted.
+SIP_DELAY_MINUTES = 16
+FEED = "iex"
+FEED_NOTE = "not yet resolved"
 
 BOARD_TTL = 300  # seconds
 STOCK_TTL = 300
@@ -116,9 +132,39 @@ def _get(url: str, retries: int = 4) -> dict:
     raise RuntimeError(f"request failed: {last_err}")
 
 
+def resolve_feed() -> None:
+    """Pick the best feed this subscription can actually read, once at startup."""
+    global FEED, FEED_NOTE
+    end = datetime.now(timezone.utc) - timedelta(minutes=SIP_DELAY_MINUTES)
+    params = {
+        "symbols": "SPY",
+        "timeframe": "1Day",
+        "start": (end - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "limit": 1,
+        "feed": "sip",
+    }
+    try:
+        _get(f"{ALPACA_DATA}/v2/stocks/bars?{urllib.parse.urlencode(params)}", retries=1)
+        FEED = "sip"
+        FEED_NOTE = f"consolidated tape, delayed {SIP_DELAY_MINUTES}m"
+    except Exception:  # noqa: BLE001 - any refusal means fall back
+        FEED = "iex"
+        FEED_NOTE = "IEX only (single venue, ~3% of consolidated volume)"
+    print(f"[info] feed={FEED} ({FEED_NOTE})")
+
+
+def _window_end(end: datetime) -> datetime:
+    """Clamp the request window so SIP stays outside its no-recent-data guard."""
+    if FEED != "sip":
+        return end
+    return min(end, datetime.now(timezone.utc) - timedelta(minutes=SIP_DELAY_MINUTES))
+
+
 def fetch_daily_bars(symbols: list[str], start: datetime, end: datetime) -> dict[str, list[dict]]:
     """Fetch adjusted daily bars for many symbols, following pagination."""
     out: dict[str, list[dict]] = {}
+    end = _window_end(end)
     chunk_size = 100
     for i in range(0, len(symbols), chunk_size):
         chunk = symbols[i : i + chunk_size]
@@ -243,6 +289,7 @@ def build_board() -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "as_of_session": max(latest_dates) if latest_dates else None,
         "feed": FEED,
+        "feed_note": FEED_NOTE,
         "lookbacks": board,
         "omitted": omitted,
         "universe_size": len(symbols),
@@ -314,6 +361,7 @@ def get_stock(symbol: str, force: bool = False) -> dict:
     data = {
         "symbol": symbol,
         "feed": FEED,
+        "feed_note": FEED_NOTE,
         "bars": [
             {
                 "t": b["t"][:10],
@@ -518,6 +566,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(
                 {
                     "ok": True,
+                    "feed": FEED,
+                    "feed_note": FEED_NOTE,
                     "has_credentials": bool(HEADERS["APCA-API-KEY-ID"]),
                     "cached_board": _cache.get("board") is not None,
                     "cached_symbols": len(_cache.get("stocks", {})),
@@ -541,10 +591,11 @@ def main() -> None:
         print("ERROR: ALPACA_API_KEY / ALPACA_API_SECRET not found in .env", file=sys.stderr)
         raise SystemExit(1)
 
+    resolve_feed()
     load_cache()
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"[info] trading desk on http://{args.host}:{args.port}")
-    print(f"[info] universe: {len(universe.all_symbols())} symbols, feed={FEED}")
+    print(f"[info] universe: {len(universe.all_symbols())} symbols")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
