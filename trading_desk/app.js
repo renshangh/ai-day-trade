@@ -20,6 +20,8 @@ const OVERLAYS = [
   { key: 'sma200', label: 'SMA 200', series: 'sma200', slot: 3, on: true },
   { key: 'vwap20', label: 'VWAP 20', series: 'vwap20', slot: 4, on: false },
   { key: 'bb',     label: 'Bollinger 20,2', series: null, slot: 0, on: false },
+  // Levels, not a per-bar series -- drawn from `stock.levels`.
+  { key: 'sr',     label: 'Support / Resistance', series: null, slot: 5, on: true },
 ];
 
 const state = {
@@ -375,6 +377,13 @@ function renderLegend() {
     `<span class="item"><span class="line" style="background:${css('--down')}"></span>Down day</span>`,
     ...on.map(o => `<span class="item"><span class="line" style="background:${slotColor(o.slot)}"></span>${o.label}</span>`),
   ];
+  if (state.overlays.sr) {
+    const n = (state.stock && state.stock.levels) ? state.stock.levels.length : 0;
+    items.push(
+      `<span class="item"><span class="line dash-r" style="background:${slotColor(5)}"></span>Resistance</span>`,
+      `<span class="item"><span class="line dash-s" style="background:${slotColor(5)}"></span>Support</span>`,
+      `<span class="item" style="color:var(--text-muted)">${n} level${n === 1 ? '' : 's'} · n× = times price turned there</span>`);
+  }
   box.innerHTML = items.join('');
 }
 
@@ -553,7 +562,38 @@ function drawChart() {
   // ---- moving-average overlay lines
   const shown = OVERLAYS.filter(o => state.overlays[o.key] && o.series);
   shown.forEach(o => drawLine(ind[o.series] || [], slotColor(o.slot), 1.5));
+
+  // ---- support / resistance levels
+  // Dashed on purpose: these are thresholds, not a series, and the dash keeps
+  // them from reading as another moving average. Drawn inside the clip so a
+  // level outside the visible price scale simply doesn't appear.
+  const srLevels = (state.overlays.sr && state.stock && state.stock.levels) ? state.stock.levels : [];
+  const srColor = slotColor(5);
+  srLevels.forEach(l => {
+    const yy = yPrice(l.level);
+    if (yy < y0.price || yy > y0.price + h.price) return;
+    ctx.save();
+    ctx.strokeStyle = srColor;
+    ctx.lineWidth = 1;
+    ctx.setLineDash(l.kind === 'resistance' ? [6, 4] : [2, 3]);
+    ctx.beginPath();
+    ctx.moveTo(padL, Math.round(yy) + 0.5);
+    ctx.lineTo(padL + plotW, Math.round(yy) + 0.5);
+    ctx.stroke();
+    ctx.restore();
+  });
   ctx.restore();
+
+  // Level labels sit outside the clip so they are never half-drawn.
+  srLevels.forEach(l => {
+    const yy = yPrice(l.level);
+    if (yy < y0.price + 8 || yy > y0.price + h.price - 8) return;
+    const txt = `${l.kind === 'resistance' ? 'R' : 'S'} ${l.level.toFixed(2)} · ${l.touches}×`;
+    const w = ctx.measureText(txt).width + 8;
+    ctx.fillStyle = C.surface;
+    ctx.fillRect(padL + 2, yy - 8, w, 16);
+    label(txt, padL + 6, yy, srColor);
+  });
 
   // ---- selective direct labels at each overlay's endpoint.
   // These satisfy the relief rule for the sub-3:1 light-mode slots, so they
@@ -931,6 +971,30 @@ function renderCompany(d) {
     box.append(n);
     boxes.push(box);
   }
+
+  // Nearest levels on each side -- the two prices a short-horizon trade is
+  // actually working between. Sourced from the chart payload so the panel and
+  // the chart can never disagree.
+  const lv = (state.stock && state.stock.levels) || [];
+  const px = s.last_price;
+  const nearestR = lv.filter(l => l.kind === 'resistance')
+    .sort((a, b) => a.level - b.level)[0];
+  const nearestS = lv.filter(l => l.kind === 'support')
+    .sort((a, b) => b.level - a.level)[0];
+  boxes.push(statBox(
+    'Nearest resistance',
+    nearestR ? fmtPx(nearestR.level) : 'none in range',
+    nearestR
+      ? `${fmtPct(nearestR.distance_pct)} away · turned ${nearestR.touches}× · last ${nearestR.last_touch}`
+      : (px != null ? 'no prior level overhead — at or near highs' : ''),
+    { na: !nearestR }));
+  boxes.push(statBox(
+    'Nearest support',
+    nearestS ? fmtPx(nearestS.level) : 'none in range',
+    nearestS
+      ? `${fmtPct(nearestS.distance_pct)} away · turned ${nearestS.touches}× · last ${nearestS.last_touch}`
+      : '',
+    { na: !nearestS }));
 
   boxes.push(statBox(
     'Daily volatility',

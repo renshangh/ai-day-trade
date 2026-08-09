@@ -85,12 +85,37 @@ if it were current.
 
 ### Indicators
 
-Overlays: SMA 20 / 50 / 200, VWAP 20 (rolling), Bollinger Bands (20, 2σ).
+Overlays: SMA 20 / 50 / 200, VWAP 20 (rolling), Bollinger Bands (20, 2σ),
+support & resistance levels.
 Panes: Volume + 20-day volume SMA, RSI 14, MACD (12, 26, 9) with histogram.
 Also computed and available in the table view and tooltip: ATR 14, Stochastic
 (14, 3), EMA 12 / 26, OBV.
 
 Range selector: 3M / 6M / 1Y / 2Y.
+
+#### Support & resistance
+
+Swing pivot highs and lows (extremes over a ±5-bar window, with a strict
+neighbour test so a flat plateau doesn't emit a pivot per bar) are clustered by
+price. A cluster price turned at more than once becomes a level. Every level is
+a price the market actually reversed at — nothing is drawn at a round number or
+projected forward. Each level reports how many pivots formed it (`n×`), how many
+bars tested it, and when it was first and last touched, so a live level can be
+told from a stale one.
+
+Two things are derived from ATR rather than fixed, because a fixed band is wrong
+at both ends of the volatility range:
+
+- **Cluster width** (`0.6 × ATR%`, clamped 1–8%). A flat 1.5% band suits NVDA
+  (ATR ~3%) but finds *nothing* on AXTI (ATR ~12%), where every genuine retest
+  falls outside it.
+- **How far out to look** (`8 × ATR%`, clamped 15–60%).
+
+Selection is anchored to the last close and balanced across both sides — up to
+four levels above and four below, **nearest first**. Ranking by touch count
+instead buries the level 4% away under ones 13–24% away that happened to be hit
+more often, and on a stock that ran from \$2 to \$88 it returns nothing but
+clusters down at \$2. A name at record highs correctly reports no resistance.
 
 ## API
 

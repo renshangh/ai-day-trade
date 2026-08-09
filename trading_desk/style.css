@@ -25,6 +25,7 @@
   --series-2: #d95926;    /* SMA 50  / signal line */
   --series-3: #199e70;    /* SMA 200 */
   --series-4: #c98500;    /* VWAP 20 */
+  --series-5: #d55181;    /* support / resistance levels */
 
   --up: #0ca30c;
   --down: #d03b3b;
@@ -58,6 +59,7 @@
   --series-2: #eb6834;
   --series-3: #1baf7a;
   --series-4: #eda100;
+  --series-5: #e87ba4;
 
   --up: #0ca30c;
   --down: #d03b3b;
@@ -451,6 +453,18 @@ tr.pick-row.selected td:first-child { box-shadow: inset 3px 0 0 var(--series-1);
 .legend { display: flex; gap: 15px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); margin: 2px 0 10px; }
 .legend .item { display: inline-flex; align-items: center; gap: 6px; }
 .legend .line { width: 15px; height: 2px; border-radius: 1px; }
+/* Match the on-chart dash pattern so the legend keys read unambiguously:
+   long dash = resistance, fine dot = support. */
+.legend .line.dash-r {
+  background: none !important;
+  height: 0;
+  border-top: 2px dashed var(--series-5);
+}
+.legend .line.dash-s {
+  background: none !important;
+  height: 0;
+  border-top: 2px dotted var(--series-5);
+}
 
 .hidden { display: none !important; }
 

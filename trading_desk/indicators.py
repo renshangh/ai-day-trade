@@ -197,6 +197,147 @@ def rolling_vwap(
     return out
 
 
+def swing_points(
+    highs: list[float], lows: list[float], k: int = 5
+) -> tuple[list[int], list[int]]:
+    """Indices of swing highs and swing lows.
+
+    A swing high is a bar whose high is the highest across the +/-k bars around
+    it and strictly above its immediate neighbours. The strict-neighbour test
+    stops a flat plateau from emitting a pivot on every bar of the plateau.
+    """
+    n = len(highs)
+    ph: list[int] = []
+    pl: list[int] = []
+    if n < 2 * k + 1:
+        return ph, pl
+    for i in range(k, n - k):
+        window_hi = highs[i - k : i + k + 1]
+        if highs[i] >= max(window_hi) and highs[i] > highs[i - 1] and highs[i] > highs[i + 1]:
+            ph.append(i)
+        window_lo = lows[i - k : i + k + 1]
+        if lows[i] <= min(window_lo) and lows[i] < lows[i - 1] and lows[i] < lows[i + 1]:
+            pl.append(i)
+    return ph, pl
+
+
+def support_resistance(
+    bars: list[dict],
+    k: int = 5,
+    tolerance_pct: float | None = None,
+    min_touches: int = 2,
+    max_per_side: int = 4,
+    max_distance_pct: float | None = None,
+) -> list[dict]:
+    """Horizontal support/resistance levels derived from swing pivots.
+
+    Pivot highs and lows are clustered by price; a cluster that price turned at
+    more than once becomes a level. Every level is a real price the market
+    actually reversed at -- nothing is drawn at a round number or a projection.
+
+    Selection is anchored to the latest close and balanced across both sides.
+    Ranking purely by touch count is useless in practice: a stock that ran from
+    $2 to $88 has its most-touched clusters down at $2, and a name in a
+    persistent uptrend returns nothing but support. So levels further than
+    `max_distance_pct` from the last close are dropped, and up to `max_per_side`
+    are kept above and below it.
+
+    `touches` counts the clustered pivots. `tests` additionally counts bars whose
+    range came within tolerance of the level, which is the better measure of how
+    contested a level is.
+
+    Each level carries the dates it was first and last tested, so a stale level
+    can be told from a live one.
+    """
+    if len(bars) < 2 * k + 2:
+        return []
+
+    highs = [float(b["h"]) for b in bars]
+    lows = [float(b["l"]) for b in bars]
+    closes = [float(b["c"]) for b in bars]
+    # Callers pass either raw Alpaca bars (full ISO timestamps) or normalized
+    # ones; levels only ever report a session, so keep just the date part.
+    dates = [str(b["t"])[:10] for b in bars]
+
+    # A level is a zone, and the zone's width has to scale with how much the
+    # instrument moves. A fixed 1.5% band is roughly right for NVDA (ATR ~3%) and
+    # far too tight for AXTI (ATR ~12%), where it finds no levels at all because
+    # every genuine retest lands outside the band. Both the cluster width and the
+    # "near enough to trade against" horizon are therefore derived from ATR.
+    ref = closes[-1]
+    atr_series = atr(highs, lows, closes, 14)
+    recent_atr = next((v for v in reversed(atr_series) if v is not None), None)
+    atr_pct = (recent_atr / ref * 100.0) if (recent_atr and ref > 0) else 2.0
+    if tolerance_pct is None:
+        tolerance_pct = min(max(0.6 * atr_pct, 1.0), 8.0)
+    if max_distance_pct is None:
+        max_distance_pct = min(max(8.0 * atr_pct, 15.0), 60.0)
+
+    ph, pl = swing_points(highs, lows, k)
+    pivots = [(highs[i], dates[i]) for i in ph] + [(lows[i], dates[i]) for i in pl]
+    if not pivots:
+        return []
+    pivots.sort(key=lambda p: p[0])
+
+    # Greedy clustering: extend a cluster while the next pivot sits within
+    # tolerance of the cluster's running mean.
+    clusters: list[list[tuple[float, str]]] = [[pivots[0]]]
+    for price, date in pivots[1:]:
+        current = clusters[-1]
+        mean = sum(p for p, _ in current) / len(current)
+        if abs(price - mean) <= mean * tolerance_pct / 100.0:
+            current.append((price, date))
+        else:
+            clusters.append([(price, date)])
+
+    levels: list[dict] = []
+    for cl in clusters:
+        if len(cl) < min_touches:
+            continue
+        level = sum(p for p, _ in cl) / len(cl)
+        band = level * tolerance_pct / 100.0
+        # A "test" is any bar whose range reached into the level's band.
+        tests = sum(1 for i in range(len(bars)) if lows[i] - band <= level <= highs[i] + band)
+        level_dates = sorted(d for _, d in cl)
+        levels.append({
+            "level": level,
+            "touches": len(cl),
+            "tests": tests,
+            "first_touch": level_dates[0],
+            "last_touch": level_dates[-1],
+        })
+
+    last_close = ref
+    if last_close <= 0:
+        return []
+
+    def keep(side: list[dict]) -> list[dict]:
+        # Nearest first. Proximity, not touch count, decides what a trader can
+        # act on -- ranking by touches buried NVDA's level 4% away under ones
+        # 13-24% away that happened to have been hit more often. Touch and test
+        # counts ride along on each level so strength is still visible.
+        side.sort(key=lambda x: abs(x["level"] - last_close))
+        return side[:max_per_side]
+
+    near = [
+        lv for lv in levels
+        if abs(lv["level"] / last_close - 1.0) * 100.0 <= max_distance_pct
+    ]
+    resistance = keep([lv for lv in near if lv["level"] > last_close])
+    support = keep([lv for lv in near if lv["level"] <= last_close])
+
+    for lv in resistance:
+        lv["kind"] = "resistance"
+    for lv in support:
+        lv["kind"] = "support"
+
+    out = resistance + support
+    for lv in out:
+        lv["distance_pct"] = (lv["level"] / last_close - 1.0) * 100.0
+    out.sort(key=lambda x: x["level"], reverse=True)
+    return out
+
+
 def compute_all(bars: list[dict]) -> dict:
     """Compute the full indicator set for a list of Alpaca daily bars."""
     closes = [float(b["c"]) for b in bars]
