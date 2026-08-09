@@ -57,7 +57,10 @@ Range selector: 3M / 6M / 1Y / 2Y.
 | `GET /api/stock?symbol=X` | ~2 years of daily bars plus every indicator series. |
 | `GET /api/health` | Credential and cache status. |
 
-Both data routes cache for 5 minutes and persist to `cache.json`.
+Both routes cache for 5 minutes. Only the board is persisted to `cache.json`
+(~60 KB); per-symbol payloads stay in memory behind a 60-entry LRU. Persisting
+them meant re-serializing tens of megabytes under the global lock on every
+cache-miss, and they are cheap to refetch after a restart.
 
 ## Data integrity
 
@@ -70,7 +73,7 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 - A flat Stochastic window (zero range) returns `null` rather than a made-up 50.
 - If a live fetch fails, the server serves the **last known-good** cache and marks
   the payload `stale`, with a banner saying so. A failed fetch never overwrites
-  good cached data, and the cache write is atomic.
+  good cached data, and the board's cache write is atomic (temp file + rename).
 
 ## Known limitations
 

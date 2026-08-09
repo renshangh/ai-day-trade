@@ -38,6 +38,12 @@ const state = {
 // ---------------------------------------------------------------- helpers
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// Chart geometry. Shared by the renderer and the pointer/keyboard hit-testing so
+// the two cannot drift -- these were duplicated as literals in three places, and
+// changing the renderer's padding silently mis-aimed the crosshair.
+const PAD = { left: 8, right: 66, top: 10, xAxis: 24, gap: 12 };
+const CHART_H = 640;
+
 const $ = id => document.getElementById(id);
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const slotColor = n => css(`--series-${n}`);
@@ -108,10 +114,15 @@ async function fetchStock(symbol, force) {
 }
 
 function showError(msg) {
+  const box = $('notices');
+  // Replace any previous error rather than appending; a flapping connection was
+  // otherwise able to stack notices until they pushed the board off-screen.
+  box.querySelectorAll('.notice.err').forEach(n => n.remove());
   const el = document.createElement('div');
   el.className = 'notice err';
-  el.innerHTML = `<span class="ico">⚠</span><span>${msg}</span>`;
-  $('notices').appendChild(el);
+  el.append(Object.assign(document.createElement('span'), { className: 'ico', textContent: '⚠' }));
+  el.append(Object.assign(document.createElement('span'), { textContent: msg }));
+  box.appendChild(el);
 }
 
 // ------------------------------------------------------------- rendering
@@ -386,7 +397,7 @@ function drawChart() {
   const n = bars.length;
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.parentElement.clientWidth;
-  const cssH = 640;
+  const cssH = CHART_H;
   canvas.style.height = cssH + 'px';
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
@@ -394,26 +405,19 @@ function drawChart() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssW, cssH);
 
-  const padL = 8, padR = 66, padT = 10, xAxisH = 24, gap = 12;
-  const plotW = cssW - padL - padR;
+  const padL = PAD.left, padR = PAD.right, padT = PAD.top, xAxisH = PAD.xAxis, gap = PAD.gap;
+  const plotW = plotWidth(cssW);
   const bodyH = cssH - padT - xAxisH;
+  // Pane heights are fractions of bodyH, then scaled down to leave room for the
+  // three inter-pane gaps so the last pane can't run into the x-axis band.
+  const scale = (bodyH - gap * 3) / bodyH;
   const h = {
-    price: bodyH * 0.52,
-    vol: bodyH * 0.13,
-    rsi: bodyH * 0.16,
-    macd: bodyH * 0.19,
+    price: bodyH * 0.52 * scale,
+    vol: bodyH * 0.13 * scale,
+    rsi: bodyH * 0.16 * scale,
+    macd: bodyH * 0.19 * scale,
   };
-  const y0 = {
-    price: padT,
-    vol: padT + h.price + gap,
-    rsi: padT + h.price + h.vol + gap * 2,
-    macd: padT + h.price + h.vol + h.rsi + gap * 3,
-  };
-  // Panes are laid out inside bodyH; trim so the last pane can't run into the axis.
-  const totalGaps = gap * 3;
-  const scale = (bodyH - totalGaps) / (h.price + h.vol + h.rsi + h.macd);
-  ['price', 'vol', 'rsi', 'macd'].forEach(k => { h[k] *= scale; });
-  y0.price = padT;
+  const y0 = { price: padT };
   y0.vol = y0.price + h.price + gap;
   y0.rsi = y0.vol + h.vol + gap;
   y0.macd = y0.rsi + h.rsi + gap;
@@ -428,7 +432,7 @@ function drawChart() {
     band: css('--band'), bandLine: css('--band-line'),
     surface: css('--surface-2'),
   };
-  ctx.font = '11px ' + css('--sans').replace(/"/g, '"');
+  ctx.font = `11px ${css('--sans')}`;
 
   // ---- price scale
   // Price action owns the scale. Overlays may stretch it only so far: a long
@@ -739,16 +743,23 @@ function renderTooltip(clientX, clientY) {
   tip.style.top = top + 'px';
 }
 
+/** Plot width for a given canvas CSS width. Single source of truth for both
+ *  the renderer and hit-testing. */
+function plotWidth(cssW) { return cssW - PAD.left - PAD.right; }
+
+/** X pixel (page coords) of bar `i`, used to place the keyboard tooltip. */
+function barClientX(rect, n, i) {
+  const barW = plotWidth(rect.width) / n;
+  return rect.left + PAD.left + i * barW + barW / 2;
+}
+
 function indexFromEvent(e) {
   const view = visibleSlice();
   if (!view) return null;
-  const canvas = $('chart');
-  const rect = canvas.getBoundingClientRect();
-  const padL = 8, padR = 66;
-  const plotW = rect.width - padL - padR;
+  const rect = $('chart').getBoundingClientRect();
   const n = view.bars.length;
-  const barW = plotW / n;
-  const i = Math.floor((e.clientX - rect.left - padL) / barW);
+  const barW = plotWidth(rect.width) / n;
+  const i = Math.floor((e.clientX - rect.left - PAD.left) / barW);
   return Math.max(0, Math.min(n - 1, i));
 }
 
@@ -785,9 +796,11 @@ function renderRankTable() {
   const active = activeGroup();
   const rows = slice.rankings.map((r, i) => {
     const isActive = active && r.group === active.group;
+    // No role="button" here: overriding a <tr>'s implicit row role breaks the
+    // table's structure for screen readers. aria-current is valid on any element
+    // and is what conveys "this is the group being shown".
     return `<tr class="pick-row${isActive ? ' selected' : ''}" data-group="${r.group
-      .replace(/"/g, '&quot;')}" tabindex="0" role="button"
-      aria-label="Show top movers for ${r.group}" aria-pressed="${isActive}">
+      .replace(/"/g, '&quot;')}" tabindex="0"${isActive ? ' aria-current="true"' : ''}>
       <td>${i + 1}</td><td>${r.group}</td><td>${r.kind}</td>
       <td>${fmtPct(r.mean_return_pct)}</td><td>${fmtPct(r.median_return_pct)}</td>
       <td>${r.breadth_pct.toFixed(0)}%</td><td>${r.member_count}</td>
@@ -881,9 +894,7 @@ function init() {
       state.hover = Math.max(0, Math.min(n - 1, cur + (e.key === 'ArrowRight' ? 1 : -1)));
       drawChart();
       const rect = canvas.getBoundingClientRect();
-      const padL = 8, padR = 66;
-      const barW = (rect.width - padL - padR) / n;
-      renderTooltip(rect.left + padL + state.hover * barW, rect.top + 60);
+      renderTooltip(barClientX(rect, n, state.hover), rect.top + 60);
     } else if (e.key === 'Escape') {
       state.hover = null; drawChart(); $('tooltip').classList.remove('on');
     }
@@ -901,10 +912,18 @@ function init() {
     if (state.symbol) fetchStock(state.symbol, true);
   };
 
-  $('theme').onclick = () => {
-    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  const applyTheme = next => {
     document.documentElement.dataset.theme = next;
     $('theme').textContent = next === 'dark' ? 'Light' : 'Dark';
+    try { localStorage.setItem('desk-theme', next); } catch { /* private mode */ }
+  };
+  try {
+    const saved = localStorage.getItem('desk-theme');
+    if (saved === 'light' || saved === 'dark') applyTheme(saved);
+  } catch { /* private mode */ }
+
+  $('theme').onclick = () => {
+    applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
     renderLegend();
     renderOverlayToggles();
     drawChart();

@@ -44,8 +44,12 @@ BOARD_TTL = 300  # seconds
 STOCK_TTL = 300
 LOOKBACKS = [1, 2, 3, 4, 5]
 TOP_N = 5
+# Per-symbol payloads are ~200 KB each. Cap the in-memory cache so browsing every
+# group cannot grow it without bound.
+STOCK_CACHE_MAX = 60
 
 _lock = threading.Lock()
+_board_build_lock = threading.Lock()
 _cache: dict = {"board": None, "board_ts": 0.0, "stocks": {}}
 
 
@@ -246,22 +250,32 @@ def get_board(force: bool = False) -> dict:
         age = time.time() - _cache.get("board_ts", 0.0)
         if cached and not force and age < BOARD_TTL:
             return cached
-    try:
-        board = build_board()
-        with _lock:
-            _cache["board"] = board
-            _cache["board_ts"] = time.time()
-            save_cache()
-        return board
-    except Exception as e:  # noqa: BLE001 - degrade to last-good rather than blank
+
+    # Serialize builds. Without this, N concurrent requests on a cold cache each
+    # kick off a full 271-symbol fetch; the loser(s) re-check the cache after the
+    # winner finishes and reuse its result.
+    with _board_build_lock:
         with _lock:
             cached = _cache.get("board")
-        if cached:
-            stale = dict(cached)
-            stale["stale"] = True
-            stale["stale_reason"] = str(e)
-            return stale
-        raise
+            age = time.time() - _cache.get("board_ts", 0.0)
+            if cached and not force and age < BOARD_TTL:
+                return cached
+        try:
+            board = build_board()
+            with _lock:
+                _cache["board"] = board
+                _cache["board_ts"] = time.time()
+                save_cache()
+            return board
+        except Exception as e:  # noqa: BLE001 - degrade to last-good rather than blank
+            with _lock:
+                cached = _cache.get("board")
+            if cached:
+                stale = dict(cached)
+                stale["stale"] = True
+                stale["stale_reason"] = str(e)
+                return stale
+            raise
 
 
 def get_stock(symbol: str, force: bool = False) -> dict:
@@ -308,8 +322,13 @@ def get_stock(symbol: str, force: bool = False) -> dict:
         "stale": False,
     }
     with _lock:
-        _cache["stocks"][symbol] = {"ts": time.time(), "data": data}
-        save_cache()
+        stocks = _cache["stocks"]
+        stocks[symbol] = {"ts": time.time(), "data": data}
+        # Evict least-recently-fetched beyond the cap.
+        if len(stocks) > STOCK_CACHE_MAX:
+            for old in sorted(stocks, key=lambda s: stocks[s]["ts"])[: len(stocks) - STOCK_CACHE_MAX]:
+                del stocks[old]
+    # Deliberately no save_cache() here -- see save_cache's docstring.
     return data
 
 
@@ -317,11 +336,21 @@ def get_stock(symbol: str, force: bool = False) -> dict:
 # Cache persistence (last-good survives restarts; a failed fetch never wipes it)
 # --------------------------------------------------------------------------
 def save_cache() -> None:
+    """Persist the board only.
+
+    Per-symbol payloads are deliberately NOT written. They are large (~200 KB
+    each, tens of MB in aggregate) and this function runs under the global lock,
+    so persisting them meant every stock cache-miss re-serialized the entire
+    cache -- hundreds of milliseconds of blocking work per request, and the
+    dashboard fires five concurrent stock fetches when it paints a Top 5 strip.
+    Stock data stays in memory (still last-good within a session) and is cheap to
+    refetch after a restart; the board is the payload whose staleness the UI
+    actually surfaces, and it is small.
+    """
     try:
         payload = {
             "board": _cache.get("board"),
             "board_ts": _cache.get("board_ts", 0.0),
-            "stocks": _cache.get("stocks", {}),
         }
         tmp = CACHE_PATH.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(payload))
@@ -337,8 +366,9 @@ def load_cache() -> None:
         payload = json.loads(CACHE_PATH.read_text())
         _cache["board"] = payload.get("board")
         _cache["board_ts"] = payload.get("board_ts", 0.0)
-        _cache["stocks"] = payload.get("stocks", {})
-        print(f"[info] loaded cache ({len(_cache['stocks'])} symbols)")
+        # Older cache files also carried per-symbol payloads; ignore them.
+        _cache["stocks"] = {}
+        print("[info] loaded cached board" if _cache["board"] else "[info] cache had no board")
     except Exception as e:  # noqa: BLE001
         print(f"[warn] could not load cache: {e}", file=sys.stderr)
 
