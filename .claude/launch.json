@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "trading-desk",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["trading_desk/server.py"],
+      "port": 8799,
+      "autoPort": true
+    }
+  ]
+}

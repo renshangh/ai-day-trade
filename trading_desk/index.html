@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trading Desk — Hot Sector Board</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Trading Desk — Hot Sector Board</h1>
+    <span class="meta" id="asof">loading…</span>
+    <span class="spacer"></span>
+    <button id="refresh" title="Force a fresh pull from Alpaca">Refresh</button>
+    <button id="theme" title="Toggle light / dark">Light</button>
+  </header>
+
+  <main>
+    <div id="notices"></div>
+
+    <!-- One filter row, above everything it scopes. -->
+    <div class="filters">
+      <span class="label">Lookback</span>
+      <div class="tabs" id="lookback-tabs" role="tablist" aria-label="Lookback window"></div>
+      <span class="meta" id="lookback-note"></span>
+    </div>
+
+    <section class="card" id="hero-card" aria-live="polite">
+      <div class="hero" id="hero"><div class="loading">Loading board…</div></div>
+    </section>
+
+    <section class="card">
+      <h2>Group ranking</h2>
+      <p class="sub" id="rank-sub">Equal-weight mean return of each group's constituents. Click a row to inspect its leaders.</p>
+      <div id="rank-chart"></div>
+    </section>
+
+    <section class="card">
+      <h2 id="leaders-title">Top 5</h2>
+      <p class="sub" id="leaders-sub"></p>
+      <div class="leaders" id="leaders"></div>
+    </section>
+
+    <section class="card" id="detail-card">
+      <div class="detail-head">
+        <span class="sym" id="d-sym">—</span>
+        <span class="px" id="d-px"></span>
+        <span class="spacer"></span>
+        <div class="tabs" id="range-tabs" role="tablist" aria-label="Chart range"></div>
+        <button id="table-toggle" aria-pressed="false">Table view</button>
+      </div>
+
+      <div class="toggles" id="overlay-toggles" aria-label="Indicator overlays"></div>
+
+      <div class="legend" id="chart-legend"></div>
+
+      <div class="chart-wrap" id="chart-wrap">
+        <canvas id="chart" tabindex="0" role="img"
+                aria-label="Price candlestick chart with volume, RSI and MACD panes. Use left and right arrow keys to move the crosshair."></canvas>
+        <div class="tooltip" id="tooltip"></div>
+      </div>
+
+      <div class="table-wrap hidden" id="table-view"></div>
+    </section>
+
+    <section class="card">
+      <h2>Ranking table</h2>
+      <p class="sub">The same board as above in text form — every value readable without color.
+         Click any row to load that group's top movers.</p>
+      <div class="table-wrap" id="rank-table"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
