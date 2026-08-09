@@ -92,3 +92,6 @@ context*.json
 
 # Local scratch / diagnostics (never commit)
 tmp/
+trading_desk/cache.json
+trading_desk/*.json.tmp
+trading_desk/__pycache__/
