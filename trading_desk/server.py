@@ -374,6 +374,10 @@ def get_stock(symbol: str, force: bool = False) -> dict:
             for b in bars
         ],
         "indicators": indicators.compute_all(bars),
+        # Levels are horizontal, not per-bar, so they travel beside the series
+        # rather than inside them. Computed over the full history: a level set
+        # nine months ago still matters if price is near it now.
+        "levels": indicators.support_resistance(bars),
         "stale": False,
     }
     with _lock:
