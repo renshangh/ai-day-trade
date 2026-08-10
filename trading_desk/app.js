@@ -255,6 +255,11 @@ function renderHero() {
     renderMomentumHero(slice, el);
   }
 
+  // Splitting this function into two branches dropped the original's early
+  // return, which was what kept the header writes below from running before a
+  // board existed. Guard explicitly rather than rely on the call graph.
+  if (!state.board) return;
+
   $('asof').textContent = state.board.as_of_session
     ? `session ${state.board.as_of_session} · ${state.board.feed.toUpperCase()} feed`
       + `${state.board.feed_note ? ` (${state.board.feed_note})` : ''}`
