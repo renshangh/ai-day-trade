@@ -108,6 +108,42 @@ h1 {
 
 .spacer { flex: 1; }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.symbol-search {
+  display: flex;
+  gap: 6px;
+}
+.symbol-search input {
+  width: 150px;
+  font-family: inherit;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+}
+.symbol-search input::placeholder { color: var(--text-muted); text-transform: none; }
+.symbol-search input:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 1px;
+}
+.symbol-search button {
+  background: var(--series-1);
+  border-color: var(--series-1);
+  color: #fff;
+}
+.symbol-search button:hover { background: var(--series-1); opacity: 0.88; }
+
 button {
   font-family: inherit;
   font-size: 13px;

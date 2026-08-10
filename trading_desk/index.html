@@ -11,6 +11,11 @@
     <h1>Trading Desk — Hot Sector Board</h1>
     <span class="meta" id="asof">loading…</span>
     <span class="spacer"></span>
+    <form id="symbol-form" class="symbol-search" role="search" autocomplete="off">
+      <label for="symbol-input" class="sr-only">Look up a stock symbol</label>
+      <input id="symbol-input" type="text" placeholder="Symbol e.g. NVDA" maxlength="10" spellcheck="false">
+      <button type="submit">View chart</button>
+    </form>
     <button id="refresh" title="Force a fresh pull from Alpaca">Refresh</button>
     <button id="theme" title="Toggle light / dark">Light</button>
   </header>

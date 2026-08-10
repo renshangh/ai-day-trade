@@ -1197,6 +1197,23 @@ function init() {
     }
   });
 
+  $('symbol-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const input = $('symbol-input');
+    // Mirrors the server's own check (alnum once dots are stripped, for
+    // tickers like BRK.B) so a bad entry gets an immediate message instead of
+    // a round trip -- though fetchStock surfaces the server's error just as
+    // well if something slips past this.
+    const raw = input.value.trim().toUpperCase();
+    if (!raw) return;
+    if (!/^[A-Z0-9]+(\.[A-Z0-9]+)*$/.test(raw)) {
+      showError(`"${raw}" doesn't look like a valid ticker.`);
+      return;
+    }
+    input.value = raw;
+    selectStock(raw);
+  });
+
   $('table-toggle').onclick = () => {
     state.tableView = !state.tableView;
     $('table-view').classList.toggle('hidden', !state.tableView);
