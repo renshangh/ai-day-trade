@@ -33,6 +33,14 @@ being an order of magnitude wrong about. Since the board runs on daily bars, the
 
 ## Run it
 
+**One click (macOS):** double-click **`Launch Trading Desk.command`** in Finder.
+It starts the server, waits for it to become healthy, and opens the dashboard in
+your default browser automatically. If the dashboard is already running, it just
+opens it instead of starting a second copy. To stop it, close that Terminal
+window or press Ctrl+C in it — the server is not left running in the background.
+
+**Manual:**
+
 ```bash
 python3 trading_desk/server.py --port 8799
 ```
