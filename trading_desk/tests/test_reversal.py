@@ -107,6 +107,29 @@ def test_insufficient_history_returns_none():
     assert srv.reversal_metrics([], 2) is None
 
 
+def test_exact_minimum_history_boundary_for_every_lookback():
+    """`lb + 1` bars is the contract, so `lb` bars must yield None and `lb + 1`
+    must be able to produce a result.
+
+    Pinned as a contract rather than via the outer length guard on purpose:
+    that guard is redundant with the inner pct_return checks (mutating it away
+    changes nothing observable), so asserting the boundary directly is what
+    keeps the requirement enforced whichever check happens to catch it.
+    """
+    for lb in srv.REVERSAL_LOOKBACKS:
+        # A clean slide then a bounce, long enough to satisfy any lookback.
+        closes = [100.0 - 3.0 * i for i in range(lb)] + [100.0]
+        assert len(closes) == lb + 1
+
+        one_short = srv.reversal_metrics(mk(closes[1:]), lb)
+        assert one_short is None, f"lb={lb} must reject {lb} bars"
+
+        exact = srv.reversal_metrics(mk(closes), lb)
+        assert exact is not None, f"lb={lb} must accept {lb + 1} bars"
+        assert exact["prior_return_pct"] < 0
+        assert exact["trigger_return_pct"] > 0
+
+
 def test_zero_prior_volume_yields_null_ratio_not_a_division_error():
     # A halted prior session has no meaningful ratio. RULE #1: report the
     # absence rather than substituting a number.
