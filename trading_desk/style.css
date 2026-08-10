@@ -229,7 +229,8 @@ main { padding: 20px; max-width: 1500px; margin: 0 auto; }
 /* --------------------------------------------------------- ranking chart */
 .rank-row {
   display: grid;
-  grid-template-columns: 190px 1fr 132px;
+  /* Value column fits the reversal view's two figures ("76% · +4.22%"). */
+  grid-template-columns: 190px 1fr 152px;
   align-items: center;
   gap: 12px;
   padding: 3px 0;
@@ -286,6 +287,22 @@ main { padding: 20px; max-width: 1500px; margin: 0 auto; }
 .stock-card .sym { font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
 .stock-card .ret { font-size: 17px; font-weight: 600; font-family: var(--mono); }
 .stock-card .px { font-size: 12px; color: var(--text-muted); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+/* Reversal cards carry two extra facts the momentum cards don't need: how far
+   the name fell before today, and whether today's bounce came on real volume. */
+.stock-card .rev-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.stock-card .rev-meta b { font-weight: 600; }
+
 .stock-card .spark { display: block; }
 /* The headline % is the lookback return; the sparkline is a 30-day trend, so
    the two can disagree in sign. Label it rather than let the colors argue. */
@@ -505,7 +522,7 @@ tr.pick-row.selected td:first-child { box-shadow: inset 3px 0 0 var(--series-1);
 .hidden { display: none !important; }
 
 @media (max-width: 720px) {
-  .rank-row { grid-template-columns: 116px 1fr 88px; }
+  .rank-row { grid-template-columns: 100px 1fr 116px; }
   .hero { gap: 18px; }
   main { padding: 14px; }
 }

@@ -5,7 +5,13 @@
 
 'use strict';
 
-const LOOKBACKS = [1, 2, 3, 4, 5];
+// Momentum ranks every group by raw return, so a 1-day window is meaningful.
+// Reversal needs a prior period *before* the trigger day, so it has nothing
+// to show on a 1-day window -- the server omits `reversal` there too.
+const VIEWS = [
+  { key: 'momentum', label: 'Momentum', lookbacks: [1, 2, 3, 4, 5] },
+  { key: 'reversal', label: 'Reversal candidates', lookbacks: [2, 3, 4, 5] },
+];
 const RANGES = [
   { key: '3M', bars: 63 },
   { key: '6M', bars: 126 },
@@ -25,6 +31,7 @@ const OVERLAYS = [
 ];
 
 const state = {
+  view: 'momentum',   // 'momentum' | 'reversal' -- which screen drives the hero/rank/leaders
   lookback: 1,
   range: '6M',
   board: null,
@@ -169,10 +176,39 @@ function renderNotices() {
   }
 }
 
+function currentView() {
+  return VIEWS.find(v => v.key === state.view) || VIEWS[0];
+}
+
+function renderViewTabs() {
+  const box = $('view-tabs');
+  box.innerHTML = '';
+  VIEWS.forEach(v => {
+    const btn = document.createElement('button');
+    btn.textContent = v.label;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', String(state.view === v.key));
+    btn.className = state.view === v.key ? 'active' : '';
+    btn.onclick = () => {
+      if (state.view === v.key) return;
+      state.view = v.key;
+      state.group = null;
+      // A lookback valid in one view may not exist in the other (reversal has
+      // no 1D screen) -- clamp rather than land on an undefined slice.
+      if (!v.lookbacks.includes(state.lookback)) state.lookback = v.lookbacks[0];
+      renderAll();
+    };
+    box.appendChild(btn);
+  });
+  $('view-note').textContent = state.view === 'reversal'
+    ? 'Groups down over the prior period that turned positive on the most recent session.'
+    : 'Groups ranked by raw return over the window.';
+}
+
 function renderLookbackTabs() {
   const box = $('lookback-tabs');
   box.innerHTML = '';
-  LOOKBACKS.forEach(lb => {
+  currentView().lookbacks.forEach(lb => {
     const btn = document.createElement('button');
     btn.textContent = `${lb}D`;
     btn.setAttribute('role', 'tab');
@@ -188,20 +224,48 @@ function currentSlice() {
   return state.board.lookbacks[String(state.lookback)];
 }
 
+/** The momentum or reversal ranking list for the active view, or [] if the
+ *  slice has no reversal block (1D) or nothing qualified. */
+function activeRankings() {
+  const slice = currentSlice();
+  if (!slice) return [];
+  if (state.view === 'reversal') return (slice.reversal && slice.reversal.rankings) || [];
+  return slice.rankings;
+}
+
 function activeGroup() {
   const slice = currentSlice();
   if (!slice) return null;
+  const rankings = activeRankings();
   if (state.group) {
-    const found = slice.rankings.find(g => g.group === state.group);
+    const found = rankings.find(g => g.group === state.group);
     if (found) return found;
   }
+  if (state.view === 'reversal') return (slice.reversal && slice.reversal.leader) || null;
   return slice.hottest;
 }
 
 function renderHero() {
   const slice = currentSlice();
-  const g = slice && slice.hottest;
   const el = $('hero');
+
+  if (slice && state.view === 'reversal') {
+    renderReversalHero(slice, el);
+  } else {
+    renderMomentumHero(slice, el);
+  }
+
+  $('asof').textContent = state.board.as_of_session
+    ? `session ${state.board.as_of_session} · ${state.board.feed.toUpperCase()} feed`
+      + `${state.board.feed_note ? ` (${state.board.feed_note})` : ''}`
+      + ` · ${state.board.universe_size} symbols`
+    : '';
+  $('lookback-note').textContent =
+    `${state.lookback} trading session${state.lookback > 1 ? 's' : ''} through ${state.board.as_of_session || '—'}`;
+}
+
+function renderMomentumHero(slice, el) {
+  const g = slice && slice.hottest;
   if (!g) { el.innerHTML = '<div class="loading">No ranking available.</div>'; return; }
 
   const bench = slice.benchmarks.find(b => b.symbol === 'SPY');
@@ -233,14 +297,78 @@ function renderHero() {
       <div class="v ${g.etf ? signClass(g.etf_return_pct) : ''}">${
         g.etf ? fmtPct(g.etf_return_pct) : g.member_count}</div>
     </div>`;
+}
 
-  $('asof').textContent = state.board.as_of_session
-    ? `session ${state.board.as_of_session} · ${state.board.feed.toUpperCase()} feed`
-      + `${state.board.feed_note ? ` (${state.board.feed_note})` : ''}`
-      + ` · ${state.board.universe_size} symbols`
-    : '';
-  $('lookback-note').textContent =
-    `${state.lookback} trading session${state.lookback > 1 ? 's' : ''} through ${state.board.as_of_session || '—'}`;
+function renderReversalHero(slice, el) {
+  const rev = slice.reversal;
+  const g = rev && rev.leader;
+  if (!rev || !g) {
+    el.innerHTML = `<div class="loading">No reversal candidates over this window — nothing in the
+      universe was down over the prior period and turned positive on the most recent session.</div>`;
+    return;
+  }
+
+  const bench = rev.benchmarks_1d.find(b => b.symbol === 'SPY');
+  const vsSpyToday = bench && bench.return_pct != null ? g.avg_trigger_return_pct - bench.return_pct : null;
+  const priorDays = state.lookback - 1;
+
+  el.innerHTML = `
+    <div>
+      <div class="lede">Top reversal candidate · down ${priorDays} day${priorDays > 1 ? 's' : ''}, up today</div>
+      <div class="group-name">${g.group}<span class="kind">${g.kind}</span></div>
+    </div>
+    <div class="stat">
+      <div class="k">Prior decline (avg)</div>
+      <div class="v ${signClass(g.avg_prior_return_pct)}">${fmtPct(g.avg_prior_return_pct)}</div>
+    </div>
+    <div class="stat">
+      <div class="k">Bounce today (avg)</div>
+      <div class="v ${signClass(g.avg_trigger_return_pct)}">${fmtPct(g.avg_trigger_return_pct)}</div>
+    </div>
+    <div class="stat">
+      <div class="k">Reversal breadth</div>
+      <div class="v">${g.breadth_pct.toFixed(0)}% <span style="font-size:12px;color:var(--text-muted)">(${g.qualifying_count}/${g.evaluated_count})</span></div>
+    </div>
+    <div class="stat">
+      <div class="k">vs SPY today</div>
+      <div class="v ${signClass(vsSpyToday)}">${vsSpyToday == null ? '—' : fmtPct(vsSpyToday)}</div>
+    </div>
+    <div class="stat">
+      <div class="k">Vol vs prior avg</div>
+      <div class="v">${g.avg_volume_ratio == null ? '—' : g.avg_volume_ratio.toFixed(2) + '×'}</div>
+    </div>`;
+}
+
+/** One diverging-bar row, shared by both views.
+ *
+ *  `getVal` must return the quantity the list is *sorted by*, so bar length and
+ *  row order always agree -- encoding one measure while sorting by another makes
+ *  the sort key invisible and the chart reads as mis-ordered. `getText` is what
+ *  the value column prints, which may carry more than the bar encodes. */
+function buildRankRow(r, lo, span, zeroPct, active, getVal, getText, getLabel) {
+  const row = document.createElement('div');
+  row.className = 'rank-row' + (active && r.group === active.group ? ' leader' : '');
+  row.tabIndex = 0;
+  row.setAttribute('role', 'button');
+  row.setAttribute('aria-label', `${r.group}, ${getLabel(r)}`);
+
+  const v = getVal(r);
+  const from = Math.min(v, 0), to = Math.max(v, 0);
+  const left = ((from - lo) / span) * 100;
+  const width = ((to - from) / span) * 100;
+
+  row.innerHTML = `
+    <div class="name" title="${r.group}">${r.group}</div>
+    <div class="bar-track">
+      <div class="zero-rule" style="left:${zeroPct}%"></div>
+      <div class="bar" style="left:${left}%;width:${Math.max(width, 0.4)}%"></div>
+    </div>
+    <div class="val">${getText(r)}</div>`;
+
+  const pick = () => selectGroup(r.group);
+  row.onclick = pick;
+  row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
+  return row;
 }
 
 function renderRankChart() {
@@ -249,6 +377,14 @@ function renderRankChart() {
   box.innerHTML = '';
   if (!slice) return;
 
+  if (state.view === 'reversal') {
+    renderReversalRankChart(box);
+  } else {
+    renderMomentumRankChart(slice, box);
+  }
+}
+
+function renderMomentumRankChart(slice, box) {
   const rows = slice.rankings;
   const vals = rows.map(r => r.mean_return_pct);
   const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
@@ -257,34 +393,47 @@ function renderRankChart() {
   const active = activeGroup();
 
   rows.forEach(r => {
-    const row = document.createElement('div');
-    row.className = 'rank-row' + (active && r.group === active.group ? ' leader' : '');
-    row.tabIndex = 0;
-    row.setAttribute('role', 'button');
-    row.setAttribute('aria-label', `${r.group}, mean return ${fmtPct(r.mean_return_pct)}`);
-
-    const v = r.mean_return_pct;
-    const from = Math.min(v, 0), to = Math.max(v, 0);
-    const left = ((from - lo) / span) * 100;
-    const width = ((to - from) / span) * 100;
-
-    row.innerHTML = `
-      <div class="name" title="${r.group}">${r.group}</div>
-      <div class="bar-track">
-        <div class="zero-rule" style="left:${zeroPct}%"></div>
-        <div class="bar" style="left:${left}%;width:${Math.max(width, 0.4)}%"></div>
-      </div>
-      <div class="val">${fmtPct(v)}</div>`;
-
-    const pick = () => selectGroup(r.group);
-    row.onclick = pick;
-    row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
-    box.appendChild(row);
+    box.appendChild(buildRankRow(
+      r, lo, span, zeroPct, active,
+      x => x.mean_return_pct,
+      x => fmtPct(x.mean_return_pct),
+      x => `mean return ${fmtPct(x.mean_return_pct)}`,
+    ));
   });
 
+  $('rank-title').textContent = 'Group ranking';
   $('rank-sub').textContent =
     `Equal-weight mean return of each group's constituents over ${state.lookback} trading ` +
     `session${state.lookback > 1 ? 's' : ''}. Click a row to load its top movers.`;
+}
+
+function renderReversalRankChart(box) {
+  const rows = activeRankings();
+  $('rank-title').textContent = 'Reversal candidates';
+  const priorDays = state.lookback - 1;
+  $('rank-sub').textContent = rows.length
+    ? `Groups down over the prior ${priorDays} day${priorDays > 1 ? 's' : ''} that turned positive ` +
+      `on the most recent session. Bar and first figure are the share of members that reversed; ` +
+      `second figure is their average bounce. Click a row to load its movers.`
+    : `No groups were down over the prior ${priorDays} day${priorDays > 1 ? 's' : ''} and up on the ` +
+      `most recent session.`;
+  if (!rows.length) return;
+
+  // The bar encodes reversal breadth, which is the primary sort key, on a fixed
+  // 0-100% scale -- breadth is a share of members, so a full-width bar should
+  // mean "every member reversed", not merely "the most of any group here".
+  const lo = 0, span = 100, zeroPct = 0;
+  const active = activeGroup();
+
+  rows.forEach(r => {
+    box.appendChild(buildRankRow(
+      r, lo, span, zeroPct, active,
+      x => x.breadth_pct,
+      x => `${x.breadth_pct.toFixed(0)}% · ${fmtPct(x.avg_trigger_return_pct)}`,
+      x => `${x.breadth_pct.toFixed(0)}% of members reversed (${x.qualifying_count} of `
+         + `${x.evaluated_count}), average bounce ${fmtPct(x.avg_trigger_return_pct)}`,
+    ));
+  });
 }
 
 function sparkline(bars) {
@@ -308,25 +457,57 @@ function renderLeaders() {
   const g = activeGroup();
   const box = $('leaders');
   box.innerHTML = '';
-  if (!g) return;
+  if (!g) {
+    $('leaders-title').textContent = 'Top movers';
+    $('leaders-sub').textContent = 'Nothing to show for this view and window.';
+    return;
+  }
 
-  $('leaders-title').textContent = `Top ${g.top.length} — ${g.group}`;
-  $('leaders-sub').textContent =
-    `Best ${state.lookback}-day performers inside ${g.group} (${g.member_count} members priced). ` +
-    `Click a card to chart it.`;
+  const isReversal = state.view === 'reversal';
+  $('leaders-title').textContent = isReversal
+    ? `Reversing now — ${g.group}`
+    : `Top ${g.top.length} — ${g.group}`;
+  $('leaders-sub').textContent = isReversal
+    ? `${g.qualifying_count} of ${g.evaluated_count} members in ${g.group} were down over the prior ` +
+      `${state.lookback - 1} session${state.lookback - 1 > 1 ? 's' : ''} and closed up on the most ` +
+      `recent one, biggest bounce first. Click a card to chart it.`
+    : `Best ${state.lookback}-day performers inside ${g.group} (${g.member_count} members priced). ` +
+      `Click a card to chart it.`;
 
   g.top.forEach((m, i) => {
     const card = document.createElement('button');
     card.className = 'stock-card' + (state.symbol === m.symbol ? ' selected' : '');
-    card.innerHTML = `
-      <div class="rankno">#${i + 1}</div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
-        <span class="sym">${m.symbol}</span>
-        <span class="ret ${signClass(m.return_pct)}">${fmtPct(m.return_pct)}</span>
-      </div>
-      <div class="px">${fmtPx(m.last_close)} · vol ${fmtVol(m.volume)}</div>
-      <div class="spark-cap">30-day trend</div>
-      <div class="spark-slot"></div>`;
+    if (isReversal) {
+      // Volume confirmation is the honest tell on a bounce: a green day on
+      // below-average volume is weaker evidence that the selling is done, so
+      // it is shown per name rather than buried in the group average.
+      const vr = m.volume_ratio;
+      const volClass = vr == null ? '' : (vr >= 1 ? 'pos' : 'neg');
+      const volText = vr == null ? '—' : `${vr.toFixed(2)}×`;
+      card.innerHTML = `
+        <div class="rankno">#${i + 1}</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <span class="sym">${m.symbol}</span>
+          <span class="ret ${signClass(m.trigger_return_pct)}">${fmtPct(m.trigger_return_pct)}</span>
+        </div>
+        <div class="px">${fmtPx(m.last_close)} · vol ${fmtVol(m.volume)}</div>
+        <div class="rev-meta">
+          <span>prior <b class="${signClass(m.prior_return_pct)}">${fmtPct(m.prior_return_pct)}</b></span>
+          <span>vol <b class="${volClass}">${volText}</b></span>
+        </div>
+        <div class="spark-cap">30-day trend</div>
+        <div class="spark-slot"></div>`;
+    } else {
+      card.innerHTML = `
+        <div class="rankno">#${i + 1}</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <span class="sym">${m.symbol}</span>
+          <span class="ret ${signClass(m.return_pct)}">${fmtPct(m.return_pct)}</span>
+        </div>
+        <div class="px">${fmtPx(m.last_close)} · vol ${fmtVol(m.volume)}</div>
+        <div class="spark-cap">30-day trend</div>
+        <div class="spark-slot"></div>`;
+    }
     card.onclick = () => { selectStock(m.symbol); };
     box.appendChild(card);
 
@@ -847,33 +1028,72 @@ function renderRankTable() {
   const slice = currentSlice();
   const box = $('rank-table');
   if (!slice) { box.innerHTML = ''; return; }
-  const active = activeGroup();
-  const rows = slice.rankings.map((r, i) => {
-    const isActive = active && r.group === active.group;
-    // No role="button" here: overriding a <tr>'s implicit row role breaks the
-    // table's structure for screen readers. aria-current is valid on any element
-    // and is what conveys "this is the group being shown".
-    return `<tr class="pick-row${isActive ? ' selected' : ''}" data-group="${r.group
-      .replace(/"/g, '&quot;')}" tabindex="0"${isActive ? ' aria-current="true"' : ''}>
-      <td>${i + 1}</td><td>${r.group}</td><td>${r.kind}</td>
-      <td>${fmtPct(r.mean_return_pct)}</td><td>${fmtPct(r.median_return_pct)}</td>
-      <td>${r.breadth_pct.toFixed(0)}%</td><td>${r.member_count}</td>
-      <td>${r.etf || '—'}</td><td>${r.etf_return_pct == null ? '—' : fmtPct(r.etf_return_pct)}</td>
-      <td>${r.top.map(m => `${m.symbol} ${fmtPct(m.return_pct)}`).join(', ')}</td>
-    </tr>`;
-  }).join('');
-  const bench = slice.benchmarks
-    .map(b => `${b.symbol} ${b.return_pct == null ? '—' : fmtPct(b.return_pct)}`).join(' · ');
-  // Read the count off the payload so the header can't drift from the server.
-  const topN = slice.rankings.length ? slice.rankings[0].top.length : 5;
-  box.innerHTML = `<table>
-    <thead><tr>
-      <th>#</th><th>Group</th><th>Kind</th><th>Mean</th><th>Median</th><th>Breadth</th>
-      <th>Members</th><th>ETF</th><th>ETF ret</th><th>Top ${topN}</th>
-    </tr></thead><tbody>${rows}</tbody></table>
-    <p class="sub" style="margin-top:10px">Benchmarks over the same window: ${bench}</p>`;
 
-  // Rows drive the Top 5 strip, same as the bar chart above.
+  const isReversal = state.view === 'reversal';
+  $('rank-table-title').textContent = isReversal ? 'Reversal table' : 'Ranking table';
+  $('rank-table-sub').textContent =
+    'The same board as above in text form — every value readable without color. '
+    + 'Click any row to load that group\'s movers.';
+
+  const active = activeGroup();
+  const list = activeRankings();
+
+  if (!list.length) {
+    box.innerHTML = '<p class="sub">Nothing qualified for this view and window.</p>';
+    return;
+  }
+
+  // No role="button" on the rows: overriding a <tr>'s implicit row role breaks
+  // the table's structure for screen readers. aria-current is valid on any
+  // element and is what conveys "this is the group being shown".
+  const rowAttrs = (r, isActive) =>
+    `class="pick-row${isActive ? ' selected' : ''}" data-group="${r.group.replace(/"/g, '&quot;')}"`
+    + ` tabindex="0"${isActive ? ' aria-current="true"' : ''}`;
+
+  let head, rows, footNote;
+  if (isReversal) {
+    const priorDays = state.lookback - 1;
+    head = `<th>#</th><th>Group</th><th>Kind</th><th>Prior ${priorDays}D</th><th>Bounce</th>`
+      + `<th>Vol ×</th><th>Reversed</th><th>Of priced</th><th>Breadth</th><th>Movers</th>`;
+    rows = list.map((r, i) => {
+      const isActive = active && r.group === active.group;
+      return `<tr ${rowAttrs(r, isActive)}>
+        <td>${i + 1}</td><td>${r.group}</td><td>${r.kind}</td>
+        <td>${fmtPct(r.avg_prior_return_pct)}</td><td>${fmtPct(r.avg_trigger_return_pct)}</td>
+        <td>${r.avg_volume_ratio == null ? '—' : r.avg_volume_ratio.toFixed(2) + '×'}</td>
+        <td>${r.qualifying_count}</td><td>${r.evaluated_count}</td>
+        <td>${r.breadth_pct.toFixed(0)}%</td>
+        <td>${r.top.map(m => `${m.symbol} ${fmtPct(m.trigger_return_pct)}`).join(', ')}</td>
+      </tr>`;
+    }).join('');
+    const b1 = (slice.reversal && slice.reversal.benchmarks_1d) || [];
+    footNote = b1.length
+      ? `Benchmarks on the trigger session: ${b1.map(b =>
+          `${b.symbol} ${b.return_pct == null ? '—' : fmtPct(b.return_pct)}`).join(' · ')}`
+      : '';
+  } else {
+    const topN = list[0].top.length;
+    head = `<th>#</th><th>Group</th><th>Kind</th><th>Mean</th><th>Median</th><th>Breadth</th>`
+      + `<th>Members</th><th>ETF</th><th>ETF ret</th><th>Top ${topN}</th>`;
+    rows = list.map((r, i) => {
+      const isActive = active && r.group === active.group;
+      return `<tr ${rowAttrs(r, isActive)}>
+        <td>${i + 1}</td><td>${r.group}</td><td>${r.kind}</td>
+        <td>${fmtPct(r.mean_return_pct)}</td><td>${fmtPct(r.median_return_pct)}</td>
+        <td>${r.breadth_pct.toFixed(0)}%</td><td>${r.member_count}</td>
+        <td>${r.etf || '—'}</td><td>${r.etf_return_pct == null ? '—' : fmtPct(r.etf_return_pct)}</td>
+        <td>${r.top.map(m => `${m.symbol} ${fmtPct(m.return_pct)}`).join(', ')}</td>
+      </tr>`;
+    }).join('');
+    footNote = `Benchmarks over the same window: ${slice.benchmarks
+      .map(b => `${b.symbol} ${b.return_pct == null ? '—' : fmtPct(b.return_pct)}`).join(' · ')}`;
+  }
+
+  box.innerHTML = `<table>
+    <thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>
+    ${footNote ? `<p class="sub" style="margin-top:10px">${footNote}</p>` : ''}`;
+
+  // Rows drive the movers strip, same as the bar chart above.
   box.querySelectorAll('.pick-row').forEach(tr => {
     const pick = () => selectGroup(tr.dataset.group);
     tr.onclick = pick;
@@ -1151,6 +1371,7 @@ function renderDetail() {
 }
 
 function renderAll() {
+  renderViewTabs();
   renderLookbackTabs();
   renderHero();
   renderRankChart();
@@ -1249,6 +1470,7 @@ function init() {
     resizeTimer = setTimeout(drawChart, 120);
   });
 
+  renderViewTabs();
   renderLookbackTabs();
   fetchBoard(false);
 }

@@ -23,7 +23,12 @@
   <main>
     <div id="notices"></div>
 
-    <!-- One filter row, above everything it scopes. -->
+    <!-- Filter rows, above everything they scope. -->
+    <div class="filters">
+      <span class="label">View</span>
+      <div class="tabs" id="view-tabs" role="tablist" aria-label="Screen type"></div>
+      <span class="meta" id="view-note"></span>
+    </div>
     <div class="filters">
       <span class="label">Lookback</span>
       <div class="tabs" id="lookback-tabs" role="tablist" aria-label="Lookback window"></div>
@@ -35,7 +40,7 @@
     </section>
 
     <section class="card">
-      <h2>Group ranking</h2>
+      <h2 id="rank-title">Group ranking</h2>
       <p class="sub" id="rank-sub">Equal-weight mean return of each group's constituents. Click a row to inspect its leaders.</p>
       <div id="rank-chart"></div>
     </section>
@@ -94,8 +99,8 @@
     </section>
 
     <section class="card">
-      <h2>Ranking table</h2>
-      <p class="sub">The same board as above in text form — every value readable without color.
+      <h2 id="rank-table-title">Ranking table</h2>
+      <p class="sub" id="rank-table-sub">The same board as above in text form — every value readable without color.
          Click any row to load that group's top movers.</p>
       <div class="table-wrap" id="rank-table"></div>
     </section>
