@@ -63,7 +63,16 @@ FEED_NOTE = "not yet resolved"
 BOARD_TTL = 300  # seconds
 STOCK_TTL = 300
 LOOKBACKS = [1, 2, 3, 4, 5]
+# Reversal candidates need a "prior period" before the trigger day, so a
+# 1-session window has nothing to reverse from.
+REVERSAL_LOOKBACKS = [2, 3, 4, 5]
 TOP_N = 5
+# A reversal candidate must have been genuinely down before today, not just
+# flat. Scaled per prior session rather than fixed, so a 4-day prior period
+# needs more cumulative decline than a 1-day one to qualify -- a flat fixed
+# threshold would let a window with 3 do-nothing days and a random red hair
+# qualify on the same footing as a real 4-day slide.
+REVERSAL_MIN_DECLINE_PER_DAY = -0.75
 # Per-symbol payloads are ~200 KB each. Cap the in-memory cache so browsing every
 # group cannot grow it without bound.
 STOCK_CACHE_MAX = 60
@@ -209,6 +218,37 @@ def pct_return(bars: list[dict], n_days: int) -> float | None:
     return (latest / prior - 1.0) * 100.0
 
 
+def reversal_metrics(bars: list[dict], lb: int) -> dict | None:
+    """Trigger-day bounce, prior-period decline, and volume confirmation for one symbol.
+
+    `lb` is the total sessions considered: the most recent one (the trigger
+    day) plus `lb - 1` sessions before it (the prior/decline period). Returns
+    None if there isn't enough history or the symbol doesn't actually qualify
+    as a reversal (prior period down past the threshold, trigger day positive).
+    """
+    if len(bars) < lb + 1:
+        return None
+    trigger_return = pct_return(bars, 1)
+    prior_return = pct_return(bars[:-1], lb - 1)
+    if trigger_return is None or prior_return is None:
+        return None
+    if prior_return > REVERSAL_MIN_DECLINE_PER_DAY * (lb - 1) or trigger_return <= 0:
+        return None
+
+    prior_volumes = [float(b["v"]) for b in bars[-lb:-1]]
+    prior_avg_volume = sum(prior_volumes) / len(prior_volumes) if prior_volumes else 0.0
+    volume_ratio = (float(bars[-1]["v"]) / prior_avg_volume) if prior_avg_volume > 0 else None
+
+    return {
+        "trigger_return_pct": trigger_return,
+        "prior_return_pct": prior_return,
+        "volume_ratio": volume_ratio,
+        "last_close": float(bars[-1]["c"]),
+        "volume": float(bars[-1]["v"]),
+        "date": bars[-1]["t"][:10],
+    }
+
+
 def build_board() -> dict:
     """Rank every group per lookback and pick the top movers inside the leader."""
     end = datetime.now(timezone.utc)
@@ -222,10 +262,20 @@ def build_board() -> dict:
     omitted: dict[str, list[str]] = {}
     board: dict[str, dict] = {}
 
+    # Today's single-day return per benchmark, for the reversal view's "vs SPY"
+    # context. This doesn't depend on lb, so it's computed once and reused
+    # across every reversal block below rather than recomputed per lookback.
+    benchmarks_1d = [
+        {"symbol": b, "return_pct": pct_return(bars_by_symbol.get(b) or [], 1)}
+        for b in universe.BENCHMARKS
+    ]
+
     for lb in LOOKBACKS:
         rankings = []
+        reversal_rankings = []
         for gname, cfg in groups.items():
             members = []
+            reversal_qualifiers = []
             missing = []
             for sym in cfg["constituents"]:
                 bars = bars_by_symbol.get(sym) or []
@@ -242,31 +292,59 @@ def build_board() -> dict:
                         "date": bars[-1]["t"][:10],
                     }
                 )
+                if lb in REVERSAL_LOOKBACKS:
+                    rm = reversal_metrics(bars, lb)
+                    if rm is not None:
+                        reversal_qualifiers.append({"symbol": sym, **rm})
             if missing:
                 omitted.setdefault(gname, []).extend(sorted(set(missing)))
-            if not members:
-                continue
 
-            returns = [m["return_pct"] for m in members]
-            etf_sym = cfg.get("etf")
-            etf_return = pct_return(bars_by_symbol.get(etf_sym) or [], lb) if etf_sym else None
+            if members:
+                returns = [m["return_pct"] for m in members]
+                etf_sym = cfg.get("etf")
+                etf_return = pct_return(bars_by_symbol.get(etf_sym) or [], lb) if etf_sym else None
 
-            members.sort(key=lambda m: m["return_pct"], reverse=True)
-            rankings.append(
-                {
-                    "group": gname,
-                    "kind": cfg["kind"],
-                    "etf": etf_sym,
-                    "etf_return_pct": etf_return,
-                    "mean_return_pct": sum(returns) / len(returns),
-                    "median_return_pct": statistics.median(returns),
-                    "breadth_pct": sum(1 for r in returns if r > 0) / len(returns) * 100.0,
-                    "member_count": len(members),
-                    "top": members[:TOP_N],
-                }
-            )
+                members.sort(key=lambda m: m["return_pct"], reverse=True)
+                rankings.append(
+                    {
+                        "group": gname,
+                        "kind": cfg["kind"],
+                        "etf": etf_sym,
+                        "etf_return_pct": etf_return,
+                        "mean_return_pct": sum(returns) / len(returns),
+                        "median_return_pct": statistics.median(returns),
+                        "breadth_pct": sum(1 for r in returns if r > 0) / len(returns) * 100.0,
+                        "member_count": len(members),
+                        "top": members[:TOP_N],
+                    }
+                )
+
+            # A group only appears in the reversal view if at least one
+            # constituent actually qualified -- an empty-handed group has
+            # nothing honest to show here, unlike the momentum view where
+            # every priced group gets a (possibly negative) mean return.
+            if reversal_qualifiers:
+                triggers = [q["trigger_return_pct"] for q in reversal_qualifiers]
+                priors = [q["prior_return_pct"] for q in reversal_qualifiers]
+                vol_ratios = [q["volume_ratio"] for q in reversal_qualifiers if q["volume_ratio"] is not None]
+                reversal_qualifiers.sort(key=lambda q: q["trigger_return_pct"], reverse=True)
+                reversal_rankings.append(
+                    {
+                        "group": gname,
+                        "kind": cfg["kind"],
+                        "avg_trigger_return_pct": sum(triggers) / len(triggers),
+                        "avg_prior_return_pct": sum(priors) / len(priors),
+                        "avg_volume_ratio": (sum(vol_ratios) / len(vol_ratios)) if vol_ratios else None,
+                        "qualifying_count": len(reversal_qualifiers),
+                        "evaluated_count": len(members),
+                        "breadth_pct": len(reversal_qualifiers) / len(members) * 100.0 if members else 0.0,
+                        "top": reversal_qualifiers[:TOP_N],
+                    }
+                )
 
         rankings.sort(key=lambda g: g["mean_return_pct"], reverse=True)
+        # Most names reversing, then biggest average bounce among those that did.
+        reversal_rankings.sort(key=lambda g: (g["breadth_pct"], g["avg_trigger_return_pct"]), reverse=True)
         benchmarks = [
             {
                 "symbol": b,
@@ -279,6 +357,15 @@ def build_board() -> dict:
             "rankings": rankings,
             "hottest": rankings[0] if rankings else None,
             "benchmarks": benchmarks,
+            "reversal": (
+                {
+                    "rankings": reversal_rankings,
+                    "leader": reversal_rankings[0] if reversal_rankings else None,
+                    "benchmarks_1d": benchmarks_1d,
+                }
+                if lb in REVERSAL_LOOKBACKS
+                else None
+            ),
         }
 
     latest_dates = [b[-1]["t"][:10] for b in bars_by_symbol.values() if b]

@@ -1,9 +1,10 @@
 # Trading Desk — Hot Sector Board
 
-Local dashboard that ranks sectors and themes by short-horizon momentum and charts
-the top movers with the standard technical indicator set.
+Local dashboard that screens sectors and themes over short horizons — for momentum
+or for reversals — and charts the resulting movers with the standard technical
+indicator set.
 
-**Last Updated:** 2026-08-09
+**Last Updated:** 2026-08-10
 **Status:** Active
 **Audience:** Both
 
@@ -11,12 +12,20 @@ the top movers with the standard technical indicator set.
 
 ## Overview
 
-For each lookback window (1, 2, 3, 4 and 5 trading days) the board:
+Two screens share the same universe, lookback tabs, chart and company panel. A
+**View** toggle switches between them.
+
+**Momentum** — for each lookback window (1, 2, 3, 4 and 5 trading days):
 
 1. ranks all 14 groups (11 GICS sectors + 3 themes) by the equal-weight mean
    return of their constituents,
 2. surfaces the hottest group, and
 3. lists that group's 5 best performers, each chartable with full indicators.
+
+**Reversal candidates** — the opposite setup, for windows of 2–5 days: groups that
+were *down* over the prior period and turned positive on the most recent session,
+ranked by how many members reversed. See
+[Reversal candidates](#reversal-candidates) for the qualification rules.
 
 Data comes from the Alpaca market data API using the paper credentials already
 in the repo-root `.env`.
@@ -51,8 +60,10 @@ Then open <http://localhost:8799>.
 
 | Section | What it shows |
 |---|---|
-| Lookback tabs | 1D–5D. One filter row scoping the whole board. |
+| View tabs | Momentum / Reversal candidates. Scopes the hero, ranking, movers strip and table. |
+| Lookback tabs | 1D–5D for momentum, 2D–5D for reversal. Scopes the whole board. |
 | Hottest group | Mean, median, breadth, vs SPY, and the ETF proxy return. |
+| Top reversal candidate | Prior decline, bounce, reversal breadth, vs SPY today, volume ratio. |
 | Group ranking | All 14 groups as a diverging bar chart; click a row to load its leaders. |
 | Top 5 | The leaders inside the selected group, with a 30-day sparkline. |
 | Detail chart | Candlesticks + overlays, with volume, RSI and MACD panes on a shared crosshair. |
@@ -90,6 +101,43 @@ trailing earnings show `n/a` rather than a meaningless negative multiple.
 Where a company has migrated XBRL revenue tags, the tag with the most recent
 period wins — picking by a fixed tag order would surface a long-abandoned tag as
 if it were current.
+
+### Reversal candidates
+
+A name qualifies when it was down over the **prior period** and closed **up** on
+the **trigger day** (the most recent session). The window splits as `lb - 1` prior
+sessions plus the trigger day, so a 5D window means "down over four sessions, up
+on the fifth".
+
+Qualification is deliberately stricter than "yesterday red, today green", because
+one green day after a slide can be a dead-cat bounce that resumes falling:
+
+- **The decline threshold scales per session** (`-0.75%` × prior sessions). A flat
+  threshold would let a window with three do-nothing days and one red hair rank
+  alongside a genuine four-day slide.
+- **Trigger-day volume is reported as a ratio** against the prior period's average
+  volume, per name and per group. A bounce on below-average volume is weaker
+  evidence that the selling is finished — worth seeing rather than inferring from
+  the price move alone. Where a prior session had zero volume the ratio is `null`,
+  not a substituted number.
+- **A strictly positive trigger day is required** — an unchanged close is not a
+  reversal.
+- **Groups with no qualifying members are omitted entirely**, rather than listed
+  with a zeroed row.
+- **There is no 1D screen.** A single-session window has no prior period to
+  reverse from, so the server returns `reversal: null` there and the lookback tabs
+  become 2D–5D. Switching views clamps an out-of-range lookback rather than
+  landing on an undefined slice.
+
+Groups rank by **reversal breadth** (share of priced members that reversed), then
+average bounce. The bar encodes breadth on a fixed 0–100% scale — the same
+quantity the list is sorted by, so a full-width bar means "every member reversed"
+rather than "the most of whatever is on screen". Encoding the bounce while sorting
+by breadth drew longer bars on lower-ranked rows and made the sort key invisible.
+
+Both figures are shown per row (`76% · +4.22%`), and the group's average volume
+ratio sits in the hero and the table, so a broad-but-unconfirmed bounce is
+distinguishable from a narrow-but-heavy one.
 
 ### Indicators
 
@@ -129,7 +177,7 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 
 | Route | Returns |
 |---|---|
-| `GET /api/board` | Rankings for all five lookbacks. `?force=1` bypasses the cache. |
+| `GET /api/board` | Momentum rankings for all five lookbacks, each with a `reversal` block (`null` on 1D). `?force=1` bypasses the cache. |
 | `GET /api/stock?symbol=X` | ~2 years of daily bars plus every indicator series. |
 | `GET /api/detail?symbol=X` | Fundamentals, price stats, news, and research links. |
 | `GET /api/health` | Credential and cache status. |
@@ -148,6 +196,8 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 - Indicator warmup regions are `null`, not zero-filled — an undefined SMA200 on
   day 3 stays undefined.
 - A flat Stochastic window (zero range) returns `null` rather than a made-up 50.
+- A reversal volume ratio against a zero-volume prior session is `null`, not a
+  substituted or clamped multiple.
 - If a live fetch fails, the server serves the **last known-good** cache and marks
   the payload `stale`, with a banner saying so. A failed fetch never overwrites
   good cached data, and the board's cache write is atomic (temp file + rename).
@@ -171,11 +221,24 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 
 | File | Role |
 |---|---|
-| `server.py` | HTTP server, Alpaca client, ranking, caching |
+| `server.py` | HTTP server, Alpaca client, momentum + reversal ranking, caching |
 | `universe.py` | Sector/theme constituents |
 | `indicators.py` | Indicator math (pure stdlib) |
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
+| `tests/test_reversal.py` | Reversal qualification regression tests |
+
+## Tests
+
+```bash
+python3 trading_desk/tests/test_reversal.py       # no pytest needed
+python3 -m pytest trading_desk/tests/             # or under pytest
+```
+
+Synthetic bars only, no network, so the qualification rules stay pinned
+independently of the current session. Kept out of the repo-root `tests/` tree on
+purpose: that suite's `conftest.py` pulls in dotenv/APScheduler/Lumibot fixtures
+this stdlib-only sub-project does not need.
 
 ## Dependencies
 
