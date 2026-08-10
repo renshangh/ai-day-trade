@@ -31,6 +31,12 @@ const state = {
   group: null,        // group name being shown in the leaders strip
   symbol: null,
   stock: null,
+  // Bumped by every fetchStock() call. A response is only committed if this
+  // still matches the token it was issued -- otherwise a slower request from
+  // an earlier click (e.g. LITE, whose /api/stock happens to be the slow one)
+  // can resolve after a faster later click (AXTI) and overwrite it, leaving
+  // the older symbol showing even though it was clicked first, not last.
+  selectionSeq: 0,
   overlays: Object.fromEntries(OVERLAYS.map(o => [o.key, o.on])),
   tableView: false,
   hover: null,        // index into the visible slice
@@ -95,24 +101,29 @@ async function fetchBoard(force) {
 }
 
 async function fetchStock(symbol, force) {
+  const mySeq = ++state.selectionSeq;
   state.loading = true;
   $('chart-wrap').classList.add('refetching');
   try {
     const res = await fetch(`/api/stock?symbol=${encodeURIComponent(symbol)}${force ? '&force=1' : ''}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
+    if (mySeq !== state.selectionSeq) return;  // a newer click already superseded this one
     state.stock = data;
     state.symbol = symbol;
     state.hover = null;
     renderDetail();
-    fetchDetail(symbol);  // fundamentals/news load independently of the chart
+    fetchDetail(symbol, mySeq);  // fundamentals/news load independently of the chart
   } catch (e) {
+    if (mySeq !== state.selectionSeq) return;
     $('d-sym').textContent = symbol;
     $('d-px').textContent = '';
     showError(`Could not load ${symbol}: ${e.message}`);
   } finally {
-    state.loading = false;
-    $('chart-wrap').classList.remove('refetching');
+    if (mySeq === state.selectionSeq) {
+      state.loading = false;
+      $('chart-wrap').classList.remove('refetching');
+    }
   }
 }
 
@@ -907,7 +918,7 @@ function statBox(label, value, note, opts = {}) {
   return el;
 }
 
-async function fetchDetail(symbol) {
+async function fetchDetail(symbol, seq) {
   const card = $('company-card');
   card.classList.add('refetching');
   $('c-title').textContent = `Company detail — ${symbol}`;
@@ -915,14 +926,18 @@ async function fetchDetail(symbol) {
     const res = await fetch(`/api/detail?symbol=${encodeURIComponent(symbol)}`);
     const d = await res.json();
     if (d.error) throw new Error(d.error);
-    // A slower detail response must not overwrite a symbol the user has since
-    // clicked away from.
-    if (d.symbol !== state.symbol) return;
+    // The detail fetch runs independently of the chart fetch and has its own
+    // (often larger) latency, so it needs the same out-of-order guard as
+    // fetchStock -- comparing against d.symbol/state.symbol alone isn't enough
+    // once two different symbols can both be "the current one" at different
+    // instants during the race.
+    if (seq !== state.selectionSeq) return;
     renderCompany(d);
   } catch (e) {
+    if (seq !== state.selectionSeq) return;
     $('c-stats').replaceChildren(statBox('Company detail', 'unavailable', e.message, { na: true }));
   } finally {
-    card.classList.remove('refetching');
+    if (seq === state.selectionSeq) card.classList.remove('refetching');
   }
 }
 
