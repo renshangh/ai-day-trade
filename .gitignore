@@ -95,3 +95,9 @@ tmp/
 trading_desk/cache.json
 trading_desk/*.json.tmp
 trading_desk/__pycache__/
+
+# Trading records contain real positions, fills and account details.
+# Keep the format docs/template in git; never the actual records.
+trading_records/*
+!trading_records/README.md
+!trading_records/TEMPLATE.csv

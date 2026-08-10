@@ -1,0 +1,2 @@
+trade_id,status,setup,group,symbol,side,qty,entry_date,entry_price,stop,target,exit_date,exit_price,gross_pnl,fees,net_pnl,pnl_pct,r_multiple,atr_pct_at_entry,thesis,exit_reason,lesson
+1,closed,momentum,AI Optical / Interconnect,EXAMPLE,long,10,2026-08-03,100.00,94.00,112.00,2026-08-05,108.50,85.00,0.00,85.00,8.50,1.42,8.9,"Example row - delete. Sector ranked #1 across all lookbacks; entered on continuation above prior day high.",target,"Sized off ATR rather than a flat dollar amount; stop survived a 6% intraday swing."
