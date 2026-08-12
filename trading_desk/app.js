@@ -68,6 +68,23 @@ const fmtPx = v => (v == null ? '—' : v.toLocaleString('en-US', { minimumFract
 const fmtNum = (v, d = 2) => (v == null ? '—' : v.toFixed(d));
 const signClass = v => (v == null ? '' : v >= 0 ? 'pos' : 'neg');
 
+/** Point the header's Yahoo Finance link at the charted symbol, or at the site
+ *  root when nothing is loaded. encodeURIComponent because the symbol reaches
+ *  here from the search box, where a user can type anything. */
+function updateYahooLink(symbol) {
+  const a = $('yahoo-link');
+  if (!a) return;
+  if (symbol) {
+    a.href = `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`;
+    a.textContent = `Yahoo: ${symbol} ↗`;
+    a.title = `Open ${symbol} on Yahoo Finance in a new tab`;
+  } else {
+    a.href = 'https://finance.yahoo.com';
+    a.textContent = 'Yahoo Finance ↗';
+    a.title = 'Open Yahoo Finance in a new tab';
+  }
+}
+
 function fmtVol(v) {
   if (v == null) return '—';
   if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
@@ -1368,6 +1385,7 @@ function renderDetail() {
     `${fmtPx(last.c)} <span class="${signClass(chg)}">${fmtPct(chg)}</span>
      <span style="color:var(--text-muted)"> · ${last.t}</span>`;
 
+  updateYahooLink(s.symbol);
   renderRangeTabs();
   renderOverlayToggles();
   renderLegend();

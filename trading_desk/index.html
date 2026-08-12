@@ -16,6 +16,12 @@
       <input id="symbol-input" type="text" placeholder="Symbol e.g. NVDA" maxlength="10" spellcheck="false">
       <button type="submit">View chart</button>
     </form>
+    <!-- Symbol-aware: points at the charted symbol's Yahoo page, or the Yahoo
+         Finance home page when nothing is loaded yet. Kept as a real <a> so
+         middle-click / cmd-click behave normally. -->
+    <a id="yahoo-link" class="ext-link" href="https://finance.yahoo.com"
+       target="_blank" rel="noopener noreferrer"
+       title="Open Yahoo Finance in a new tab">Yahoo Finance ↗</a>
     <button id="refresh" title="Force a fresh pull from Alpaca">Refresh</button>
     <button id="theme" title="Toggle light / dark">Light</button>
   </header>
