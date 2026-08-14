@@ -504,6 +504,7 @@ def get_detail(symbol: str, force: bool = False) -> dict:
             lows = [b["l"] for b in year]
             hi, lo = max(highs), min(lows)
             atr = (ind.get("atr14") or [None])[-1]
+            tdr = (ind.get("tdr14") or [None])[-1]
             vol20 = (ind.get("vol_sma20") or [None])[-1]
             stats = {
                 "last_price": last_price,
@@ -514,6 +515,14 @@ def get_detail(symbol: str, force: bool = False) -> dict:
                 "range_position_pct": ((last_price - lo) / (hi - lo) * 100) if hi > lo else None,
                 "atr14": atr,
                 "atr_pct": (atr / last_price * 100) if (atr and last_price) else None,
+                "tdr14": tdr,
+                "tdr_pct": (tdr / last_price * 100) if (tdr and last_price) else None,
+                # ATR counts overnight gaps, TDR does not, so the shortfall is the
+                # share of average range that arrives as a gap rather than as
+                # intraday movement. None rather than 0 when either is missing.
+                "gap_share_pct": (
+                    (atr - tdr) / atr * 100 if (atr and tdr and atr > 0) else None
+                ),
                 "avg_volume_20d": vol20,
                 "dollar_volume_20d": (vol20 * last_price) if (vol20 and last_price) else None,
                 "bars_used_for_52w": len(year),

@@ -1259,6 +1259,20 @@ function renderCompany(d) {
     s.atr14 != null ? `ATR(14) = ${fmtPx(s.atr14)} per day` : '',
     { na: s.atr_pct == null }));
 
+  // TDR sits beside ATR on purpose: ATR absorbs overnight gaps, TDR does not,
+  // so the shortfall between them is the share of range that arrives as a gap --
+  // the part an intraday stop cannot protect against.
+  boxes.push(statBox(
+    'TDR (14)',
+    s.tdr14 != null ? fmtPx(s.tdr14) : '—',
+    s.tdr14 != null
+      ? `${s.tdr_pct != null ? `${s.tdr_pct.toFixed(1)}% of price` : ''}`
+        + `${s.gap_share_pct != null
+              ? ` · ${s.gap_share_pct.toFixed(0)}% of ATR is gap, not intraday`
+              : ''}`
+      : '',
+    { na: s.tdr14 == null }));
+
   boxes.push(statBox(
     'Avg volume (20d)',
     s.avg_volume_20d != null ? fmtVol(s.avg_volume_20d) : '—',

@@ -4,7 +4,7 @@ Local dashboard that screens sectors and themes over short horizons — for mome
 or for reversals — and charts the resulting movers with the standard technical
 indicator set.
 
-**Last Updated:** 2026-08-10
+**Last Updated:** 2026-08-14
 **Status:** Active
 **Audience:** Both
 
@@ -76,13 +76,39 @@ Below the chart, for the selected symbol:
 
 - **Key stats** — market cap (SEC shares outstanding × last price), trailing P/E,
   TTM diluted EPS, 52-week range with the current position marked, ATR-based
-  daily volatility, and 20-day average / dollar volume.
+  daily volatility, TDR(14) (see below), and 20-day average / dollar volume.
 - **Latest SEC filings** — revenue, gross profit, operating income, net income,
   EPS, R&D, assets, liabilities, equity, cash, and operating cash flow. Every
   row shows the form (10-K/10-Q), the period it covers, and the filing date.
 - **Recent news** — headlines from the Alpaca News API, linked to the source.
 - **Research & analyst coverage** — links out to Yahoo Finance analysis, Finviz,
   StockAnalysis, TradingView, and the company's SEC EDGAR filing index.
+
+#### TDR (14) — and why it sits next to ATR
+
+**TDR(14)** is the 14-session mean of the intraday range, `high - low`, in dollars.
+It is shown as a dollar figure, as a percentage of price, and with the shortfall
+against ATR.
+
+It is deliberately *not* ATR, and the pair is more useful than either alone:
+
+| | Range measure | Smoothing | Gaps |
+|---|---|---|---|
+| **ATR(14)** | true range — `max(H-L, \|H-prevC\|, \|L-prevC\|)` | Wilder | **counted** |
+| **TDR(14)** | `H - L` | simple mean | **ignored** |
+
+So `(ATR - TDR) / ATR` is the share of average daily range that arrives as an
+**overnight gap** rather than as intraday movement — reported on the tile as
+"N% of ATR is gap, not intraday".
+
+That distinction has a practical consequence: an intraday stop can only protect
+against the TDR part. Range that shows up as a gap jumps straight past a stop at
+the open. Two names with the same ATR are not equally stoppable if one gets there
+by gapping. Measured on the current universe, the spread is real — AXTI sits near
+1% gap share (its large ATR is almost entirely intraday) while MU is around 13%.
+
+Both are computed over the same 14 sessions so the comparison is apples-to-apples,
+and the warmup region is `null` rather than zero-filled.
 
 #### How P/E is computed
 
@@ -145,7 +171,9 @@ Overlays: SMA 20 / 50 / 200, VWAP 20 (rolling), Bollinger Bands (20, 2σ),
 support & resistance levels.
 Panes: Volume + 20-day volume SMA, RSI 14, MACD (12, 26, 9) with histogram.
 Also computed and available in the table view and tooltip: ATR 14, Stochastic
-(14, 3), EMA 12 / 26, OBV.
+(14, 3), EMA 12 / 26, OBV. TDR 14 is computed alongside them and surfaced in the
+[Company detail](#tdr-14--and-why-it-sits-next-to-atr) panel rather than on the
+chart, since it reads as a position-sizing input rather than something to overlay.
 
 Range selector: 3M / 6M / 1Y / 2Y.
 
