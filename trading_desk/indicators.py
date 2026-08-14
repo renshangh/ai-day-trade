@@ -139,6 +139,35 @@ def atr(highs: list[float], lows: list[float], closes: list[float], period: int 
     return out
 
 
+def true_daily_range(highs: list[float], lows: list[float], period: int = 14) -> Series:
+    """Average of the intraday high-low range over `period` bars, in price units.
+
+    Deliberately *not* ATR, and the two are worth having side by side:
+
+    - ATR averages the *true* range -- max(H-L, |H-prevC|, |L-prevC|) -- with
+      Wilder smoothing, so an overnight gap inflates it.
+    - TDR is a plain mean of (H - L), so it measures only the ground price
+      actually covered inside a session.
+
+    Where TDR is well below ATR, the instrument's volatility is arriving as gaps
+    between sessions rather than as intraday movement -- which matters for an
+    intraday stop, because a gap jumps straight past it.
+    """
+    n = len(highs)
+    out: Series = [None] * n
+    if period <= 0 or n < period:
+        return out
+    ranges = [highs[i] - lows[i] for i in range(n)]
+    running = 0.0
+    for i, r in enumerate(ranges):
+        running += r
+        if i >= period:
+            running -= ranges[i - period]
+        if i >= period - 1:
+            out[i] = running / period
+    return out
+
+
 def stochastic(
     highs: list[float], lows: list[float], closes: list[float], k_period: int = 14, d_period: int = 3
 ) -> dict[str, Series]:
@@ -363,6 +392,7 @@ def compute_all(bars: list[dict]) -> dict:
         "macd_signal": macd_vals["signal"],
         "macd_hist": macd_vals["hist"],
         "atr14": atr(highs, lows, closes, 14),
+        "tdr14": true_daily_range(highs, lows, 14),
         "stoch_k": stoch["k"],
         "stoch_d": stoch["d"],
         "obv": obv(closes, volumes),
