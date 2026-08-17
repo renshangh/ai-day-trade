@@ -11,7 +11,11 @@
 const VIEWS = [
   { key: 'momentum', label: 'Momentum', lookbacks: [1, 2, 3, 4, 5] },
   { key: 'reversal', label: 'Reversal candidates', lookbacks: [2, 3, 4, 5] },
+  // A calendar, not a group ranking: no lookback applies, and it replaces the
+  // hero/ranking/movers sections rather than re-scoping them.
+  { key: 'earnings', label: 'Earnings timing', lookbacks: [], calendar: true },
 ];
+const HORIZONS = [14, 30, 45, 90];
 const RANGES = [
   { key: '3M', bars: 63 },
   { key: '6M', bars: 126 },
@@ -45,6 +49,8 @@ const state = {
   // the older symbol showing even though it was clicked first, not last.
   selectionSeq: 0,
   overlays: Object.fromEntries(OVERLAYS.map(o => [o.key, o.on])),
+  horizon: 30,
+  earnings: null,
   tableView: false,
   hover: null,        // index into the visible slice
   loading: false,
@@ -212,14 +218,125 @@ function renderViewTabs() {
       state.group = null;
       // A lookback valid in one view may not exist in the other (reversal has
       // no 1D screen) -- clamp rather than land on an undefined slice.
-      if (!v.lookbacks.includes(state.lookback)) state.lookback = v.lookbacks[0];
+      if (v.lookbacks.length && !v.lookbacks.includes(state.lookback)) {
+        state.lookback = v.lookbacks[0];
+      }
       renderAll();
     };
     box.appendChild(btn);
   });
-  $('view-note').textContent = state.view === 'reversal'
-    ? 'Groups down over the prior period that turned positive on the most recent session.'
-    : 'Groups ranked by raw return over the window.';
+  const notes = {
+    reversal: 'Groups down over the prior period that turned positive on the most recent session.',
+    earnings: 'When each name reports next — so a swing position is never held through a print by accident.',
+    momentum: 'Groups ranked by raw return over the window.',
+  };
+  $('view-note').textContent = notes[state.view] || notes.momentum;
+}
+
+function renderHorizonTabs() {
+  const box = $('horizon-tabs');
+  box.innerHTML = '';
+  HORIZONS.forEach(h => {
+    const btn = document.createElement('button');
+    btn.textContent = `${h}d`;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', String(state.horizon === h));
+    btn.className = state.horizon === h ? 'active' : '';
+    btn.onclick = () => { state.horizon = h; fetchEarnings(); };
+    box.appendChild(btn);
+  });
+}
+
+async function fetchEarnings(force) {
+  const card = $('earnings-card');
+  card.classList.add('refetching');
+  try {
+    const res = await fetch(`/api/earnings?horizon=${state.horizon}${force ? '&force=1' : ''}`);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    state.earnings = d;
+    renderEarnings();
+  } catch (e) {
+    $('earn-table').innerHTML = '';
+    showError(`Could not load the earnings calendar: ${e.message}`);
+  } finally {
+    card.classList.remove('refetching');
+  }
+}
+
+function renderEarnings() {
+  const d = state.earnings;
+  renderHorizonTabs();
+  if (!d) { $('earn-table').innerHTML = '<div class="loading">Loading…</div>'; return; }
+
+  $('earn-sub').textContent =
+    `Projected from each company's own SEC filing history (${d.universe_with_history} names). `
+    + `Dates are estimates — median error ${d.median_error_days} days, band ±${d.uncertainty_days} — `
+    + `not confirmed announcements. Confirm on the company's IR page before acting.`;
+
+  // Alerts first: a print landing on something currently held is the one thing
+  // that must not be scrolled past.
+  const alerts = $('earn-alerts');
+  alerts.innerHTML = '';
+  (d.rows || []).filter(r => r.held).forEach(r => {
+    const soon = r.days_until_earliest <= 21;
+    const el = document.createElement('div');
+    el.className = `notice ${soon ? 'err' : 'warn'}`;
+    const pos = r.position || {};
+    const mv = r.typical_move_pct != null ? `typically moves ±${r.typical_move_pct.toFixed(1)}% on the print` : 'typical move unknown';
+    el.innerHTML = `<span class="ico">${soon ? '⚠' : 'ℹ'}</span><span>`
+      + `<strong>You hold ${r.symbol}</strong> (${pos.qty || '?'} @ ${pos.entry_price || '?'} from ${pos.entry_date || '?'}) — `
+      + `reports about <strong>${r.projected_date}</strong>, in ${r.days_until} days `
+      + `(as early as ${r.earliest_plausible}). ${mv}, ${labelTiming(r.expected_timing)}.`
+      + (soon ? ' <strong>That is inside a 1–3 week swing window.</strong>' : '')
+      + `</span>`;
+    alerts.appendChild(el);
+  });
+  (d.held_without_dates || []).forEach(sym => {
+    const el = document.createElement('div');
+    el.className = 'notice warn';
+    el.innerHTML = `<span class="ico">⚠</span><span><strong>You hold ${sym}</strong>, but its filing history `
+      + `does not support a projection — treat its earnings date as unknown rather than distant.</span>`;
+    alerts.appendChild(el);
+  });
+
+  const rows = (d.rows || []).map(r => {
+    const mv = r.typical_move_pct != null ? `${r.typical_move_pct.toFixed(1)}%` : '—';
+    const mx = r.max_move_pct != null ? `${r.max_move_pct.toFixed(1)}%` : '—';
+    // No near-term highlight: rows are already sorted soonest-first, and with a
+    // 30-day horizon it marked 30 of 37 rows -- highlighting nearly everything
+    // signals nothing. HELD stays, because it is genuinely selective.
+    return `<tr class="earn-row${r.held ? ' held' : ''}" data-symbol="${r.symbol}" tabindex="0">
+      <td>${r.symbol}${r.held ? ' <span class="tag-held">HELD</span>' : ''}</td>
+      <td>${r.projected_date}</td>
+      <td>${r.days_until}</td>
+      <td>${r.earliest_plausible}</td>
+      <td>${labelTiming(r.expected_timing)}</td>
+      <td>${mv}</td>
+      <td>${mx}</td>
+      <td>${r.move_sample ?? '—'}</td>
+      <td>${r.group}</td>
+      <td>${r.group_rank_5d ?? '—'}</td>
+    </tr>`;
+  }).join('');
+
+  $('earn-table').innerHTML = `<table>
+    <thead><tr>
+      <th>Symbol</th><th>Projected</th><th>Days</th><th>Earliest</th><th>Timing</th>
+      <th>Typical move</th><th>Worst</th><th>n</th><th>Group</th><th>5D rank</th>
+    </tr></thead><tbody>${rows || '<tr><td colspan="10">No prints projected inside this horizon.</td></tr>'}</tbody></table>`;
+
+  $('earn-table').querySelectorAll('.earn-row').forEach(tr => {
+    const pick = () => selectStock(tr.dataset.symbol);
+    tr.onclick = pick;
+    tr.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
+  });
+}
+
+function labelTiming(t) {
+  if (t === 'after_close') return 'after close';
+  if (t === 'before_open') return 'before open';
+  return 'timing unknown';
 }
 
 function renderLookbackTabs() {
@@ -1409,6 +1526,26 @@ function renderDetail() {
 
 function renderAll() {
   renderViewTabs();
+
+  // The earnings view is a calendar, so the group-ranking furniture (hero,
+  // ranking bars, movers strip, ranking table) and the lookback filter have
+  // nothing to scope and are hidden rather than left showing stale figures.
+  const calendar = !!currentView().calendar;
+  ['hero-card', 'rank-card', 'leaders-card', 'rank-table-card'].forEach(id => {
+    const el = $(id);
+    if (el) el.classList.toggle('hidden', calendar);
+  });
+  $('lookback-row').classList.toggle('hidden', calendar);
+  $('earnings-card').classList.toggle('hidden', !calendar);
+
+  if (calendar) {
+    if (!state.earnings) fetchEarnings();
+    else renderEarnings();
+    // Keep whatever symbol is charted; the calendar rows can change it.
+    if (state.stock) renderDetail();
+    return;
+  }
+
   renderLookbackTabs();
   renderHero();
   renderRankChart();

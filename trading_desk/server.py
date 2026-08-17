@@ -37,6 +37,7 @@ sys.path.insert(0, str(HERE))
 sys.path.append(str(REPO_ROOT))
 
 import fundamentals  # noqa: E402
+import earnings  # noqa: E402
 import indicators  # noqa: E402
 import universe  # noqa: E402
 
@@ -82,7 +83,7 @@ DETAIL_CACHE_MAX = 60
 
 _lock = threading.Lock()
 _board_build_lock = threading.Lock()
-_cache: dict = {"board": None, "board_ts": 0.0, "stocks": {}, "details": {}}
+_cache: dict = {"board": None, "board_ts": 0.0, "stocks": {}, "details": {}, "earnings": {}}
 
 
 # --------------------------------------------------------------------------
@@ -562,6 +563,151 @@ def get_detail(symbol: str, force: bool = False) -> dict:
 
 
 # --------------------------------------------------------------------------
+# Earnings calendar (timing awareness)
+# --------------------------------------------------------------------------
+EARNINGS_TTL = 3600  # dates move rarely; an hour is plenty
+JOURNAL_PATH = REPO_ROOT / "trading_records" / "trades-schwab.csv"
+
+
+def open_positions() -> dict[str, dict]:
+    """Symbols currently held, read from the local trade journal.
+
+    The journal is gitignored and optional -- this is a convenience so a print
+    landing inside a live holding period is impossible to miss, which is the
+    single most useful thing this feature can do. A missing or malformed file is
+    not an error; the calendar just loses the "you hold this" flag.
+    """
+    if not JOURNAL_PATH.exists():
+        return {}
+    held: dict[str, dict] = {}
+    try:
+        import csv
+
+        with JOURNAL_PATH.open() as f:
+            for row in csv.DictReader(f):
+                if (row.get("status") or "").strip().lower() != "open":
+                    continue
+                sym = (row.get("symbol") or "").strip().upper()
+                if not sym:
+                    continue
+                held[sym] = {
+                    "qty": row.get("qty", ""),
+                    "entry_price": row.get("entry_price", ""),
+                    "entry_date": row.get("entry_date", ""),
+                }
+    except Exception as e:  # noqa: BLE001 - journal is best-effort context
+        print(f"[warn] could not read journal: {e}", file=sys.stderr)
+    return held
+
+
+def build_earnings_calendar(horizon_days: int) -> dict:
+    """Upcoming projected prints across the universe, nearest first."""
+    events_by_symbol = earnings.load_event_file()
+    if not events_by_symbol:
+        return {
+            "error": "no earnings history on disk -- run research/earnings_dates.py",
+            "rows": [], "held_without_dates": [],
+        }
+
+    today = datetime.now(timezone.utc).date()
+    held = open_positions()
+    groups = universe.all_groups()
+    group_of: dict[str, str] = {}
+    for gname, cfg in groups.items():
+        for sym in cfg["constituents"]:
+            group_of.setdefault(sym, gname)
+
+    # Group momentum rank, so a print can be read against how hot its group is.
+    rank_of: dict[str, int] = {}
+    try:
+        board = get_board()
+        ranked = board["lookbacks"]["5"]["rankings"]
+        rank_of = {g["group"]: i + 1 for i, g in enumerate(ranked)}
+    except Exception:  # noqa: BLE001 - ranking is context, not a requirement
+        pass
+
+    # Two passes. The first only projects dates (no network), so we learn which
+    # symbols actually make the cut; the second fetches their bars in one batched
+    # request. Calling get_stock per symbol instead meant ~37 separate two-year
+    # bar downloads, which made the first load slow enough that the table was
+    # still empty seconds after switching to the view.
+    shortlist: list[tuple[str, list[dict], dict]] = []
+    for sym, events in events_by_symbol.items():
+        proj = earnings.project_next(events, today)
+        if not proj:
+            continue
+        # Conservative edge: a print whose *earliest* plausible date is inside
+        # the horizon counts even if the point estimate sits just outside.
+        #
+        # A held position is never filtered out, however distant its print.
+        # Dropping it and then listing it as "no date known" is actively
+        # misleading -- "POWL reports in 92 days" and "we cannot date POWL" are
+        # opposite claims, and only one is true.
+        if proj["days_until_earliest"] > horizon_days and sym not in held:
+            continue
+        shortlist.append((sym, events, proj))
+
+    bars_by_symbol: dict[str, list[dict]] = {}
+    if shortlist:
+        try:
+            end = datetime.now(timezone.utc)
+            bars_by_symbol = fetch_daily_bars(
+                [s for s, _, _ in shortlist], end - timedelta(days=760), end
+            )
+        except Exception as e:  # noqa: BLE001 - move stats are optional colour
+            print(f"[warn] earnings move stats unavailable: {e}", file=sys.stderr)
+
+    rows = []
+    for sym, events, proj in shortlist:
+        move = earnings.earnings_move_stats(events, bars_by_symbol.get(sym) or [])
+
+        grp = group_of.get(sym, "(unclassified)")
+        rows.append({
+            "symbol": sym,
+            "group": grp,
+            "group_rank_5d": rank_of.get(grp),
+            "held": sym in held,
+            "position": held.get(sym),
+            "typical_move_pct": (move or {}).get("median_abs_move_pct"),
+            "max_move_pct": (move or {}).get("max_abs_move_pct"),
+            "move_sample": (move or {}).get("n"),
+            **proj,
+        })
+
+    rows.sort(key=lambda r: r["projected_date"])
+
+    # A held name with no projectable date is itself worth surfacing -- silence
+    # would read as "no earnings coming", which is not what it means.
+    held_without_dates = sorted(
+        s for s in held if not any(r["symbol"] == s for r in rows)
+    )
+
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "today": today.isoformat(),
+        "horizon_days": horizon_days,
+        "rows": rows,
+        "held_symbols": sorted(held),
+        "held_without_dates": held_without_dates,
+        "universe_with_history": len(events_by_symbol),
+        "median_error_days": earnings.PROJECTION_MEDIAN_ERROR_DAYS,
+        "uncertainty_days": earnings.PROJECTION_P90_ERROR_DAYS,
+    }
+
+
+def get_earnings_calendar(horizon_days: int = 45, force: bool = False) -> dict:
+    key = f"cal:{horizon_days}"
+    with _lock:
+        entry = _cache["earnings"].get(key)
+        if entry and not force and time.time() - entry["ts"] < EARNINGS_TTL:
+            return entry["data"]
+    data = build_earnings_calendar(horizon_days)
+    with _lock:
+        _cache["earnings"][key] = {"ts": time.time(), "data": data}
+    return data
+
+
+# --------------------------------------------------------------------------
 # Cache persistence (last-good survives restarts; a failed fetch never wipes it)
 # --------------------------------------------------------------------------
 def save_cache() -> None:
@@ -658,6 +804,20 @@ class Handler(BaseHTTPRequestHandler):
             fetch = get_stock if path == "/api/stock" else get_detail
             try:
                 self._json(fetch(sym, force=qs.get("force", ["0"])[0] == "1"))
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": str(e)}, 502)
+            return
+
+        if path == "/api/earnings":
+            try:
+                horizon = int((qs.get("horizon") or ["45"])[0])
+            except ValueError:
+                horizon = 45
+            try:
+                self._json(get_earnings_calendar(
+                    horizon_days=max(1, min(horizon, 400)),
+                    force=qs.get("force", ["0"])[0] == "1",
+                ))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
             return
