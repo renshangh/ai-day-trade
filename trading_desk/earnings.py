@@ -51,6 +51,10 @@ SLOT_MATCH_TOLERANCE_DAYS = 21
 # (within-7-days ran 79-92% across every bucket, with no monotonic trend). So
 # rather than ship a three-tier confidence label that looked informative and
 # wasn't, every projection carries the same empirical band.
+# One week of post-earnings follow-through, measured from the pre-earnings
+# close so the figure includes the initial gap.
+POST_EARNINGS_WEEK_SESSIONS = 5
+
 PROJECTION_MEDIAN_ERROR_DAYS = 2
 PROJECTION_P90_ERROR_DAYS = 8
 
@@ -117,17 +121,24 @@ def _calendar_anniversary(source: date, today: date) -> date | None:
             cand = date(year, source.month, source.day)
         except ValueError:          # Feb 29 in a non-leap year
             cand = date(year, source.month, 28)
-        if cand > today:
+        if cand >= today:
             return cand
     return None
 
 
-def _snap_to_weekday(d: date, weekday: int) -> date:
-    """Nearest date to `d` falling on `weekday` (0=Mon). Ties go later."""
+def _snap_to_weekday(d: date, weekday: int, not_before: date | None = None) -> date:
+    """Nearest date to `d` on `weekday` (0=Mon), never earlier than `not_before`.
+
+    The floor matters: snapping a Tuesday anniversary back to a habitual Monday
+    would otherwise land yesterday and get thrown out as a past date, losing a
+    print that is actually due today.
+    """
     best = d
     best_gap = 99
     for delta in range(-3, 4):
         cand = d + timedelta(days=delta)
+        if not_before is not None and cand < not_before:
+            continue
         if cand.weekday() == weekday and abs(delta) < best_gap:
             best, best_gap = cand, abs(delta)
     return best
@@ -149,18 +160,17 @@ def project_next(events: list[dict], today: date) -> dict | None:
     dates = [d for d, _ in parsed]
     last_seen = dates[-1]
 
-    # Candidate projections: every past announcement stepped forward a year at a
-    # time until it lands in the future. Stepping repeatedly (rather than once)
-    # lets a symbol with a long gap in coverage still produce a candidate.
-    candidates: list[tuple[date, date]] = []  # (projected, source)
+    # Pick the slot by *calendar* anniversary, not by 364-day stepping.
+    #
+    # Stepping to choose the slot reintroduced the shortfall the anniversary
+    # refinement exists to remove: from a 2025-08-18 print it lands on
+    # 2026-08-17, one day before a 2026-08-18 "today", then skips a whole year
+    # and reported the next print as 366 days away instead of tonight.
+    candidates: list[tuple[date, date]] = []  # (anniversary, source)
     for d in dates:
-        p = d
-        guard = 0
-        while p <= today and guard < 6:
-            p = p + timedelta(days=YEAR_STEP_DAYS)
-            guard += 1
-        if p > today:
-            candidates.append((p, d))
+        ann = _calendar_anniversary(d, today)
+        if ann is not None:
+            candidates.append((ann, d))
     if not candidates:
         return None
 
@@ -183,15 +193,18 @@ def project_next(events: list[dict], today: date) -> dict | None:
     habitual_weekday = max(set(weekdays), key=weekdays.count) if weekdays else source.weekday()
 
     anniversary = _calendar_anniversary(source, today)
-    adjusted = _snap_to_weekday(anniversary, habitual_weekday) if anniversary else projected
+    adjusted = (_snap_to_weekday(anniversary, habitual_weekday, not_before=today)
+                if anniversary else projected)
     adjusted = _shift_off_weekend(adjusted)
 
-    # Never emit a date in the past -- the whole point is forward warning, and a
-    # stale "next earnings" is worse than none. The weekday snap can move the
-    # anniversary back by up to 3 days, so this is reachable. Returning None is
-    # the honest answer: substituting "tomorrow" would assert an imminent print
-    # on no evidence, and every other insufficient-history path here returns None.
-    if adjusted <= today:
+    # Never emit a date in the *past* -- a stale "next earnings" is worse than
+    # none, and substituting "tomorrow" would assert an imminent print on no
+    # evidence, so this returns None like every other insufficient-history path.
+    #
+    # Today itself is allowed, and is the single most important day to show: a
+    # company reporting after tonight's close is still ahead of the reader, and
+    # excluding today rolled those prints forward a whole year.
+    if adjusted < today:
         return None
 
     # Expected release timing: what this company usually does, from the last few
@@ -224,14 +237,24 @@ def project_next(events: list[dict], today: date) -> dict | None:
 
 
 def earnings_move_stats(events: list[dict], bars: list[dict]) -> dict | None:
-    """How much this name typically moves on its earnings reaction.
+    """How this name behaves after it reports -- over one session and one week.
 
     The reaction session depends on release timing:
       after_close  -> the *next* session reacts
       before_open  -> the announcement session itself reacts
 
-    Returns absolute-move statistics, which is what matters for timing risk --
-    direction is not predictable, magnitude is somewhat persistent.
+    Both horizons are measured from the same pre-earnings close, so the 1-week
+    figure *includes* the initial gap rather than starting after it. That is what
+    someone holding through the print actually experiences.
+
+    Each horizon reports two things, because they answer different questions:
+
+    - **absolute** (median/mean/max) -- how violent the print usually is,
+      regardless of direction. This is the risk number: direction is not
+      predictable, magnitude is somewhat persistent.
+    - **signed** median -- whether the reaction has historically leaned up or
+      down for this particular name. Informative, not a forecast; FN fell on 6
+      of its last 8 prints, which is worth seeing before holding through one.
     """
     if not bars or not events:
         return None
@@ -239,7 +262,8 @@ def earnings_move_stats(events: list[dict], bars: list[dict]) -> dict | None:
     closes = [float(b["c"]) for b in bars]
     index_of = {d: i for i, d in enumerate(dates)}
 
-    moves: list[float] = []
+    day_moves: list[float] = []
+    week_moves: list[float] = []
     for e in events:
         timing = e.get("timing")
         d = e.get("date", "")[:10]
@@ -260,17 +284,37 @@ def earnings_move_stats(events: list[dict], bars: list[dict]) -> dict | None:
             continue
         if closes[base] <= 0:
             continue
-        moves.append(abs(closes[react] / closes[base] - 1.0) * 100)
+        day_moves.append((closes[react] / closes[base] - 1.0) * 100)
 
-    if not moves:
+        # One week = POST_EARNINGS_WEEK_SESSIONS sessions on from the same
+        # pre-earnings close. Skipped rather than truncated when the history
+        # runs out, so a partial window is never reported as a full week.
+        week_idx = base + POST_EARNINGS_WEEK_SESSIONS
+        if week_idx < len(closes):
+            week_moves.append((closes[week_idx] / closes[base] - 1.0) * 100)
+
+    if not day_moves:
         return None
-    # statistics.median, not moves_sorted[n // 2]: the hand-rolled version takes
-    # the upper-middle element for even n, and even n is the normal case here
-    # (two years of quarters). On [4.76, 5.0, 10.0, 20.0] it returned 10.0 where
-    # the median is 7.5 -- a 33% overstatement of the risk figure the table shows.
-    return {
-        "n": len(moves),
-        "mean_abs_move_pct": statistics.fmean(moves),
-        "median_abs_move_pct": statistics.median(moves),
-        "max_abs_move_pct": max(moves),
+
+    abs_day = [abs(x) for x in day_moves]
+    out = {
+        "n": len(day_moves),
+        "mean_abs_move_pct": statistics.fmean(abs_day),
+        "median_abs_move_pct": statistics.median(abs_day),
+        "max_abs_move_pct": max(abs_day),
+        "median_signed_move_pct": statistics.median(day_moves),
+        "up_count": sum(1 for x in day_moves if x > 0),
+        "down_count": sum(1 for x in day_moves if x <= 0),
     }
+    if week_moves:
+        abs_week = [abs(x) for x in week_moves]
+        out.update({
+            "n_week": len(week_moves),
+            "median_abs_move_1w_pct": statistics.median(abs_week),
+            "mean_abs_move_1w_pct": statistics.fmean(abs_week),
+            "max_abs_move_1w_pct": max(abs_week),
+            "median_signed_move_1w_pct": statistics.median(week_moves),
+            "up_count_1w": sum(1 for x in week_moves if x > 0),
+            "down_count_1w": sum(1 for x in week_moves if x <= 0),
+        })
+    return out
