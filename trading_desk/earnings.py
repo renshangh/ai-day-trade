@@ -32,7 +32,10 @@ on any of it.
 
 from __future__ import annotations
 
+import json
+import statistics
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 # 52 weeks: used only to pick which fiscal slot comes next, not to date it.
 YEAR_STEP_DAYS = 364
@@ -58,9 +61,6 @@ def load_event_file() -> dict[str, list[dict]]:
     Returns {} when the file is absent so callers can degrade with a message
     rather than crash -- the collector is a separate, occasional job.
     """
-    import json
-    from pathlib import Path
-
     path = Path(__file__).resolve().parent / "research" / "earnings_dates.json"
     if not path.exists():
         return {}
@@ -187,9 +187,12 @@ def project_next(events: list[dict], today: date) -> dict | None:
     adjusted = _shift_off_weekend(adjusted)
 
     # Never emit a date in the past -- the whole point is forward warning, and a
-    # stale "next earnings" is worse than none.
+    # stale "next earnings" is worse than none. The weekday snap can move the
+    # anniversary back by up to 3 days, so this is reachable. Returning None is
+    # the honest answer: substituting "tomorrow" would assert an imminent print
+    # on no evidence, and every other insufficient-history path here returns None.
     if adjusted <= today:
-        adjusted = _shift_off_weekend(today + timedelta(days=1))
+        return None
 
     # Expected release timing: what this company usually does, from the last few
     # announcements where it is known.
@@ -261,10 +264,13 @@ def earnings_move_stats(events: list[dict], bars: list[dict]) -> dict | None:
 
     if not moves:
         return None
-    moves_sorted = sorted(moves)
+    # statistics.median, not moves_sorted[n // 2]: the hand-rolled version takes
+    # the upper-middle element for even n, and even n is the normal case here
+    # (two years of quarters). On [4.76, 5.0, 10.0, 20.0] it returned 10.0 where
+    # the median is 7.5 -- a 33% overstatement of the risk figure the table shows.
     return {
         "n": len(moves),
-        "mean_abs_move_pct": sum(moves) / len(moves),
-        "median_abs_move_pct": moves_sorted[len(moves_sorted) // 2],
-        "max_abs_move_pct": moves_sorted[-1],
+        "mean_abs_move_pct": statistics.fmean(moves),
+        "median_abs_move_pct": statistics.median(moves),
+        "max_abs_move_pct": max(moves),
     }

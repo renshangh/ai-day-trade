@@ -16,6 +16,11 @@ const VIEWS = [
   { key: 'earnings', label: 'Earnings timing', lookbacks: [], calendar: true },
 ];
 const HORIZONS = [14, 30, 45, 90];
+// Must match the server's DEFAULT_HORIZON_DAYS so the two cannot disagree.
+const DEFAULT_HORIZON = 30;
+// The user's stated swing horizon. A print inside this window is the case the
+// whole view exists to catch, so it is named rather than inlined as `<= 21`.
+const SWING_WINDOW_DAYS = 21;
 const RANGES = [
   { key: '3M', bars: 63 },
   { key: '6M', bars: 126 },
@@ -49,7 +54,7 @@ const state = {
   // the older symbol showing even though it was clicked first, not last.
   selectionSeq: 0,
   overlays: Object.fromEntries(OVERLAYS.map(o => [o.key, o.on])),
-  horizon: 30,
+  horizon: DEFAULT_HORIZON,
   earnings: null,
   tableView: false,
   hover: null,        // index into the visible slice
@@ -279,16 +284,21 @@ function renderEarnings() {
   const alerts = $('earn-alerts');
   alerts.innerHTML = '';
   (d.rows || []).filter(r => r.held).forEach(r => {
-    const soon = r.days_until_earliest <= 21;
+    const soon = r.days_until_earliest <= SWING_WINDOW_DAYS;
     const el = document.createElement('div');
     el.className = `notice ${soon ? 'err' : 'warn'}`;
     const pos = r.position || {};
     const mv = r.typical_move_pct != null ? `typically moves ±${r.typical_move_pct.toFixed(1)}% on the print` : 'typical move unknown';
+    // Position is aggregated across lots server-side; say so when there is more
+    // than one, otherwise "22 @ 511.25" looks like a single fill that never happened.
+    const qty = pos.qty != null ? Number(pos.qty).toLocaleString() : '?';
+    const avg = pos.avg_entry != null ? Number(pos.avg_entry).toFixed(2) : '?';
+    const lots = pos.lots > 1 ? ` across ${pos.lots} lots` : '';
     el.innerHTML = `<span class="ico">${soon ? '⚠' : 'ℹ'}</span><span>`
-      + `<strong>You hold ${r.symbol}</strong> (${pos.qty || '?'} @ ${pos.entry_price || '?'} from ${pos.entry_date || '?'}) — `
+      + `<strong>You hold ${r.symbol}</strong> (${qty} @ ${avg} avg${lots}, from ${pos.entry_date || '?'}) — `
       + `reports about <strong>${r.projected_date}</strong>, in ${r.days_until} days `
       + `(as early as ${r.earliest_plausible}). ${mv}, ${labelTiming(r.expected_timing)}.`
-      + (soon ? ' <strong>That is inside a 1–3 week swing window.</strong>' : '')
+      + (soon ? ` <strong>That is inside your ${SWING_WINDOW_DAYS}-day swing window.</strong>` : '')
       + `</span>`;
     alerts.appendChild(el);
   });
@@ -323,7 +333,7 @@ function renderEarnings() {
   $('earn-table').innerHTML = `<table>
     <thead><tr>
       <th>Symbol</th><th>Projected</th><th>Days</th><th>Earliest</th><th>Timing</th>
-      <th>Typical move</th><th>Worst</th><th>n</th><th>Group</th><th>5D rank</th>
+      <th>Typical |move|</th><th>Worst |move|</th><th>n</th><th>Group</th><th>5D rank</th>
     </tr></thead><tbody>${rows || '<tr><td colspan="10">No prints projected inside this horizon.</td></tr>'}</tbody></table>`;
 
   $('earn-table').querySelectorAll('.earn-row').forEach(tr => {
@@ -1619,6 +1629,9 @@ function init() {
     $('notices').innerHTML = '';
     fetchBoard(true);
     if (state.symbol) fetchStock(state.symbol, true);
+    // The calendar caches for an hour server-side, so without this Refresh left
+    // it stale with no way for the user to force a rebuild.
+    if (currentView().calendar) fetchEarnings(true);
   };
 
   const applyTheme = next => {

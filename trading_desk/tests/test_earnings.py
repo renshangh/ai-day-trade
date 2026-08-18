@@ -97,6 +97,35 @@ def test_move_stats_are_absolute_not_signed():
     assert s["mean_abs_move_pct"] > 0
 
 
+def test_median_uses_true_median_for_even_samples():
+    """Regression: a hand-rolled moves_sorted[n//2] took the upper-middle element.
+
+    Even n is the normal case (two years of quarters), and on
+    [4.76, 5.0, 10.0, 20.0] the old code returned 10.0 against a true median of
+    7.5 -- a 33% overstatement of the risk figure the calendar displays.
+    """
+    import statistics
+    bars = [{"t": f"2026-01-{i+1:02d}", "c": c} for i, c in
+            enumerate([100, 100, 110, 110, 100, 100, 105, 105, 100, 100, 120, 120])]
+    evs = [ev(d) for d in ("2026-01-02", "2026-01-06", "2026-01-08", "2026-01-10")]
+    s = E.earnings_move_stats(evs, bars)
+    dates = [b["t"][:10] for b in bars]
+    closes = [float(b["c"]) for b in bars]
+    idx = {d: i for i, d in enumerate(dates)}
+    moves = [abs(closes[idx[e["date"]] + 1] / closes[idx[e["date"]]] - 1) * 100 for e in evs]
+    assert s["n"] == 4
+    assert abs(s["median_abs_move_pct"] - statistics.median(moves)) < 1e-9
+    assert abs(s["median_abs_move_pct"] - 7.5) < 1e-9
+
+
+def test_past_dates_return_none_rather_than_an_invented_tomorrow():
+    """Regression: the guard used to substitute today+1, asserting an imminent
+    print on no evidence. Every other insufficient-history path returns None."""
+    for today in (date(2026, 8, 18), date(2027, 1, 4)):
+        p = E.project_next([ev("2019-03-05")], today)
+        assert p is None or p["projected_date"] > today.isoformat()
+
+
 def _main() -> None:
     tests = sorted((n, f) for n, f in globals().items()
                    if n.startswith("test_") and callable(f))
