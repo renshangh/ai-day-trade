@@ -396,6 +396,23 @@ th:first-child, td:first-child { text-align: left; }
 tbody tr:hover { background: var(--surface-3); }
 
 /* Ranking-table rows are pickers for the Top 5 strip, same as the bar chart. */
+/* Earnings calendar rows. A held name must be findable at a glance, and does not
+   rely on colour alone -- the HELD tag is text as well as a left rule. */
+tr.earn-row { cursor: pointer; }
+tr.earn-row:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+tr.earn-row.held td { background: var(--surface-3); }
+tr.earn-row.held td:first-child { box-shadow: inset 3px 0 0 var(--down); font-weight: 600; }
+.tag-held {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--down);
+  color: var(--down);
+  vertical-align: 1px;
+}
+
 tr.pick-row { cursor: pointer; }
 tr.pick-row:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
 tr.pick-row.selected td { background: var(--surface-3); color: var(--text-primary); }

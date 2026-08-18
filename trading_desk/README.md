@@ -68,6 +68,7 @@ Then open <http://localhost:8799>.
 | Top 5 | The leaders inside the selected group, with a 30-day sparkline. |
 | Detail chart | Candlesticks + overlays, with volume, RSI and MACD panes on a shared crosshair. |
 | Company detail | Market cap, trailing P/E, 52-week range, volatility, SEC filings, news, research links. |
+| Earnings timing | Upcoming prints with an uncertainty window, expected timing, typical/worst reaction, and held-position alerts. |
 | Ranking table | The same board in text form — every value readable without color. |
 
 ### Company detail
@@ -165,6 +166,76 @@ Both figures are shown per row (`76% · +4.22%`), and the group's average volume
 ratio sits in the hero and the table, so a broad-but-unconfirmed bounce is
 distinguishable from a narrow-but-heavy one.
 
+### Earnings timing
+
+The third view. **A timing tool, not a signal** -- the distinction is the whole
+point, and it came out of measuring the idea first.
+
+#### What the drift study found
+
+A pre-earnings run-up does exist. Measured over 2012 announcements across 242
+symbols (dated from SEC 8-K item 2.02, not 10-Q filing dates, which land days
+later and would mis-date every event), scored as excess over **each symbol's own**
+mean return for the same window:
+
+| Window | Raw | Baseline | Excess | Beat own baseline |
+|---:|---:|---:|---:|---:|
+| 5 | 0.67% | 0.44% | 0.23% | 51.4% |
+| **10** | 1.63% | 0.82% | **0.82%** | 54.6% |
+| 15 | 2.20% | 1.29% | 0.92% | 54.2% |
+| 21 | 2.66% | 1.99% | 0.67% | 50.4% |
+
+The baseline is the finding: **half the apparent move is just this universe's
+uptrend**. It survives robustness checks (stable across both sample halves,
++0.73% winsorised at 10%, positive in 12 of 14 groups) -- but per-event SD is
+7.26% against a 0.82% mean, so **noise is 9x the edge** and P(two trades both
+beat baseline) is 29.8%. That is a portfolio tilt, not something harvestable in
+one or two positions, which is why this ships as a calendar rather than a screen.
+
+Treat the AI Optical / Interconnect row (+4.85% excess) with suspicion: those
+constituents were picked in 2026 *because* the theme had already run, so it is
+selection bias. Reproduce any of this with `research/drift_study.py` and
+`research/drift_robustness.py`.
+
+#### Projection accuracy
+
+Dates are **estimates**, never confirmed announcements. Measured on 1437
+no-lookahead projections, each made 20 days before the real print: **median error
+2 days**, mean 3.7, 88% within a week, 97.6% within two. Rows therefore carry a
+window (+-8 days, the p90) and the UI warns on the **earliest** edge.
+
+There is deliberately **no confidence label**. Nothing available predicted which
+projections would be wrong -- within-7-days ran 79-92% across every bucket of
+corroborating years and history length, with no trend -- so a three-tier badge
+would have looked informative and been noise.
+
+#### Reading the columns
+
+- **Typical |move| / Worst |move|** are *absolute*, so they say how far the stock
+  moves, not which way. Direction is not predictable; magnitude partly is.
+- **n** is the sample size behind that median. Under about 6 events, distrust it.
+- **5D rank** is the *group's* momentum rank (1 = hottest of 14), i.e. whether the
+  print lands in a group that is already running.
+- **Timing** is before-open vs after-close, taken from the company's own history.
+  It decides which session reacts, and the universe splits close to 50/50.
+
+#### Held positions
+
+Open positions in `trading_records/trades-schwab.csv` are flagged, aggregated
+across lots (two lots of one symbol report the combined size and average cost --
+reporting a single lot would understate the exposure), and **never filtered out by
+the horizon**. Listing a held name as "no date known" when it reports in 92 days
+states the opposite of the truth.
+
+Refresh the calendar with the header Refresh button; the server caches it for an
+hour, and failures are not cached so re-running the collector takes effect at once.
+
+Regenerate the underlying history with:
+
+```bash
+python3 trading_desk/research/earnings_dates.py
+```
+
 ### Indicators
 
 Overlays: SMA 20 / 50 / 200, VWAP 20 (rolling), Bollinger Bands (20, 2σ),
@@ -208,6 +279,7 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/board` | Momentum rankings for all five lookbacks, each with a `reversal` block (`null` on 1D). `?force=1` bypasses the cache. |
 | `GET /api/stock?symbol=X` | ~2 years of daily bars plus every indicator series. |
 | `GET /api/detail?symbol=X` | Fundamentals, price stats, news, and research links. |
+| `GET /api/earnings?horizon=N` | Projected prints within N days (1-400, default 30), nearest first, with held-position flags. |
 | `GET /api/health` | Credential and cache status. |
 
 Both routes cache for 5 minutes. Only the board is persisted to `cache.json`
