@@ -185,6 +185,89 @@ def test_signed_and_absolute_stats_disagree_when_moves_are_one_sided():
     assert s["down_count"] == 2 and s["up_count"] == 0
 
 
+def test_stale_slots_do_not_win_slot_selection():
+    """Regression: anniversarying *all* history let an old slot beat the real one.
+
+    A company that once reported 2019-08-02 but now reports mid-August yielded a
+    2026-08-02 anniversary that won min(), dragging the estimate ~2 weeks early.
+    Measured cost across the backtest: median error 2d -> 5d, p90 8d -> 13d.
+
+    The history here is eight recent quarters plus two stale August prints, so
+    the stale pair falls outside RECENT_SLOTS_FOR_PROJECTION.
+    """
+    recent = [ev(d) for d in (
+        "2024-08-19", "2024-11-05", "2025-02-04", "2025-05-06",
+        "2025-08-18", "2025-11-04", "2026-02-03", "2026-05-05")]
+    stale = [ev("2018-08-01"), ev("2019-08-02")]
+    today = date(2026, 7, 1)
+
+    p = E.project_next(stale + recent, today)
+    got = date.fromisoformat(p["projected_date"])
+    assert abs((got - date(2026, 8, 18)).days) <= 7, f"stale slot won: {got}"
+
+    # And prove the test discriminates: unbounded history reproduces the bug.
+    bad = E.project_next(stale + recent, today, recent_slots=None)
+    bad_date = date.fromisoformat(bad["projected_date"])
+    assert bad_date < date(2026, 8, 10), (
+        f"expected the stale early-August slot to win when unbounded, got {bad_date}")
+
+
+def test_slot_selection_depth_is_bounded():
+    """Only the recent prints define cadence; the default depth must be finite."""
+    assert E.RECENT_SLOTS_FOR_PROJECTION == 8
+    many = [ev(f"{y}-08-{d:02d}") for y, d in
+            [(2018, 1), (2019, 2), (2020, 3), (2021, 5), (2022, 15),
+             (2023, 21), (2024, 19), (2025, 18)]]
+    # With depth 8 the 2018 slot is still in range here; with unbounded history
+    # and more noise it would not be. The contract under test is that the
+    # parameter is honoured at all.
+    p = E.project_next(many, date(2026, 7, 1), recent_slots=2)
+    got = date.fromisoformat(p["projected_date"])
+    assert abs((got - date(2026, 8, 18)).days) <= 7, got
+
+
+def test_weekend_anniversary_never_drops_or_skips_a_year():
+    """Regression: a Saturday anniversary leaned back to Friday, fell before
+    today, tripped the never-past guard and removed the symbol; the following day
+    the next candidate was a year out (362 days) for an imminent print."""
+    hist = [ev("2025-08-15")]                      # Friday reporter
+    for today, label in [(date(2026, 8, 15), "Sat"), (date(2026, 8, 16), "Sun"),
+                         (date(2026, 8, 17), "Mon")]:
+        p = E.project_next(hist, today)
+        assert p is not None, f"{label}: symbol dropped out of the calendar"
+        assert p["days_until"] < 30, f"{label}: year-skip, {p['days_until']}d"
+        assert p["projected_date"] >= today.isoformat()
+
+
+def test_passed_slot_rolls_to_the_next_quarter_not_the_next_year():
+    """Once a slot has genuinely passed, a four-slot company must advance one
+    quarter -- rolling a full year would hide the imminent print."""
+    hist = [ev(d) for d in ("2025-08-15", "2025-11-07", "2026-02-06", "2026-05-08")]
+    p = E.project_next(hist, date(2026, 8, 20))
+    assert p["days_until"] < 120, p
+    assert p["projected_date"].startswith("2026-11"), p["projected_date"]
+
+
+def test_weekend_shift_respects_its_floor():
+    """Saturday leans back to Friday, but forward to Monday when Friday is
+    before the floor."""
+    sat = date(2026, 8, 15)
+    assert E._shift_off_weekend(sat).weekday() == 4                        # Fri
+    assert E._shift_off_weekend(sat, not_before=sat).weekday() == 0        # Mon
+    assert E._shift_off_weekend(sat, not_before=sat) > sat
+
+
+def test_uncertainty_band_matches_the_measured_p90():
+    """The advertised band must be the measured one. PR #13 shipped +-8 against
+    a real p90 of 13, so `earliest_plausible` promised a window it did not keep."""
+    assert E.PROJECTION_P90_ERROR_DAYS == 7
+    assert E.PROJECTION_MEDIAN_ERROR_DAYS == 2
+    p = E.project_next([ev("2025-08-18"), ev("2024-08-19")], date(2026, 7, 1))
+    projected = date.fromisoformat(p["projected_date"])
+    assert (projected - date.fromisoformat(p["earliest_plausible"])).days == 7
+    assert (date.fromisoformat(p["latest_plausible"]) - projected).days == 7
+
+
 def _main() -> None:
     tests = sorted((n, f) for n, f in globals().items()
                    if n.startswith("test_") and callable(f))

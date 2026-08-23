@@ -328,6 +328,7 @@ function renderEarnings() {
       <td>${r.earliest_plausible}</td>
       <td>${labelTiming(r.expected_timing)}</td>
       <td>${pct(r.typical_move_pct)}</td>
+      <td>${pct(r.max_move_pct)}</td>
       <td class="${r.signed_move_pct == null ? '' : signClass(r.signed_move_pct)}">${signed(r.signed_move_pct)}</td>
       <td>${pct(r.typical_move_1w_pct)}</td>
       <td class="${r.signed_move_1w_pct == null ? '' : signClass(r.signed_move_1w_pct)}">${signed(r.signed_move_1w_pct)}</td>
@@ -342,13 +343,14 @@ function renderEarnings() {
     <thead><tr>
       <th>Symbol</th><th>Projected</th><th>Days</th><th>Earliest</th><th>Timing</th>
       <th title="Median absolute 1-session reaction — size regardless of direction">Typ |1d|</th>
+      <th title="Largest absolute 1-session reaction on record — the tail, not the middle">Worst |1d|</th>
       <th title="Median signed 1-session reaction — which way it has leaned">Lean 1d</th>
       <th title="Median absolute move over 5 sessions from the pre-earnings close, gap included">Typ |1w|</th>
       <th title="Median signed move over 5 sessions from the pre-earnings close">Lean 1w</th>
       <th title="Historical up/down split of the 1-session reaction">Up/Dn</th>
       <th title="Number of past prints behind these figures">n</th>
       <th>Group</th><th>5D rank</th>
-    </tr></thead><tbody>${rows || '<tr><td colspan="13">No prints projected inside this horizon.</td></tr>'}</tbody></table>`;
+    </tr></thead><tbody>${rows || '<tr><td colspan="14">No prints projected inside this horizon.</td></tr>'}</tbody></table>`;
 
   $('earn-table').querySelectorAll('.earn-row').forEach(tr => {
     const pick = () => selectStock(tr.dataset.symbol);
