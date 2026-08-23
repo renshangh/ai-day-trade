@@ -689,10 +689,21 @@ def build_earnings_calendar(horizon_days: int) -> dict:
             "group": grp,
             "group_rank_5d": rank_of.get(grp),
             "held": sym in held,
+            "reports_today": proj["days_until"] == 0,
             "position": held.get(sym),
+            # 1-day reaction: magnitude, lean, and the up/down split.
             "typical_move_pct": (move or {}).get("median_abs_move_pct"),
             "max_move_pct": (move or {}).get("max_abs_move_pct"),
+            "signed_move_pct": (move or {}).get("median_signed_move_pct"),
+            "up_count": (move or {}).get("up_count"),
+            "down_count": (move or {}).get("down_count"),
             "move_sample": (move or {}).get("n"),
+            # 1-week follow-through, measured from the same pre-earnings close so
+            # it includes the gap rather than starting after it.
+            "typical_move_1w_pct": (move or {}).get("median_abs_move_1w_pct"),
+            "max_move_1w_pct": (move or {}).get("max_abs_move_1w_pct"),
+            "signed_move_1w_pct": (move or {}).get("median_signed_move_1w_pct"),
+            "move_sample_1w": (move or {}).get("n_week"),
             **proj,
         })
 

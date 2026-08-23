@@ -288,7 +288,10 @@ function renderEarnings() {
     const el = document.createElement('div');
     el.className = `notice ${soon ? 'err' : 'warn'}`;
     const pos = r.position || {};
-    const mv = r.typical_move_pct != null ? `typically moves ±${r.typical_move_pct.toFixed(1)}% on the print` : 'typical move unknown';
+    const mv = r.typical_move_pct != null
+      ? `typically moves ±${r.typical_move_pct.toFixed(1)}% on the print`
+        + (r.typical_move_1w_pct != null ? ` and ±${r.typical_move_1w_pct.toFixed(1)}% over the following week` : '')
+      : 'typical move unknown';
     // Position is aggregated across lots server-side; say so when there is more
     // than one, otherwise "22 @ 511.25" looks like a single fill that never happened.
     const qty = pos.qty != null ? Number(pos.qty).toLocaleString() : '?';
@@ -296,8 +299,11 @@ function renderEarnings() {
     const lots = pos.lots > 1 ? ` across ${pos.lots} lots` : '';
     el.innerHTML = `<span class="ico">${soon ? '⚠' : 'ℹ'}</span><span>`
       + `<strong>You hold ${r.symbol}</strong> (${qty} @ ${avg} avg${lots}, from ${pos.entry_date || '?'}) — `
-      + `reports about <strong>${r.projected_date}</strong>, in ${r.days_until} days `
-      + `(as early as ${r.earliest_plausible}). ${mv}, ${labelTiming(r.expected_timing)}.`
+      + (r.reports_today
+          ? `reports <strong>TODAY (${r.projected_date})</strong> ${labelTiming(r.expected_timing)}. `
+          : `reports about <strong>${r.projected_date}</strong>, in ${r.days_until} days `
+            + `(as early as ${r.earliest_plausible}), ${labelTiming(r.expected_timing)}. `)
+      + `${mv}.`
       + (soon ? ` <strong>That is inside your ${SWING_WINDOW_DAYS}-day swing window.</strong>` : '')
       + `</span>`;
     alerts.appendChild(el);
@@ -311,19 +317,21 @@ function renderEarnings() {
   });
 
   const rows = (d.rows || []).map(r => {
-    const mv = r.typical_move_pct != null ? `${r.typical_move_pct.toFixed(1)}%` : '—';
-    const mx = r.max_move_pct != null ? `${r.max_move_pct.toFixed(1)}%` : '—';
-    // No near-term highlight: rows are already sorted soonest-first, and with a
-    // 30-day horizon it marked 30 of 37 rows -- highlighting nearly everything
-    // signals nothing. HELD stays, because it is genuinely selective.
-    return `<tr class="earn-row${r.held ? ' held' : ''}" data-symbol="${r.symbol}" tabindex="0">
+    const pct = v => (v == null ? '—' : `${v.toFixed(1)}%`);
+    const signed = v => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
+    const split = (u, dn) => (u == null || dn == null ? '—' : `${u}/${dn}`);
+    return `<tr class="earn-row${r.held ? ' held' : ''}${r.reports_today ? ' today' : ''}"
+                data-symbol="${r.symbol}" tabindex="0">
       <td>${r.symbol}${r.held ? ' <span class="tag-held">HELD</span>' : ''}</td>
-      <td>${r.projected_date}</td>
+      <td>${r.projected_date}${r.reports_today ? ' <span class="tag-today">TODAY</span>' : ''}</td>
       <td>${r.days_until}</td>
       <td>${r.earliest_plausible}</td>
       <td>${labelTiming(r.expected_timing)}</td>
-      <td>${mv}</td>
-      <td>${mx}</td>
+      <td>${pct(r.typical_move_pct)}</td>
+      <td class="${r.signed_move_pct == null ? '' : signClass(r.signed_move_pct)}">${signed(r.signed_move_pct)}</td>
+      <td>${pct(r.typical_move_1w_pct)}</td>
+      <td class="${r.signed_move_1w_pct == null ? '' : signClass(r.signed_move_1w_pct)}">${signed(r.signed_move_1w_pct)}</td>
+      <td>${split(r.up_count, r.down_count)}</td>
       <td>${r.move_sample ?? '—'}</td>
       <td>${r.group}</td>
       <td>${r.group_rank_5d ?? '—'}</td>
@@ -333,8 +341,14 @@ function renderEarnings() {
   $('earn-table').innerHTML = `<table>
     <thead><tr>
       <th>Symbol</th><th>Projected</th><th>Days</th><th>Earliest</th><th>Timing</th>
-      <th>Typical |move|</th><th>Worst |move|</th><th>n</th><th>Group</th><th>5D rank</th>
-    </tr></thead><tbody>${rows || '<tr><td colspan="10">No prints projected inside this horizon.</td></tr>'}</tbody></table>`;
+      <th title="Median absolute 1-session reaction — size regardless of direction">Typ |1d|</th>
+      <th title="Median signed 1-session reaction — which way it has leaned">Lean 1d</th>
+      <th title="Median absolute move over 5 sessions from the pre-earnings close, gap included">Typ |1w|</th>
+      <th title="Median signed move over 5 sessions from the pre-earnings close">Lean 1w</th>
+      <th title="Historical up/down split of the 1-session reaction">Up/Dn</th>
+      <th title="Number of past prints behind these figures">n</th>
+      <th>Group</th><th>5D rank</th>
+    </tr></thead><tbody>${rows || '<tr><td colspan="13">No prints projected inside this horizon.</td></tr>'}</tbody></table>`;
 
   $('earn-table').querySelectorAll('.earn-row').forEach(tr => {
     const pick = () => selectStock(tr.dataset.symbol);

@@ -559,3 +559,17 @@ tr.pick-row.selected td:first-child { box-shadow: inset 3px 0 0 var(--series-1);
   .hero { gap: 18px; }
   main { padding: 14px; }
 }
+
+/* A print landing today is the one row that must jump out. */
+tr.earn-row.today td { background: color-mix(in srgb, var(--warning) 12%, transparent); }
+tr.earn-row.today td:first-child { box-shadow: inset 3px 0 0 var(--warning); font-weight: 600; }
+.tag-today {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  vertical-align: 1px;
+}

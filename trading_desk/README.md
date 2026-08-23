@@ -68,7 +68,7 @@ Then open <http://localhost:8799>.
 | Top 5 | The leaders inside the selected group, with a 30-day sparkline. |
 | Detail chart | Candlesticks + overlays, with volume, RSI and MACD panes on a shared crosshair. |
 | Company detail | Market cap, trailing P/E, 52-week range, volatility, SEC filings, news, research links. |
-| Earnings timing | Upcoming prints with an uncertainty window, expected timing, typical/worst reaction, and held-position alerts. |
+| Earnings timing | Upcoming prints (including today's, before they land) with an uncertainty window, expected timing, 1-day and 1-week reaction stats, and held-position alerts. |
 | Ranking table | The same board in text form — every value readable without color. |
 
 ### Company detail
@@ -128,6 +128,39 @@ trailing earnings show `n/a` rather than a meaningless negative multiple.
 Where a company has migrated XBRL revenue tags, the tag with the most recent
 period wins — picking by a fixed tag order would surface a long-abandoned tag as
 if it were current.
+
+### Earnings timing
+
+Projected dates come from each company's own 8-K item 2.02 history; see
+`earnings.py` for the method and its measured accuracy (median error 2 days,
+band +-8). Every date is an **estimate**, never a confirmed announcement.
+
+**Today counts.** A company reporting after tonight's close is still ahead of
+you, so today is a valid projection. This needed two fixes: the guard demanded a
+strictly future date, and -- less obvious -- slot selection still stepped 364
+days, landing one day *before* today and then skipping a full year, so a print
+due tonight was reported as 366 days away. Slot selection now uses the calendar
+anniversary and the weekday snap is floored at today.
+
+**Reaction stats cover two horizons**, because they answer different questions:
+
+| Column | Meaning |
+|---|---|
+| `Typ \|1d\|` | median **absolute** 1-session reaction -- how violent the print usually is |
+| `Lean 1d` | median **signed** 1-session reaction -- which way it has historically gone |
+| `Typ \|1w\|` | median absolute move over 5 sessions |
+| `Lean 1w` | median signed move over 5 sessions |
+| `Up/Dn` | historical up/down split of the 1-session reaction |
+| `n` | number of past prints behind the figures -- distrust a small sample |
+
+Both horizons are measured from the **same pre-earnings close**, so the 1-week
+figure *includes* the initial gap rather than starting after it -- that is what
+holding through the print actually delivers. A partial week is skipped rather
+than truncated, so a 3-day window is never reported as a week.
+
+The two horizons genuinely disagree, which is the point of showing both: LITE
+runs +2.8% on day one but +15.6% over the week (the move arrives after the
+print), while NVDA is -2.5% then -5.9% (it keeps going the other way).
 
 ### Reversal candidates
 
