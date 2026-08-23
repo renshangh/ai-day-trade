@@ -132,21 +132,36 @@ if it were current.
 ### Earnings timing
 
 Projected dates come from each company's own 8-K item 2.02 history; see
-`earnings.py` for the method and its measured accuracy (median error 2 days,
-band +-8). Every date is an **estimate**, never a confirmed announcement.
+`earnings.py` for the method and its measured accuracy (**median error 2 days,
+p90 7 days**, 90.9% within a week, 97.1% within two, measured over 1437
+no-lookahead projections). Every date is an **estimate**, never a confirmed
+announcement.
+
+Only the **last 8 prints** define the reporting cadence. Anniversarying all of
+history let a stale slot win -- a company that once reported Aug 2 but now
+reports mid-August projected two weeks early -- which cost median accuracy 2d ->
+5d and p90 8d -> 13d while the page still advertised +-8. Depth was picked by
+measurement across 4/6/8/12/16/unbounded; 8 (two years of quarters) was best.
 
 **Today counts.** A company reporting after tonight's close is still ahead of
-you, so today is a valid projection. This needed two fixes: the guard demanded a
-strictly future date, and -- less obvious -- slot selection still stepped 364
-days, landing one day *before* today and then skipping a full year, so a print
-due tonight was reported as 366 days away. Slot selection now uses the calendar
-anniversary and the weekday snap is floored at today.
+you, so today is a valid projection. This needed several fixes: the guard
+demanded a strictly future date; slot selection stepped 364 days, landing one day
+*before* today and skipping a full year; and the weekend shift leaned a Saturday
+anniversary back to Friday, which fell before today, tripped the never-past guard
+and removed the symbol from the calendar entirely -- then projected ~362 days out
+the next day.
+
+Now the anniversary picks the slot, the weekday snap and weekend shift are both
+floored at today (Saturday moves forward to Monday when Friday is out of range),
+and a slot that has genuinely passed advances **one quarter, not one year**. No
+symbol is left unprojectable.
 
 **Reaction stats cover two horizons**, because they answer different questions:
 
 | Column | Meaning |
 |---|---|
 | `Typ \|1d\|` | median **absolute** 1-session reaction -- how violent the print usually is |
+| `Worst \|1d\|` | largest absolute 1-session reaction on record -- the tail, not the middle |
 | `Lean 1d` | median **signed** 1-session reaction -- which way it has historically gone |
 | `Typ \|1w\|` | median absolute move over 5 sessions |
 | `Lean 1w` | median signed move over 5 sessions |

@@ -42,9 +42,36 @@ YEAR_STEP_DAYS = 364
 # A same-slot anniversary must sit within this tolerance to join a slot chain.
 SLOT_MATCH_TOLERANCE_DAYS = 21
 
+# How many recent prints define the current reporting cadence, for choosing
+# which fiscal slot comes next. Measured, not guessed -- 1437 no-lookahead
+# projections at each depth:
+#
+#   depth   median   p90   <=7d    <=14d
+#       4      1d    86d  81.6%   85.0%   too few slots; one gap -> year-skip tail
+#       6      1d     7d  90.0%   94.2%
+#       8      2d     7d  90.9%   97.1%   <- best overall
+#      12      2d     8d  89.9%   96.9%
+#     all      5d    13d  80.5%   94.0%   stale slots win and drag estimates early
+#
+# Eight is two years of quarters: every slot represented twice, with old prints
+# that no longer reflect the cadence excluded.
+RECENT_SLOTS_FOR_PROJECTION = 8
+
+# An anniversary a few days behind "today" can still resolve to a future print,
+# because the habitual-weekday snap and the weekend shift both move the date
+# forward. Accepting a small grace window stops a print that is genuinely
+# imminent from being written off as a year away.
+ANNIVERSARY_GRACE_DAYS = 4
+
 # Measured accuracy, from a 1437-projection no-lookahead backtest (each made 20
-# days before the real announcement) -- see research/README.md:
-#   median |error| 2 days, p75 7 days, p90 8 days, 97.6% within 14 days.
+# days before the real announcement):
+#   median |error| 2 days, p90 7 days, 90.9% within a week, 97.1% within two,
+#   and no symbol left unprojectable.
+#
+# Re-measured after the slot-selection and weekend fixes. The interim state
+# shipped in PR #13 was materially worse (median 5d, p90 13d, 80.5% within a
+# week) while still advertising +-8, so `earliest_plausible` promised a window
+# it did not deliver; these constants and the code are now measured together.
 #
 # No available feature predicted *which* projections would be wrong: neither the
 # number of corroborating years nor the length of filing history discriminated
@@ -56,7 +83,7 @@ SLOT_MATCH_TOLERANCE_DAYS = 21
 POST_EARNINGS_WEEK_SESSIONS = 5
 
 PROJECTION_MEDIAN_ERROR_DAYS = 2
-PROJECTION_P90_ERROR_DAYS = 8
+PROJECTION_P90_ERROR_DAYS = 7
 
 
 def load_event_file() -> dict[str, list[dict]]:
@@ -81,14 +108,24 @@ def _parse(d: str) -> date | None:
         return None
 
 
-def _shift_off_weekend(d: date) -> date:
-    """Nudge a weekend projection to the adjacent weekday.
+def _shift_off_weekend(d: date, not_before: date | None = None) -> date:
+    """Nudge a weekend projection to the adjacent weekday, never before a floor.
 
-    Companies do not report on Saturdays. Saturday leans back to Friday, Sunday
-    forward to Monday -- whichever is closer to the projected day.
+    Companies do not report on Saturdays. Saturday leans back to Friday and
+    Sunday forward to Monday -- whichever is closer to the projected day.
+
+    The floor exists because leaning back is destructive at the boundary: a
+    Saturday anniversary on a Saturday moved to Friday, i.e. yesterday, which
+    the never-past guard then rejected outright. The symbol vanished from the
+    calendar that day, and once today passed the anniversary the next candidate
+    was a full year out -- reporting an imminent print as ~362 days away. When
+    Friday would fall before the floor, Saturday moves forward to Monday.
     """
     if d.weekday() == 5:      # Saturday
-        return d - timedelta(days=1)
+        back = d - timedelta(days=1)
+        if not_before is not None and back < not_before:
+            return d + timedelta(days=2)   # forward to Monday instead
+        return back
     if d.weekday() == 6:      # Sunday
         return d + timedelta(days=1)
     return d
@@ -113,17 +150,32 @@ def _slot_chain(dates: list[date], anchor: date) -> list[date]:
     return chain
 
 
-def _calendar_anniversary(source: date, today: date) -> date | None:
-    """Same month/day as `source`, in the first year that lands after `today`."""
+def _calendar_anniversary(source: date, today: date, grace_days: int = 0) -> date | None:
+    """Same month/day as `source`, in the first year at/after `today - grace`.
+
+    The grace window matters because the caller still has to snap this to a
+    weekday and shift it off a weekend, both of which move it forward; a raw
+    `>= today` test discards anniversaries that would have resolved into the
+    future anyway, and the next candidate is then a whole year out.
+    """
+    floor = today - timedelta(days=grace_days)
     for add_years in range(0, 8):
         year = source.year + add_years
         try:
             cand = date(year, source.month, source.day)
         except ValueError:          # Feb 29 in a non-leap year
             cand = date(year, source.month, 28)
-        if cand >= today:
+        if cand >= floor:
             return cand
     return None
+
+
+def _bump_one_year(d: date) -> date:
+    """Same month/day one year on, tolerating Feb 29."""
+    try:
+        return d.replace(year=d.year + 1)
+    except ValueError:
+        return d.replace(year=d.year + 1, day=28)
 
 
 def _snap_to_weekday(d: date, weekday: int, not_before: date | None = None) -> date:
@@ -144,7 +196,8 @@ def _snap_to_weekday(d: date, weekday: int, not_before: date | None = None) -> d
     return best
 
 
-def project_next(events: list[dict], today: date) -> dict | None:
+def project_next(events: list[dict], today: date,
+                 recent_slots: int | None = RECENT_SLOTS_FOR_PROJECTION) -> dict | None:
     """Next expected announcement, or None when history can't support a guess.
 
     `events` are the raw records from earnings_dates.json (newest first).
@@ -166,8 +219,13 @@ def project_next(events: list[dict], today: date) -> dict | None:
     # refinement exists to remove: from a 2025-08-18 print it lands on
     # 2026-08-17, one day before a 2026-08-18 "today", then skips a whole year
     # and reported the next print as 366 days away instead of tonight.
+    # Only recent prints define the current cadence. Anniversarying *every*
+    # historical date lets a stale slot win: a company that reported 2019-08-02
+    # once, but now reports mid-August, yields a 2026-08-02 anniversary that
+    # beats the correct 2026-08-18 and drags the estimate ~2 weeks early.
+    recent = dates[-recent_slots:] if recent_slots else dates
     candidates: list[tuple[date, date]] = []  # (anniversary, source)
-    for d in dates:
+    for d in recent:
         ann = _calendar_anniversary(d, today)
         if ann is not None:
             candidates.append((ann, d))
@@ -192,10 +250,23 @@ def project_next(events: list[dict], today: date) -> dict | None:
     weekdays = [d.weekday() for d in chain]
     habitual_weekday = max(set(weekdays), key=weekdays.count) if weekdays else source.weekday()
 
-    anniversary = _calendar_anniversary(source, today)
-    adjusted = (_snap_to_weekday(anniversary, habitual_weekday, not_before=today)
-                if anniversary else projected)
-    adjusted = _shift_off_weekend(adjusted)
+    # Resolve to a concrete date. If snapping and the weekend shift still leave
+    # it behind today -- the slot has genuinely passed -- step to the next
+    # anniversary rather than returning nothing, so a symbol never silently
+    # drops out of the calendar.
+    anniversary = _calendar_anniversary(source, today, grace_days=ANNIVERSARY_GRACE_DAYS)
+    adjusted = None
+    if anniversary is not None:
+        cursor = anniversary
+        for _ in range(3):
+            cand = _snap_to_weekday(cursor, habitual_weekday, not_before=today)
+            cand = _shift_off_weekend(cand, not_before=today)
+            if cand >= today:
+                adjusted = cand
+                break
+            cursor = _bump_one_year(cursor)
+    if adjusted is None:
+        adjusted = projected
 
     # Never emit a date in the *past* -- a stale "next earnings" is worse than
     # none, and substituting "tomorrow" would assert an imminent print on no
