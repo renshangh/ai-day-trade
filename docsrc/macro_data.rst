@@ -60,3 +60,31 @@ Cache
 
 FRED data is cached under ``~/.lumibot/cache/fred`` by default. Override this
 with ``LUMIBOT_FRED_CACHE_DIR``.
+
+Cache lifetime depends on which **vintage** you requested, because a request's
+cache key includes its as-of date:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 35 20 45
+
+   * - Requested vintage
+     - Expires after
+     - Why
+   * - Settled history (as-of older than yesterday)
+     - never
+     - What FRED reported as of a past date is immutable. Backtests replay these
+       keys constantly, so they are cached permanently and cost one fetch ever.
+   * - Current (as-of today or yesterday)
+     - 1 hour
+     - FRED publishes new observations and restates existing ones through the
+       day, while the cache key stays identical.
+
+The practical effect: backtests are unaffected and still fetch each series once,
+while a live strategy picks up same-day releases and revisions instead of holding
+a value cached earlier in the session.
+
+If a cached copy has expired and FRED cannot be reached, LumiBot serves the
+expired copy and logs a warning rather than failing, so an outage does not break
+a run that would otherwise work offline. To force a full refresh, point
+``LUMIBOT_FRED_CACHE_DIR`` at an empty directory.

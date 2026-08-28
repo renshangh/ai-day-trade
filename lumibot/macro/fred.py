@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import os
 import re
 import time
@@ -11,6 +12,38 @@ import requests
 
 
 FRED_API_BASE_URL = "https://api.stlouisfed.org/fred"
+
+logger = logging.getLogger(__name__)
+
+# --- Cache freshness ---------------------------------------------------------
+#
+# A FRED request's cache key includes its ALFRED *vintage*
+# (`realtime_start`/`realtime_end`, both the as-of date), which splits cached
+# responses into two classes that must not share a caching policy:
+#
+#   * A **settled historical** vintage is immutable. What FRED reported as of
+#     2024-01-15 is fixed forever, so caching it permanently is correct -- and
+#     load-bearing, because backtests replay those same keys constantly. Putting
+#     a TTL on these would re-fetch unchanged data on every run and hammer the
+#     FRED API for nothing.
+#   * The **current** vintage is not immutable. FRED publishes new observations
+#     and restates existing ones through the day, so a copy cached this morning
+#     can be stale by the afternoon while its cache key stays identical. That is
+#     the live-trading case: a bot could act on a morning value for a whole
+#     session.
+#
+# Only the second class gets a TTL. `max_age_seconds=None` means "cache forever"
+# and is only correct for a settled vintage.
+#
+# This is the same defect class as the SEC client's permanent cache -- see
+# docs/investigations/2026-08-28_SEC_SUBMISSIONS_CACHE_NEVER_EXPIRES.md -- though
+# narrower here, because tomorrow's as-of date produces a different cache key
+# and so re-fetches anyway. The staleness window is one day, not unbounded.
+CURRENT_VINTAGE_CACHE_MAX_AGE_SECONDS = 60 * 60
+# A vintage counts as settled once this many days have passed. Non-zero so the
+# boundary is not decided by UTC-vs-local date skew or by same-day late
+# revisions: today and yesterday stay refreshable, older vintages are permanent.
+VINTAGE_SETTLES_AFTER_DAYS = 1
 
 
 CURATED_FRED_SERIES: dict[str, dict[str, str]] = {
@@ -118,13 +151,93 @@ class FREDMacroData:
             time.sleep(self.min_request_interval_seconds - elapsed)
         self._last_request_at = time.monotonic()
 
-    def _get_json(self, url: str, params: dict[str, Any], cache_path: Path) -> dict[str, Any]:
-        if cache_path.exists():
-            return json.loads(cache_path.read_text(encoding="utf-8"))
-        self._rate_limit()
-        response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
-        payload = response.json()
+    def _cache_age_seconds(self, cache_path: Path) -> float | None:
+        """Age of a cached file in seconds, or None if it cannot be stat'd.
+
+        May be **negative** when the file's mtime is in the future (clock skew, a
+        restored backup, a mount whose clock runs ahead). Deliberately not
+        clamped to zero: that would report such a file as brand new and pin it
+        as fresh until the wall clock caught up. See `_cache_is_fresh`.
+        """
+        try:
+            return time.time() - cache_path.stat().st_mtime
+        except OSError:
+            return None
+
+    def _cache_is_fresh(self, cache_path: Path, max_age_seconds: float | None) -> bool:
+        """Whether the cached copy may be served without re-fetching.
+
+        `max_age_seconds=None` means the cached vintage is settled, so its age is
+        irrelevant. Any other value expires the copy.
+        """
+        if not cache_path.exists():
+            return False
+        if max_age_seconds is None:
+            return True
+        age = self._cache_age_seconds(cache_path)
+        if age is None:
+            return False
+        # A future mtime makes the age untrustworthy, so re-fetch rather than
+        # trust a copy we cannot date.
+        return 0.0 <= age < max_age_seconds
+
+    def _vintage_cache_max_age(self, as_of_date: date) -> float | None:
+        """TTL for a vintage: finite while it can still change, else permanent.
+
+        Immutability is a property of *wall-clock* time having passed, not of
+        strategy time -- a backtest asking for a 2024 vintage is reading settled
+        history no matter what its own clock says -- so this compares against the
+        real today rather than the strategy's as-of.
+        """
+        days_since = (datetime.now(timezone.utc).date() - as_of_date).days
+        if days_since <= VINTAGE_SETTLES_AFTER_DAYS:
+            return CURRENT_VINTAGE_CACHE_MAX_AGE_SECONDS
+        return None
+
+    def _describe_age(self, cache_path: Path) -> str:
+        age = self._cache_age_seconds(cache_path)
+        if age is None:
+            return "unknown age"
+        if age < 0:
+            return f"mtime {abs(age) / 3600:.1f}h in the future"
+        return f"{age / 3600:.1f}h old"
+
+    def _get_json(
+        self,
+        url: str,
+        params: dict[str, Any],
+        cache_path: Path,
+        *,
+        max_age_seconds: float | None = None,
+    ) -> dict[str, Any]:
+        if self._cache_is_fresh(cache_path, max_age_seconds):
+            try:
+                return json.loads(cache_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                # An interrupted write leaves an unparseable file. Re-fetch
+                # rather than hand a corrupt cache to the caller.
+                logger.warning("Discarding unreadable FRED cache %s (%s); re-fetching.", cache_path, exc)
+        try:
+            self._rate_limit()
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            payload = response.json()
+        except Exception as exc:  # noqa: BLE001 - any fetch failure falls back to cache
+            # An expired cache still beats no data at all: FRED being down or
+            # rate-limiting must not break a run that used to work offline.
+            # Warn loudly so the staleness is visible, unlike a silent
+            # permanent cache.
+            if cache_path.exists():
+                try:
+                    stale = json.loads(cache_path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    raise exc
+                logger.warning(
+                    "FRED fetch failed for %s (%s); serving expired cached copy (%s).",
+                    url, exc, self._describe_age(cache_path),
+                )
+                return stale
+            raise
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
         return payload
@@ -217,6 +330,7 @@ class FREDMacroData:
             f"{FRED_API_BASE_URL}/series/observations",
             params,
             self._cache_path("api", series_id, f"{hashlib.sha256(cache_key.encode()).hexdigest()}.json"),
+            max_age_seconds=self._vintage_cache_max_age(as_of_date),
         )
         observations = self._normalize_api_observations(payload.get("observations", []), as_of_date)
         if limit is not None:

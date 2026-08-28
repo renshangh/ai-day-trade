@@ -772,6 +772,9 @@ LUMIBOT_FRED_CACHE_DIR
 
 - Purpose: Override local FRED macro data cache.
 - Default: ``~/.lumibot/cache/fred``.
+- Notes: Settled historical vintages are cached permanently; the current vintage
+  (as-of today or yesterday) expires after 1 hour so live strategies see same-day
+  releases and revisions. Point this at an empty directory to force a full refresh.
 
 LUMIBOT_MEMORY_DIR
 ^^^^^^^^^^^^^^^^^^
