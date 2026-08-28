@@ -22,22 +22,31 @@ is_healthy() {
   curl -fsS "http://127.0.0.1:$1/api/health" 2>/dev/null | grep -q '"ok": *true'
 }
 
-# If the dashboard is already running on one of its usual ports, just open it
-# rather than starting a second copy.
-PORT=""
-for candidate in 8799 8800 8801 8802 8803; do
-  if is_healthy "$candidate"; then
-    echo "Trading desk is already running on port $candidate -- opening it."
-    open "http://127.0.0.1:$candidate"
-    exit 0
-  fi
-  if [ -z "$PORT" ] && ! lsof -nP -iTCP:"$candidate" -sTCP:LISTEN >/dev/null 2>&1; then
-    PORT="$candidate"
-  fi
-done
+# One fixed port per branch, matching BRANCH_PORTS in server.py. Scanning a range
+# for the first free port is what made the dashboard turn up somewhere different
+# most times it started -- and worse, let a stale server from another branch keep
+# answering on the port you expected. The branch owns its port or nothing does.
+BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+case "$BRANCH" in
+  main) PORT=8800 ;;
+  *)    PORT=8799 ;;   # dev and every topic branch headed for it
+esac
+echo "Branch '$BRANCH' uses port $PORT."
 
-if [ -z "$PORT" ]; then
-  echo "Ports 8799-8803 are all in use by something else. Free one and try again."
+# Already running and healthy on this branch's port? Just open it.
+if is_healthy "$PORT"; then
+  echo "Trading desk is already running on port $PORT -- opening it."
+  open "http://127.0.0.1:$PORT"
+  exit 0
+fi
+
+# Occupied but not answering /api/health: almost always a stale server from an
+# earlier session, possibly on different code. Say so instead of sidestepping it.
+if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "Port $PORT is in use by something that is not a healthy trading desk."
+  echo "It is probably an older server still running. Find and stop it with:"
+  echo "  lsof -nP -iTCP:$PORT -sTCP:LISTEN"
+  echo "  kill <PID>"
   pause_and_exit 1
 fi
 

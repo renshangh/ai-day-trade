@@ -44,17 +44,67 @@ being an order of magnitude wrong about. Since the board runs on daily bars, the
 
 **One click (macOS):** double-click **`Launch Trading Desk.command`** in Finder.
 It starts the server, waits for it to become healthy, and opens the dashboard in
-your default browser automatically. If the dashboard is already running, it just
-opens it instead of starting a second copy. To stop it, close that Terminal
+your default browser automatically. If a healthy dashboard is already running on
+this branch's port, it just opens that instead of starting a second copy; if the
+port is occupied by something that is *not* a healthy dashboard, it says so and
+stops rather than starting somewhere unexpected. To stop it, close that Terminal
 window or press Ctrl+C in it — the server is not left running in the background.
 
 **Manual:**
 
 ```bash
-python3 trading_desk/server.py --port 8799
+python3 trading_desk/server.py
 ```
 
-Then open <http://localhost:8799>.
+No `--port` needed: the server binds the port its **branch** owns.
+
+### One fixed port per branch
+
+| Branch | Port | URL |
+|---|---|---|
+| `main` | **8800** | <http://localhost:8800> |
+| `dev` and every topic branch | **8799** | <http://localhost:8799> |
+
+The branch is read from `.git/HEAD` (one file read, no subprocess, works when
+git is not on PATH, and follows the `gitdir:` pointer used by worktrees).
+`BRANCH_PORTS` in `server.py` is the single source of truth; `.claude/launch.json`
+and `Launch Trading Desk.command` are asserted against it by
+`tests/test_ports.py`, so the three cannot drift apart.
+
+Precedence, most explicit first: `--port`, then the `PORT` env var (set by the
+preview launcher), then the branch's port.
+
+**Why pin, and why fail instead of falling back.** Three things used to pick a
+port independently — the preview launcher's `autoPort`, this launcher scanning
+8799-8803, and `PORT` — so the dashboard turned up somewhere different most times
+it started. The real damage was subtler than the inconvenience: a stale server
+from an earlier session kept answering on the port you expected while serving old
+code, which reads as "my change did nothing". So an occupied port is now a hard
+error naming the port and how to find the process, not a quiet hop to the next
+one:
+
+```
+ERROR: cannot bind 127.0.0.1:8799 (branch default) -- [Errno 48] Address already in use
+       Something is already using it. Find it with:
+         lsof -nP -iTCP:8799 -sTCP:LISTEN
+       then stop that process, or pass --port to use another.
+```
+
+A topic branch shares dev's port on purpose. Giving each one its own would
+recreate exactly the drift this removes.
+
+**Running `main` and `dev` at the same time** needs two working trees, since one
+checkout is on one branch at a time:
+
+```bash
+git worktree add ../ai-day-trade-main main
+python3 ../ai-day-trade-main/trading_desk/server.py   # binds 8800
+python3 trading_desk/server.py                        # binds 8799
+```
+
+Python routes load once at startup, so **restart after changing `server.py`**;
+`app.js`, `index.html` and `style.css` are read from disk per request and only
+need a browser reload.
 
 ## What's on the page
 
@@ -458,12 +508,14 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
 | `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
+| `tests/test_ports.py` | Per-branch port mapping, HEAD parsing, launcher agreement |
 
 ## Tests
 
 ```bash
 python3 trading_desk/tests/test_reversal.py       # no pytest needed
 python3 trading_desk/tests/test_review.py         # daily review
+python3 trading_desk/tests/test_ports.py          # port pinning
 python3 -m pytest trading_desk/tests/             # or under pytest
 ```
 

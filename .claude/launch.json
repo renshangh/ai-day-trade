@@ -2,11 +2,18 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "trading-desk",
+      "name": "trading-desk-dev",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["trading_desk/server.py"],
+      "runtimeArgs": ["trading_desk/server.py", "--port", "8799"],
       "port": 8799,
-      "autoPort": true
+      "autoPort": false
+    },
+    {
+      "name": "trading-desk-main",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["trading_desk/server.py", "--port", "8800"],
+      "port": 8800,
+      "autoPort": false
     }
   ]
 }
