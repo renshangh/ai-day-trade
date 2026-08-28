@@ -152,9 +152,15 @@ class FREDMacroData:
         self._last_request_at = time.monotonic()
 
     def _cache_age_seconds(self, cache_path: Path) -> float | None:
-        """Age of a cached file in seconds, or None if it cannot be stat'd."""
+        """Age of a cached file in seconds, or None if it cannot be stat'd.
+
+        May be **negative** when the file's mtime is in the future (clock skew, a
+        restored backup, a mount whose clock runs ahead). Deliberately not
+        clamped to zero: that would report such a file as brand new and pin it
+        as fresh until the wall clock caught up. See `_cache_is_fresh`.
+        """
         try:
-            return max(time.time() - cache_path.stat().st_mtime, 0.0)
+            return time.time() - cache_path.stat().st_mtime
         except OSError:
             return None
 
@@ -169,7 +175,11 @@ class FREDMacroData:
         if max_age_seconds is None:
             return True
         age = self._cache_age_seconds(cache_path)
-        return age is not None and age < max_age_seconds
+        if age is None:
+            return False
+        # A future mtime makes the age untrustworthy, so re-fetch rather than
+        # trust a copy we cannot date.
+        return 0.0 <= age < max_age_seconds
 
     def _vintage_cache_max_age(self, as_of_date: date) -> float | None:
         """TTL for a vintage: finite while it can still change, else permanent.
@@ -186,7 +196,11 @@ class FREDMacroData:
 
     def _describe_age(self, cache_path: Path) -> str:
         age = self._cache_age_seconds(cache_path)
-        return "unknown age" if age is None else f"{age / 3600:.1f}h old"
+        if age is None:
+            return "unknown age"
+        if age < 0:
+            return f"mtime {abs(age) / 3600:.1f}h in the future"
+        return f"{age / 3600:.1f}h old"
 
     def _get_json(
         self,

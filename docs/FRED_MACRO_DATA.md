@@ -73,7 +73,10 @@ decided by UTC-vs-local date skew or same-day late revisions.
 
 If an expired copy cannot be refreshed (FRED down or rate limiting), the expired
 copy is served with a warning rather than raising. Unparseable cache files left by
-an interrupted write are discarded and re-fetched.
+an interrupted write are discarded and re-fetched. A cache file whose mtime is in
+the future (clock skew, a restored backup) is treated as **stale**, not as brand
+new — clamping a negative age to zero would pin such a file as fresh until the
+wall clock caught up.
 
 Before this was fixed, every FRED response cached forever. That was correct for
 settled vintages but wrong for the current one: a live bot could act on a value

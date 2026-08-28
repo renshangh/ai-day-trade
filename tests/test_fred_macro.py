@@ -93,16 +93,31 @@ def test_fred_snapshot_reports_per_series_errors(monkeypatch, tmp_path):
 
 
 class _LiveStrategy:
-    """Strategy clock pinned to the real today, i.e. the current vintage."""
+    """Strategy clock on the current vintage, captured once.
+
+    `now` is sampled in __init__ rather than per call on purpose: two
+    `get_datetime()` calls straddling UTC midnight would yield different as-of
+    dates, hence different cache keys, and the cache-hit assertions below would
+    fail intermittently once a day.
+    """
+
+    def __init__(self):
+        self.now = datetime.now(timezone.utc)
 
     def get_datetime(self):
-        return datetime.now(timezone.utc)
+        return self.now
 
 
-def _observation(value):
-    today = datetime.now(timezone.utc).date().isoformat()
-    return {"observations": [{"date": today, "value": value,
-                             "realtime_start": today, "realtime_end": today}]}
+def _observation(value, as_of_date):
+    """One observation stamped with the caller's as-of date.
+
+    Must use the strategy's date, not a freshly read `today`: the client filters
+    to `observation_date <= as_of`, so a mismatched date silently yields zero
+    observations.
+    """
+    stamp = as_of_date.isoformat()
+    return {"observations": [{"date": stamp, "value": value,
+                              "realtime_start": stamp, "realtime_end": stamp}]}
 
 
 def _backdate(path, seconds):
@@ -112,13 +127,20 @@ def _backdate(path, seconds):
 
 
 def _only_cache_file(tmp_path):
-    return next(p for p in tmp_path.rglob("*.json") if p.is_file())
+    """The single cache file, asserting there is exactly one.
+
+    `rglob` order is unspecified, so picking the first match would silently
+    backdate an arbitrary file once a test fetches more than one series.
+    """
+    files = sorted(p for p in tmp_path.rglob("*.json") if p.is_file())
+    assert len(files) == 1, f"expected exactly one cache file, found {files}"
+    return files[0]
 
 
 def _fred_with_versioned_series(monkeypatch, tmp_path, state, strategy):
     def fake_get(url, **kwargs):
         state["calls"] += 1
-        return _Response(payload=_observation(state["value"]))
+        return _Response(payload=_observation(state["value"], strategy.get_datetime().date()))
 
     monkeypatch.setenv("FRED_API_KEY", "test-key")
     monkeypatch.setattr("lumibot.macro.fred.requests.get", fake_get)
@@ -239,3 +261,23 @@ def test_current_vintage_ttl_is_intraday():
     test_current_vintage_cache_expires_and_sees_revisions hardcode its backdate.
     """
     assert 0 < fred_module.CURRENT_VINTAGE_CACHE_MAX_AGE_SECONDS < 24 * 60 * 60
+
+
+def test_future_mtime_cache_is_treated_as_stale(monkeypatch, tmp_path):
+    """A cache file dated in the future must not read as brand new.
+
+    Clock skew, a restored backup, or a mount running ahead makes the computed
+    age negative. Clamping that to zero would pin the copy as fresh until the
+    wall clock caught up, silently reinstating the permanent-cache bug.
+    """
+    state = {"value": "4.1", "calls": 0}
+    fred = _fred_with_versioned_series(monkeypatch, tmp_path, state, _LiveStrategy())
+    fred.get_series("DGS10")
+
+    state["value"] = "4.5"
+    _backdate(_only_cache_file(tmp_path), -6 * 60 * 60)  # mtime 6h in the future
+
+    result = fred.get_series("DGS10")
+
+    assert state["calls"] == 2
+    assert result["observations"][-1]["value"] == 4.5
