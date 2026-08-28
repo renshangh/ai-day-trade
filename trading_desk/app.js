@@ -14,6 +14,9 @@ const VIEWS = [
   // A calendar, not a group ranking: no lookback applies, and it replaces the
   // hero/ranking/movers sections rather than re-scoping them.
   { key: 'earnings', label: 'Earnings timing', lookbacks: [], calendar: true },
+  // Also a solo view: it reports on positions held, not on a ranked group, so
+  // the hero/ranking/movers furniture has nothing to scope here either.
+  { key: 'review', label: 'Daily review', lookbacks: [], solo: true },
 ];
 const HORIZONS = [14, 30, 45, 90];
 // Must match the server's DEFAULT_HORIZON_DAYS so the two cannot disagree.
@@ -40,7 +43,7 @@ const OVERLAYS = [
 ];
 
 const state = {
-  view: 'momentum',   // 'momentum' | 'reversal' -- which screen drives the hero/rank/leaders
+  view: 'momentum',   // see VIEWS -- ranked screens plus the two solo views
   lookback: 1,
   range: '6M',
   board: null,
@@ -56,6 +59,7 @@ const state = {
   overlays: Object.fromEntries(OVERLAYS.map(o => [o.key, o.on])),
   horizon: DEFAULT_HORIZON,
   earnings: null,
+  review: null,
   tableView: false,
   hover: null,        // index into the visible slice
   loading: false,
@@ -234,6 +238,7 @@ function renderViewTabs() {
     reversal: 'Groups down over the prior period that turned positive on the most recent session.',
     earnings: 'When each name reports next — so a swing position is never held through a print by accident.',
     momentum: 'Groups ranked by raw return over the window.',
+    review: 'Every open position against its own levels, sorted by how close it sits to support.',
   };
   $('view-note').textContent = notes[state.view] || notes.momentum;
 }
@@ -363,6 +368,159 @@ function labelTiming(t) {
   if (t === 'after_close') return 'after close';
   if (t === 'before_open') return 'before open';
   return 'timing unknown';
+}
+
+// ------------------------------------------------------------- daily review
+async function fetchReview(force) {
+  const card = $('review-card');
+  card.classList.add('refetching');
+  try {
+    const res = await fetch(`/api/review${force ? '?force=1' : ''}`);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    state.review = d;
+    renderReview();
+  } catch (e) {
+    $('rev-table').innerHTML = '';
+    $('rev-summary').innerHTML = '';
+    showError(`Could not load the daily review: ${e.message}`);
+  } finally {
+    card.classList.remove('refetching');
+  }
+}
+
+// Money, signed, no decimals -- position-level P&L in dollars is never
+// interesting to the cent and the column stays readable without them.
+const fmtMoney0 = v => (v == null ? '—'
+  : `${v < 0 ? '−' : ''}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
+
+function revLevelCell(l) {
+  if (!l) return '<td class="muted">none</td>';
+  const atr = l.distance_atr == null ? '' : ` · ${l.distance_atr.toFixed(1)} ATR`;
+  const near = l.distance_atr != null && l.distance_atr <= 0.5 ? ' at-level' : '';
+  return `<td class="level-cell${near}" title="${l.touches || 0} pivots, ${l.tests || 0} bars tested`
+       + ` in range; last tested ${l.last_touch || 'unknown'}">`
+       + `${fmtPx(l.level)}<span class="lvl-meta">${fmtPct(l.distance_pct)}${atr}</span></td>`;
+}
+
+function renderReview() {
+  const d = state.review;
+  if (!d) { $('rev-table').innerHTML = '<div class="loading">Loading…</div>'; return; }
+
+  const stamp = d.generated_at ? new Date(d.generated_at).toLocaleTimeString('en-US') : '';
+  $('rev-stamp').textContent = stamp ? `built ${stamp} · ${d.feed_note || ''}` : '';
+  $('rev-sub').textContent =
+    `Every open lot in ${d.journal}, priced against the same levels the chart draws. `
+    + `Sorted by how close each position sits to its nearest support — the level a stop `
+    + `would key off. Levels are prices the market actually turned at, not projections.`;
+
+  // ---- portfolio summary
+  const tot = d.totals || {};
+  const cells = [
+    ['Reviewed book', fmtMoney0(tot.market_value), null],
+    ['Unrealised', fmtMoney0(tot.pnl), tot.pnl],
+    ['vs cost', fmtPct(tot.pnl_pct), tot.pnl_pct],
+    ['Downside to support', fmtMoney0(d.risk_to_support),
+      d.risk_to_support_pct_of_book == null ? null : -1],
+    ['Open lots', String(d.reviewed_open_lots ?? '—'), null,
+      d.open_lots == null ? null : `${d.open_lots} in journal`],
+    // Scoped to the reviewed rows so the tile agrees with the table beneath it;
+    // the journal-wide figure — the one the README's "trend to zero" rule is
+    // about — rides underneath rather than replacing it.
+    ['Lots without a stop',
+      `${d.reviewed_lots_without_stop ?? '—'} of ${d.reviewed_open_lots ?? '—'}`,
+      d.reviewed_lots_without_stop ? -1 : 1,
+      d.lots_without_stop == null ? null : `${d.lots_without_stop} of ${d.open_lots} in journal`],
+  ];
+  $('rev-summary').innerHTML = `<div class="rev-stats">` + cells.map(([k, v, sign, sub]) =>
+    `<div class="rev-stat"><div class="k">${k}</div>`
+    + `<div class="v ${sign == null ? '' : signClass(sign)}">${v}`
+    + `${sub ? `<span class="lvl-meta">${sub}</span>` : ''}</div></div>`).join('') + `</div>`;
+
+  // ---- per-position table
+  if (!d.positions.length) {
+    $('rev-table').innerHTML = '<div class="loading">No reviewable open positions.</div>';
+  } else {
+    const rows = d.positions.map(e => {
+      if (e.error) {
+        return `<tr class="rev-row" data-sym="${e.symbol}"><td><b>${e.symbol}</b></td>`
+             + `<td colspan="10" class="neg">${e.error}</td></tr>`;
+      }
+      const w = e.book_weight_pct;
+      const earn = e.earnings && e.earnings.days_until != null
+        ? `${e.earnings.days_until}d` : '—';
+      const earnCls = e.earnings && e.earnings.days_until != null
+        && e.earnings.days_until <= SWING_WINDOW_DAYS ? 'neg' : '';
+      return `<tr class="rev-row" data-sym="${e.symbol}" tabindex="0">
+        <td><b>${e.symbol}</b><span class="lvl-meta">${e.lots} lot${e.lots === 1 ? '' : 's'}</span></td>
+        <td>${fmtPx(e.last)}<span class="lvl-meta ${signClass(e.day_pct)}">${fmtPct(e.day_pct)}</span></td>
+        <td>${fmtPx(e.avg_entry)}</td>
+        <td class="${signClass(e.pnl)}">${fmtMoney0(e.pnl)}<span class="lvl-meta ${signClass(e.pnl_pct)}">${fmtPct(e.pnl_pct)}</span></td>
+        <td>${w == null ? '—' : w.toFixed(1) + '%'}</td>
+        ${revLevelCell(e.nearest_resistance)}
+        ${revLevelCell(e.nearest_support)}
+        <td>${fmtMoney0(e.risk_to_support)}</td>
+        <td>${e.rsi14 == null ? '—' : e.rsi14.toFixed(0)}</td>
+        <td>${e.atr_pct == null ? '—' : e.atr_pct.toFixed(1) + '%'}</td>
+        <td class="${earnCls}">${earn}</td>
+      </tr>`;
+    }).join('');
+    $('rev-table').innerHTML = `<table class="rev-tbl">
+      <thead><tr>
+        <th>Symbol</th><th>Last</th><th>Avg entry</th><th>Unrealised</th><th>% book</th>
+        <th>Resistance above</th><th>Support below</th><th>To support</th>
+        <th>RSI</th><th>ATR%</th><th>Earnings</th>
+      </tr></thead><tbody>${rows}</tbody></table>`;
+    // Clicking a row charts that symbol, same affordance as the calendar rows.
+    $('rev-table').querySelectorAll('.rev-row').forEach(tr => {
+      const go = () => { const s = tr.dataset.sym; if (s) fetchStock(s); };
+      tr.onclick = go;
+      tr.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); go(); } };
+    });
+  }
+
+  // ---- flags, grouped per position
+  const flagged = d.positions.filter(e => (e.flags || []).length);
+  $('rev-cards').innerHTML = !flagged.length ? '' :
+    `<h3 class="rev-h3">Worth a look</h3><div class="rev-flags">` + flagged.map(e =>
+      `<div class="rev-flag-card"><div class="rev-flag-sym">${e.symbol}</div><ul>`
+      + e.flags.map(f => `<li class="flag-${f.level}">${f.text}</li>`).join('')
+      + `</ul></div>`).join('') + `</div>`;
+
+  // ---- theme concentration
+  const g = d.group_exposure || [];
+  $('rev-groups').innerHTML = !g.length ? '' :
+    `<h3 class="rev-h3">Theme exposure</h3><div class="rev-bars">` + g.map(x => {
+      const pct = x.pct_of_book || 0;
+      return `<div class="rev-bar-row"><div class="rev-bar-lbl">${x.group}</div>`
+        + `<div class="rev-bar-track"><div class="rev-bar-fill" style="width:${Math.min(pct, 100)}%"></div></div>`
+        + `<div class="rev-bar-val">${pct.toFixed(1)}% <span class="lvl-meta">${fmtMoney0(x.market_value)}</span></div></div>`;
+    }).join('') + `</div><p class="sub">A name in two groups counts in both, so these do not sum to 100%.</p>`;
+
+  // ---- excluded holdings, reported but not reviewed
+  const ex = d.excluded || [];
+  $('rev-excluded').innerHTML = !ex.length ? '' :
+    `<h3 class="rev-h3">Held, not reviewed</h3><p class="sub">${d.excluded_note || ''}</p>`
+    + `<div class="rev-bars">` + ex.map(e =>
+      `<div class="rev-bar-row"><div class="rev-bar-lbl">${e.symbol}`
+      + `${e.exclusion_reason ? `<span class="lvl-meta">${e.exclusion_reason}</span>` : ''}</div>`
+      + `<div class="rev-bar-track"><div class="rev-bar-fill muted-fill" style="width:${Math.min(e.book_weight_pct || 0, 100)}%"></div></div>`
+      + `<div class="rev-bar-val">${(e.book_weight_pct || 0).toFixed(1)}% <span class="lvl-meta">${fmtMoney0(e.market_value)}</span></div></div>`
+    ).join('') + `</div>`;
+
+  // Open the chart on the position the review put first (closest to its
+  // support), the same courtesy the momentum view extends by charting the
+  // leading group's #1. A symbol already among the holdings is left alone, so
+  // clicking a row is not undone by the next render.
+  const held = d.positions.map(e => e.symbol);
+  const wanted = held.includes(state.symbol) ? state.symbol : held[0];
+  if (wanted && (wanted !== state.symbol || !state.stock)) fetchStock(wanted);
+
+  $('rev-disclaimer').textContent =
+    'Observations, not recommendations. Every figure here is a measurement — none of it '
+    + 'says what to do, and nothing on this page is investment advice. "Downside to support" '
+    + 'is measured from today’s price, not from entry, so for an underwater position it is '
+    + 'remaining risk to that level rather than the risk originally taken.';
 }
 
 function renderLookbackTabs() {
@@ -1553,22 +1711,33 @@ function renderDetail() {
 function renderAll() {
   renderViewTabs();
 
-  // The earnings view is a calendar, so the group-ranking furniture (hero,
-  // ranking bars, movers strip, ranking table) and the lookback filter have
-  // nothing to scope and are hidden rather than left showing stale figures.
-  const calendar = !!currentView().calendar;
+  // The calendar and the daily review both report on something other than a
+  // ranked group, so the group-ranking furniture (hero, ranking bars, movers
+  // strip, ranking table) and the lookback filter have nothing to scope. They
+  // are hidden rather than left showing stale figures.
+  const v = currentView();
+  const calendar = !!v.calendar;
+  const review = !!v.solo;
+  const soloView = calendar || review;
   ['hero-card', 'rank-card', 'leaders-card', 'rank-table-card'].forEach(id => {
     const el = $(id);
-    if (el) el.classList.toggle('hidden', calendar);
+    if (el) el.classList.toggle('hidden', soloView);
   });
-  $('lookback-row').classList.toggle('hidden', calendar);
+  $('lookback-row').classList.toggle('hidden', soloView);
   $('earnings-card').classList.toggle('hidden', !calendar);
+  $('review-card').classList.toggle('hidden', !review);
 
-  if (calendar) {
-    if (!state.earnings) fetchEarnings();
-    else renderEarnings();
-    // Keep whatever symbol is charted; the calendar rows can change it.
-    if (state.stock) renderDetail();
+  if (soloView) {
+    if (calendar) {
+      if (!state.earnings) fetchEarnings();
+      else renderEarnings();
+      // Keep whatever symbol is charted; calendar rows can change it.
+      if (state.stock) renderDetail();
+    } else if (!state.review) {
+      fetchReview();          // renderReview() runs when it lands
+    } else {
+      renderReview();
+    }
     return;
   }
 
@@ -1645,9 +1814,10 @@ function init() {
     $('notices').innerHTML = '';
     fetchBoard(true);
     if (state.symbol) fetchStock(state.symbol, true);
-    // The calendar caches for an hour server-side, so without this Refresh left
-    // it stale with no way for the user to force a rebuild.
+    // Both solo views cache server-side, so without this Refresh left them
+    // stale with no way for the user to force a rebuild.
     if (currentView().calendar) fetchEarnings(true);
+    if (currentView().solo) fetchReview(true);
   };
 
   const applyTheme = next => {
