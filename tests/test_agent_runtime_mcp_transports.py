@@ -326,3 +326,66 @@ def test_stdio_transport_keeps_child_stderr_when_not_quiet(monkeypatch):
     runtime_module.list_mcp_tools(server)
 
     assert captured["errlog"] is sys.stderr
+
+
+# --- mcp API contract -------------------------------------------------------
+#
+# `mcp` was pinned `>=1.26.0` with no upper bound, so mcp 2.0 was installed
+# automatically and broke the agent runtime three ways at once:
+#
+#   1. `streamablehttp_client` was renamed `streamable_http_client`
+#   2. `headers` / `timeout` / `sse_read_timeout` were replaced by an injected
+#      `http_client`
+#   3. the yielded `TransportStreams` went from a 3-tuple to a 2-tuple, dropping
+#      the get-session-id callable that `_stream_http_session` unpacks
+#
+# The symptom was an ImportError surfacing from inside a strategy's agent
+# runtime, which says nothing about a dependency having moved. These assert the
+# shape `runtime.py` actually depends on, so the next incompatible release fails
+# here with a message naming the problem instead.
+
+
+def test_streamable_http_client_exists_under_the_name_runtime_imports():
+    from mcp.client import streamable_http
+
+    assert hasattr(streamable_http, "streamablehttp_client"), (
+        "mcp renamed streamablehttp_client (2.0 calls it streamable_http_client). "
+        "lumibot/components/agents/runtime.py imports the old name; either adapt "
+        "the runtime to the new API or keep the mcp<2 pin."
+    )
+
+
+def test_streamable_http_client_accepts_the_arguments_runtime_passes():
+    """runtime.py passes headers/timeout/sse_read_timeout/terminate_on_close.
+
+    mcp 2.0 removed the first three in favour of a pre-built httpx client, so a
+    rename-only shim would still fail at the call.
+    """
+    import inspect
+
+    from mcp.client.streamable_http import streamablehttp_client
+
+    params = inspect.signature(streamablehttp_client).parameters
+    for name in ("headers", "timeout", "sse_read_timeout", "terminate_on_close"):
+        assert name in params, (
+            f"mcp's streamablehttp_client no longer accepts {name!r}; "
+            "runtime._stream_http_session passes it"
+        )
+
+
+def test_streamable_http_client_still_yields_three_values():
+    """`async with streamablehttp_client(...) as (read, write, get_session_id)`.
+
+    mcp 2.0's TransportStreams is a 2-tuple, so this unpacking raises a
+    ValueError at runtime rather than anything that names the cause.
+    """
+    import typing
+
+    from mcp.client.streamable_http import streamablehttp_client
+
+    hints = typing.get_type_hints(streamablehttp_client)
+    yielded = typing.get_args(hints["return"])[0]
+    assert len(typing.get_args(yielded)) == 3, (
+        "mcp's streamablehttp_client no longer yields (read, write, get_session_id); "
+        "runtime._stream_http_session unpacks three values"
+    )
