@@ -13,6 +13,11 @@ lumibot/cache
 !lumibot/components/agents/replay_cache.py
 !tests/test_backtest_cache_manager.py
 !tests/backtest/test_ibkr_helper_stale_end_negative_cache.py
+# Hand-authored docs are never cache artifacts, even when they document caching.
+# macOS filesystems are case-insensitive, so `*cache*` above also swallows the
+# repo's UPPERCASE doc convention (e.g. ..._CACHE_NEVER_EXPIRES.md).
+!docs/**/*.md
+!docsrc/**/*.rst
 !tests/backtest/test_ibkr_conids_seed_from_v1_for_new_cache_version.py
 !docs/remote_cache.md
 !scripts/bench_ibkr_speed_burner_warm_cache.py

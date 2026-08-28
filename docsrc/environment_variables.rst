@@ -753,6 +753,9 @@ LUMIBOT_SEC_CACHE_DIR
 
 - Purpose: Override local SEC fundamentals and filing cache.
 - Default: ``~/.lumibot/cache/sec``.
+- Notes: Filing documents are cached permanently; the submissions and company-facts
+  indexes expire after 24 hours and the ticker-to-CIK map after 7 days. Point this
+  at an empty directory to force a full refresh.
 
 FRED_API_KEY
 ^^^^^^^^^^^^
