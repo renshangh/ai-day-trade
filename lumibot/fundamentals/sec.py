@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import time
@@ -14,6 +15,30 @@ SEC_DATA_BASE_URL = "https://data.sec.gov"
 SEC_ARCHIVES_BASE_URL = "https://www.sec.gov/Archives/edgar/data/"
 SEC_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 DEFAULT_SEC_USER_AGENT = "LumiBot open-source trading framework support@lumiwealth.com"
+
+logger = logging.getLogger(__name__)
+
+# --- Cache freshness ---------------------------------------------------------
+#
+# SEC objects fall into two classes, and they must not share a caching policy:
+#
+#   * A filed *document* is immutable once EDGAR has it. Caching it forever is
+#     correct, and that is why the archive path below passes no max age.
+#   * The *index* endpoints grow every time a company files anything. Caching
+#     those forever silently hides new filings -- a collector re-run reads back
+#     its own stale input and reports success, with no error and no warning.
+#
+# That second case was a real defect: `trading_desk/research/earnings_dates.py`
+# was returning a stale "last reported" date and missing an earnings print
+# entirely. See
+# docs/investigations/2026-08-28_SEC_SUBMISSIONS_CACHE_NEVER_EXPIRES.md.
+#
+# `max_age_seconds=None` anywhere below means "cache forever" and is only ever
+# correct for an immutable object.
+SUBMISSIONS_CACHE_MAX_AGE_SECONDS = 24 * 60 * 60
+COMPANY_FACTS_CACHE_MAX_AGE_SECONDS = 24 * 60 * 60
+# Listings do change, but slowly, and this payload is large.
+TICKER_MAP_CACHE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 
 
 INCOME_STATEMENT_TAGS = {
@@ -150,24 +175,79 @@ class SECFundamentals:
         safe = [re.sub(r"[^A-Za-z0-9_.=-]+", "_", str(part)).strip("_") for part in parts]
         return self.cache_dir.joinpath(*safe)
 
-    def _get_json(self, url: str, cache_path: Path) -> dict[str, Any]:
-        if cache_path.exists():
-            return json.loads(cache_path.read_text(encoding="utf-8"))
-        self._rate_limit()
-        response = requests.get(url, headers=self._headers(), timeout=30)
-        response.raise_for_status()
-        payload = response.json()
+    def _cache_age_seconds(self, cache_path: Path) -> float | None:
+        """Age of a cached file in seconds, or None if it cannot be stat'd."""
+        try:
+            return max(time.time() - cache_path.stat().st_mtime, 0.0)
+        except OSError:
+            return None
+
+    def _cache_is_fresh(self, cache_path: Path, max_age_seconds: float | None) -> bool:
+        """Whether the cached copy may be served without re-fetching.
+
+        `max_age_seconds=None` means the cached object is immutable, so its age
+        is irrelevant. Any other value expires the copy.
+        """
+        if not cache_path.exists():
+            return False
+        if max_age_seconds is None:
+            return True
+        age = self._cache_age_seconds(cache_path)
+        return age is not None and age < max_age_seconds
+
+    def _describe_age(self, cache_path: Path) -> str:
+        age = self._cache_age_seconds(cache_path)
+        return "unknown age" if age is None else f"{age / 3600:.1f}h old"
+
+    def _get_json(self, url: str, cache_path: Path, *, max_age_seconds: float | None = None) -> dict[str, Any]:
+        if self._cache_is_fresh(cache_path, max_age_seconds):
+            try:
+                return json.loads(cache_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                # An interrupted write leaves an unparseable file. Re-fetch
+                # rather than hand a corrupt cache to the caller.
+                logger.warning("Discarding unreadable SEC cache %s (%s); re-fetching.", cache_path, exc)
+        try:
+            self._rate_limit()
+            response = requests.get(url, headers=self._headers(), timeout=30)
+            response.raise_for_status()
+            payload = response.json()
+        except Exception as exc:  # noqa: BLE001 - any fetch failure falls back to cache
+            # An expired cache still beats no data at all: SEC being down or
+            # rate-limiting must not break a run that used to work offline.
+            # Warn loudly so the staleness is visible, unlike the old silent
+            # permanent cache.
+            if cache_path.exists():
+                try:
+                    stale = json.loads(cache_path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    raise exc
+                logger.warning(
+                    "SEC fetch failed for %s (%s); serving expired cached copy (%s).",
+                    url, exc, self._describe_age(cache_path),
+                )
+                return stale
+            raise
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
         return payload
 
-    def _get_text(self, url: str, cache_path: Path) -> str:
-        if cache_path.exists():
+    def _get_text(self, url: str, cache_path: Path, *, max_age_seconds: float | None = None) -> str:
+        if self._cache_is_fresh(cache_path, max_age_seconds):
             return cache_path.read_text(encoding="utf-8", errors="replace")
-        self._rate_limit()
-        response = requests.get(url, headers=self._archive_headers(), timeout=30)
-        response.raise_for_status()
-        text = response.text
+        try:
+            self._rate_limit()
+            response = requests.get(url, headers=self._archive_headers(), timeout=30)
+            response.raise_for_status()
+            text = response.text
+        except Exception as exc:  # noqa: BLE001 - any fetch failure falls back to cache
+            if cache_path.exists():
+                logger.warning(
+                    "SEC fetch failed for %s (%s); serving expired cached copy (%s).",
+                    url, exc, self._describe_age(cache_path),
+                )
+                return cache_path.read_text(encoding="utf-8", errors="replace")
+            raise
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(text, encoding="utf-8", errors="replace")
         return text
@@ -188,7 +268,11 @@ class SECFundamentals:
 
     def ticker_to_cik(self, symbol: str) -> str:
         symbol_upper = str(symbol).upper().strip()
-        payload = self._get_json(SEC_COMPANY_TICKERS_URL, self._cache_path("company_tickers.json"))
+        payload = self._get_json(
+            SEC_COMPANY_TICKERS_URL,
+            self._cache_path("company_tickers.json"),
+            max_age_seconds=TICKER_MAP_CACHE_MAX_AGE_SECONDS,
+        )
         for entry in payload.values():
             if str(entry.get("ticker", "")).upper() == symbol_upper:
                 return f"{int(entry['cik_str']):010d}"
@@ -197,7 +281,11 @@ class SECFundamentals:
     def get_submissions(self, symbol: str) -> dict[str, Any]:
         cik = self.ticker_to_cik(symbol)
         url = f"{SEC_DATA_BASE_URL}/submissions/CIK{cik}.json"
-        return self._get_json(url, self._cache_path("submissions", f"CIK{cik}.json"))
+        return self._get_json(
+            url,
+            self._cache_path("submissions", f"CIK{cik}.json"),
+            max_age_seconds=SUBMISSIONS_CACHE_MAX_AGE_SECONDS,
+        )
 
     def get_company_facts(
         self,
@@ -209,7 +297,11 @@ class SECFundamentals:
     ) -> dict[str, Any]:
         cik = self.ticker_to_cik(symbol)
         url = f"{SEC_DATA_BASE_URL}/api/xbrl/companyfacts/CIK{cik}.json"
-        payload = self._get_json(url, self._cache_path("companyfacts", f"CIK{cik}.json"))
+        payload = self._get_json(
+            url,
+            self._cache_path("companyfacts", f"CIK{cik}.json"),
+            max_age_seconds=COMPANY_FACTS_CACHE_MAX_AGE_SECONDS,
+        )
         if raw:
             return payload
         facts = payload.get("facts", {}).get("us-gaap", {})
