@@ -53,3 +53,30 @@ export LUMIBOT_FRED_CACHE_DIR=/path/to/cache
 ```
 
 Backtests should fetch each series once and reuse the local cache instead of hitting FRED on every trading iteration.
+
+### Cache lifetime is vintage-dependent
+
+A request's cache key includes its ALFRED vintage (`realtime_start`/`realtime_end`,
+both the as-of date), which splits cached responses into two classes:
+
+| Requested vintage | Expires | Why |
+|---|---|---|
+| Settled history (as-of older than yesterday) | never | The vintage is immutable. Keeps backtests at one fetch per series. |
+| Current (as-of today or yesterday) | 1 hour | FRED publishes and restates intraday under an unchanged cache key. |
+
+Constants are at the top of `lumibot/macro/fred.py`
+(`CURRENT_VINTAGE_CACHE_MAX_AGE_SECONDS`, `VINTAGE_SETTLES_AFTER_DAYS`). The
+settled/current boundary is decided against **wall-clock** today, not strategy
+time — a backtest reading a 2024 vintage is reading settled history regardless of
+its own clock. `VINTAGE_SETTLES_AFTER_DAYS` is non-zero so the boundary is not
+decided by UTC-vs-local date skew or same-day late revisions.
+
+If an expired copy cannot be refreshed (FRED down or rate limiting), the expired
+copy is served with a warning rather than raising. Unparseable cache files left by
+an interrupted write are discarded and re-fetched.
+
+Before this was fixed, every FRED response cached forever. That was correct for
+settled vintages but wrong for the current one: a live bot could act on a value
+cached earlier in the same session. See
+`docs/investigations/2026-08-28_SEC_SUBMISSIONS_CACHE_NEVER_EXPIRES.md` for the
+same defect class in the SEC client.

@@ -2,6 +2,9 @@
 
 ## 4.5.30 - Unreleased
 
+### Fixed
+- **FRED macro caches no longer hide same-day releases and revisions.** `FREDMacroData` cached every response permanently. Because a request's cache key includes its ALFRED vintage, that was correct for settled history but wrong for the current vintage: FRED publishes new observations and restates existing ones through the day under an unchanged cache key, so a live strategy could act on a value cached earlier in the same session. The current vintage (as-of today or yesterday) now expires after 1 hour; settled historical vintages still cache permanently, so backtests are unaffected and continue to fetch each series once. If an expired copy cannot be refreshed, it is served with a warning instead of raising, and unparseable cache files left by an interrupted write are discarded and re-fetched.
+
 ## 4.5.29 - 2026-05-20
 
 Deploy marker: 4.5.29 release commit (`deploy 4.5.29`)
