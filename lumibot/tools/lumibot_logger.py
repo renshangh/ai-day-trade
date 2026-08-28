@@ -51,7 +51,6 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Tuple, Optional
-from functools import lru_cache
 from enum import Enum
 
 # Import LUMIWEALTH_API_KEY from credentials
@@ -569,6 +568,9 @@ _logger_registry: Dict[str, logging.Logger] = {}
 _strategy_logger_registry: Dict[str, 'StrategyLoggerAdapter'] = {}
 _handlers_configured = False
 _config_lock = threading.Lock()
+# PERF: `StrategyLoggerAdapter.isEnabledFor()` is called extremely frequently in backtests. Avoid
+# per-call environment lookups by caching the effective "quiet logs" mode during logger setup.
+_BACKTESTING_QUIET_LOGS_ENABLED = False
 
 
 class StrategyLoggerAdapter(logging.LoggerAdapter):
@@ -590,17 +592,9 @@ class StrategyLoggerAdapter(logging.LoggerAdapter):
         return f"[{self.strategy_name}] {msg}", kwargs
     
     def isEnabledFor(self, level):
-        """Override to respect BACKTESTING_QUIET_LOGS for strategy loggers"""
-        # BACKTESTING_QUIET_LOGS only applies during backtesting, not live trading
-        is_backtesting = os.environ.get("IS_BACKTESTING", "").lower() == "true"
-        
-        if is_backtesting:
-            # During backtesting, check quiet logs setting
-            quiet_logs = os.environ.get("BACKTESTING_QUIET_LOGS", "true").lower() == "true"  # Default to True
-            if quiet_logs and level < logging.ERROR:
-                return False
-        
-        # For live trading, always show messages
+        """Respect BACKTESTING_QUIET_LOGS without per-call environment lookups."""
+        if _BACKTESTING_QUIET_LOGS_ENABLED and level < logging.ERROR:
+            return False
         return self.logger.isEnabledFor(level)
     
     def info(self, msg, *args, **kwargs):
@@ -628,7 +622,7 @@ class StrategyLoggerAdapter(logging.LoggerAdapter):
             self.extra = extra_dict
 
 
-def _ensure_handlers_configured():
+def _ensure_handlers_configured(is_backtest=False, skip_if_configured=False):
     """
     Ensure that the root logger has the appropriate handlers configured.
     This is called once globally to set up consistent formatting, but we also
@@ -642,8 +636,21 @@ def _ensure_handlers_configured():
     - LUMIBOT_ERROR_CSV_PATH: Path for CSV error log file (default: logs/errors.csv)
     - BACKTESTING_QUIET_LOGS: Enable quiet logs for backtesting (true/false)
     - LUMIWEALTH_API_KEY: API key for Lumiwealth/Botspot error reporting (when set, enables automatic error reporting)
+
+    Parameters
+    ----------
+    is_backtest : bool, optional
+        Whether we are in a backtesting (default False). This can also be determined from the IS_BACKTESTING
+        environment variable, but is provided here as an optional parameter for cases
+        where we might want to explicitly control this behavior without relying on environment variables.
+    skip_if_configured : bool, optional
+        If True, will skip re-applying log levels if handlers are already configured. This avoids
+        overriding any changes to the defaults if this is not the first time calling.
     """
-    global _handlers_configured
+    global _handlers_configured, _BACKTESTING_QUIET_LOGS_ENABLED
+
+    if skip_if_configured and _handlers_configured:
+        return
 
     # Resolve baseline log level from the environment (default INFO)
     default_level = os.environ.get('LUMIBOT_LOG_LEVEL', 'INFO').upper()
@@ -652,22 +659,36 @@ def _ensure_handlers_configured():
     except AttributeError:
         log_level = logging.INFO
 
-    is_backtesting = os.environ.get("IS_BACKTESTING", "").lower() == "true"
+    is_backtesting = is_backtest or os.environ.get("IS_BACKTESTING", "").lower() == "true"
 
     # Determine the effective file (root) log level and console level
     if is_backtesting:
-        console_level = logging.ERROR
         backtesting_quiet = os.environ.get("BACKTESTING_QUIET_LOGS")
         if backtesting_quiet is None:
             backtesting_quiet = "true"
-        effective_log_level = logging.ERROR if backtesting_quiet.lower() == "true" else log_level
+
+        quiet_logs_enabled = backtesting_quiet.lower() == "true"
+        _BACKTESTING_QUIET_LOGS_ENABLED = quiet_logs_enabled
+
+        if quiet_logs_enabled:
+            # Quiet mode: only ERROR+ messages to console and file
+            console_level = logging.ERROR
+            effective_log_level = logging.ERROR
+        else:
+            # Verbose mode: respect LUMIBOT_LOG_LEVEL for both console and file
+            console_level = log_level
+            effective_log_level = log_level
     else:
+        _BACKTESTING_QUIET_LOGS_ENABLED = False
         console_level = log_level
         effective_log_level = log_level
 
     def _apply_levels(root_logger: logging.Logger):
         """Ensure root level and console handler levels reflect the desired state."""
         root_logger.setLevel(effective_log_level)
+        # Some environments/tests toggle `propagate` to avoid duplicate output. For Lumibot's unified logger we want
+        # records to remain capturable by upstream handlers (pytest caplog, app-level root handlers, etc.).
+        root_logger.propagate = True
 
         console_handlers = [
             handler
@@ -736,7 +757,6 @@ def _ensure_handlers_configured():
         _handlers_configured = True
 
 
-@lru_cache(maxsize=128)
 def get_logger(name: str) -> logging.Logger:
     """
     Get a logger instance for the given name with consistent Lumibot formatting.
@@ -851,27 +871,35 @@ def set_log_level(level: str):
         # Get the actual lumibot root logger
         root_logger = logging.getLogger("lumibot")
         root_logger.setLevel(log_level)
-        
-        # Update handlers but respect console handler's ERROR level during backtesting
+
+        # Update handlers with respect to backtesting quiet logs setting
         is_backtesting = os.environ.get("IS_BACKTESTING", "").lower() == "true"
-        
+
         if is_backtesting:
-            # During backtesting, we need special handling to ensure console stays quiet
-            # Set root logger to allow messages through (for file logging)
-            root_logger.setLevel(log_level)
-            
-            # But ensure ALL console handlers stay at ERROR level
-            for handler in root_logger.handlers:
-                if isinstance(handler, logging.StreamHandler):
-                    handler.setLevel(logging.ERROR)
-            
-            # Don't update individual logger levels - this would bypass handler filtering
+            # Check if quiet logs are enabled
+            backtesting_quiet = os.environ.get("BACKTESTING_QUIET_LOGS")
+            if backtesting_quiet is None:
+                backtesting_quiet = "true"
+
+            if backtesting_quiet.lower() == "true":
+                # Quiet mode: console stays at ERROR, but allow file handlers to use requested level
+                root_logger.setLevel(log_level)
+                for handler in root_logger.handlers:
+                    if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
+                        handler.setLevel(logging.ERROR)  # Console: quiet
+                    else:
+                        handler.setLevel(log_level)  # File handlers: verbose
+            else:
+                # Verbose mode: respect requested level for all handlers
+                root_logger.setLevel(log_level)
+                for handler in root_logger.handlers:
+                    handler.setLevel(log_level)
         else:
-            # For live trading, set everything normally
+            # Live trading: set everything normally
             root_logger.setLevel(log_level)
             for handler in root_logger.handlers:
                 handler.setLevel(log_level)
-            
+
             # Update all existing loggers in our registry
             for logger in _logger_registry.values():
                 logger.setLevel(log_level)
@@ -898,7 +926,7 @@ def set_console_log_level(level: str):
     >>> set_console_log_level('DEBUG')  # Enable debug logging in console
     >>> set_console_log_level('ERROR')  # Only show errors and critical messages in console
     """
-    _ensure_handlers_configured()
+    _ensure_handlers_configured(skip_if_configured=True)
 
     # Check both "root" and "lumibot" logger to ensure we get the correct root logger.
     # Currently, "lumibot" is used in _ensure_handlers_configured() to set up the console handler, but "root" is
@@ -914,7 +942,7 @@ def set_console_log_level(level: str):
                                      f"DEBUG, INFO, WARNING, ERROR, CRITICAL")
 
 
-def add_file_handler(file_path: str, level: str = 'INFO'):
+def add_file_handler(file_path: str, level: str = 'INFO', is_backtest: bool = False):
     """
     Add a file handler to the root logger to also log to a file.
     
@@ -924,13 +952,16 @@ def add_file_handler(file_path: str, level: str = 'INFO'):
         Path to the log file.
     level : str, optional
         Log level for the file handler. Defaults to 'INFO'.
+    is_backtest : bool, optional
+        Whether this is for backtesting (default False). This will ensure that the file handler respects
+        the backtesting quiet logs/console setting if applicable.
         
     Examples
     --------
     >>> from lumibot.tools.lumibot_logger import add_file_handler
     >>> add_file_handler('/path/to/lumibot.log', 'DEBUG')
     """
-    _ensure_handlers_configured()
+    _ensure_handlers_configured(is_backtest=is_backtest, skip_if_configured=True)
     
     try:
         file_level = getattr(logging, level.upper())

@@ -16,13 +16,21 @@ import queue
 from collections import defaultdict
 
 import polars as pl
-import databento as db
+try:
+    import databento as db
+except ImportError:  # pragma: no cover - optional dependency
+    db = None
 
-from lumibot.data_sources import DataSource
-from lumibot.data_sources.polars_mixin import PolarsMixin
+from .data_source import DataSource
+from .polars_mixin import PolarsMixin
 from lumibot.entities import Asset, Bars, Quote
-from lumibot.tools import databento_helper_polars
-from lumibot.tools.databento_helper_polars import _ensure_polars_datetime_timezone as _ensure_polars_tz
+from lumibot.tools import databento_helper_polars, futures_roll
+from lumibot.tools.databento_helper_polars import (
+    _ensure_polars_datetime_timezone as _ensure_polars_tz,
+    _ensure_polars_datetime_precision as _ensure_polars_precision,
+    _format_futures_symbol_for_databento,
+    _generate_databento_symbol_alternatives,
+)
 from lumibot.tools.lumibot_logger import get_logger
 
 logger = get_logger(__name__)
@@ -31,7 +39,7 @@ logger = get_logger(__name__)
 class DataBentoDataPolars(PolarsMixin, DataSource):
     """
     DataBento data source optimized with Polars and proper Live API usage.
-    
+
     Uses Live API for real-time trade streaming to achieve <1 minute lag.
     Falls back to Historical API for older data.
     """
@@ -56,6 +64,9 @@ class DataBentoDataPolars(PolarsMixin, DataSource):
     ):
         """Initialize DataBento data source with Live API support"""
         super().__init__(api_key=api_key, has_paid_subscription=has_paid_subscription)
+
+        if db is None:
+            raise ImportError("DataBento package not available. Please install with: pip install databento")
 
         # Core configuration
         self._api_key = api_key
@@ -212,7 +223,7 @@ class DataBentoDataPolars(PolarsMixin, DataSource):
                         logger.warning(f"[DATABENTO][PRODUCER] Queue full, dropping record")
                 
                 # Clean exit
-                logger.info(f"[DATABENTO][PRODUCER] {symbol} stopped after {record_count} records")
+                logger.debug(f"[DATABENTO][PRODUCER] {symbol} stopped after {record_count} records")
                 break  # Successful completion
                 
             except Exception as e:
@@ -221,7 +232,7 @@ class DataBentoDataPolars(PolarsMixin, DataSource):
                 
                 if reconnect_attempts < max_reconnect_attempts:
                     sleep_time = backoff_seconds * (2 ** reconnect_attempts)
-                    logger.info(f"[DATABENTO][PRODUCER] Reconnecting {symbol} in {sleep_time}s (attempt {reconnect_attempts})")
+                    logger.debug(f"[DATABENTO][PRODUCER] Reconnecting {symbol} in {sleep_time}s (attempt {reconnect_attempts})")
                     time.sleep(sleep_time)
                     
                     # Update start time for reconnection to avoid duplicate data
@@ -230,7 +241,7 @@ class DataBentoDataPolars(PolarsMixin, DataSource):
                         ts_ns = self._last_ts_event[symbol]
                         if ts_ns > 0:
                             start_time = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc)
-                        logger.info(f"[DATABENTO][PRODUCER] Resuming from last event: {start_time.isoformat()}")
+                        logger.debug(f"[DATABENTO][PRODUCER] Resuming from last event: {start_time.isoformat()}")
                 else:
                     logger.error(f"[DATABENTO][PRODUCER] {symbol} max reconnection attempts reached")
     
@@ -342,7 +353,7 @@ class DataBentoDataPolars(PolarsMixin, DataSource):
             except Exception as e:
                 logger.error(f"[DATABENTO][CONSUMER] Error processing record: {e}")
         
-        logger.info(f"[DATABENTO][CONSUMER] Stopped after {trade_count} trades")
+        logger.debug(f"[DATABENTO][CONSUMER] Stopped after {trade_count} trades")
     
     def _finalizer_loop(self):
         """Finalizer thread that marks old bars as complete"""
@@ -378,7 +389,7 @@ class DataBentoDataPolars(PolarsMixin, DataSource):
             except Exception as e:
                 logger.error(f"[DATABENTO][FINALIZER] Error: {e}")
         
-        logger.info("[DATABENTO][FINALIZER] Stopped")
+        logger.debug("[DATABENTO][FINALIZER] Stopped")
     
     def _aggregate_trade(self, symbol: str, price: float, size: float, trade_time: datetime):
         """Aggregate a trade into minute bars"""
@@ -449,6 +460,7 @@ class DataBentoDataPolars(PolarsMixin, DataSource):
         
         df = pl.DataFrame(tail_bars).sort('datetime')
         df = _ensure_polars_tz(df)
+        df = _ensure_polars_precision(df)
         logger.debug(f"[DATABENTO][LIVE] Collected {len(df)} tail bars after {after_dt}")
         return df
 
@@ -506,38 +518,30 @@ class DataBentoDataPolars(PolarsMixin, DataSource):
     
     def _resolve_futures_symbol(self, asset: Asset, reference_date: datetime = None) -> str:
         """Resolve asset to specific futures contract symbol"""
-        if asset.asset_type in [Asset.AssetType.FUTURE, Asset.AssetType.CONT_FUTURE]:
-            # For continuous futures, resolve to specific contract
-            if asset.asset_type == Asset.AssetType.CONT_FUTURE:
-                if hasattr(asset, 'resolve_continuous_futures_contract'):
-                    return asset.resolve_continuous_futures_contract(
-                        reference_date=reference_date,
-                        year_digits=1,
-                    )
-            
-            # Manual resolution for common futures
-            symbol = asset.symbol.upper()
-            month = reference_date.month if reference_date else datetime.now().month
-            year = reference_date.year if reference_date else datetime.now().year
-            
-            # Quarterly contracts
-            if month <= 3:
-                month_code = 'H'
-            elif month <= 6:
-                month_code = 'M'
-            elif month <= 9:
-                month_code = 'U'
-            else:
-                month_code = 'Z'
-            
-            year_digit = year % 10
-            
-            if symbol in ["ES", "NQ", "RTY", "YM", "MES", "MNQ", "MYM", "M2K", "CL", "GC", "SI"]:
-                return f"{symbol}{month_code}{year_digit}"
-            
+        if asset.asset_type not in [Asset.AssetType.FUTURE, Asset.AssetType.CONT_FUTURE]:
             return asset.symbol
-        
-        return asset.symbol
+
+        ref_dt = reference_date or datetime.now(timezone.utc)
+
+        if asset.asset_type == Asset.AssetType.FUTURE and asset.expiration:
+            return _format_futures_symbol_for_databento(asset, reference_date=reference_date)
+
+        if asset.asset_type == Asset.AssetType.CONT_FUTURE:
+            resolved_contract = futures_roll.resolve_symbol_for_datetime(
+                asset,
+                ref_dt,
+                year_digits=2,
+            )
+        else:
+            temp_asset = Asset(asset.symbol, Asset.AssetType.CONT_FUTURE)
+            resolved_contract = futures_roll.resolve_symbol_for_datetime(
+                temp_asset,
+                ref_dt,
+                year_digits=2,
+            )
+
+        databento_symbol = _generate_databento_symbol_alternatives(asset.symbol, resolved_contract)
+        return databento_symbol[0] if databento_symbol else resolved_contract
     
     def get_historical_prices(
         self,
@@ -627,6 +631,8 @@ class DataBentoDataPolars(PolarsMixin, DataSource):
                             
                             df = _ensure_polars_tz(df)
                             tail_df = _ensure_polars_tz(tail_df)
+                            df = _ensure_polars_precision(df)
+                            tail_df = _ensure_polars_precision(tail_df)
 
                             # Only keep columns that exist in both dataframes
                             common_columns = [col for col in df.columns if col in tail_df.columns]
@@ -672,9 +678,10 @@ class DataBentoDataPolars(PolarsMixin, DataSource):
                 except Exception as e:
                     logger.warning(f"[DATABENTO][MERGE] Failed to merge live tail: {e}")
             
-            # Trim to requested length
+            # Trim to requested length and normalize datetime metadata
             df = df.tail(length)
             df = _ensure_polars_tz(df)
+            df = _ensure_polars_precision(df)
             return Bars(
                 df=df,
                 source=self.SOURCE,

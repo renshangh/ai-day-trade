@@ -1,21 +1,48 @@
-What is Lumibot?
-****************
+Getting Started
+***************
 
-Lumibot is a Python library made by `Lumiwealth <https://www.lumiwealth.com/?utm_source=documentation&utm_medium=referral&utm_campaign=lumibot_getting_started>`_ that allows you to create trading strategies and backtest them. It also allows you to run your strategies live on a paper trading account. You can also use Lumibot to run your strategies live on a real trading account, but we recommend you start with paper trading first.
+Lumibot is a Python library that allows you to create trading strategies and backtest them. It also allows you to run your strategies live on a paper trading account. You can also use Lumibot to run your strategies live on a real trading account, but we recommend you start with paper trading first.
 
 Lumibot is designed to be easy to use, but also powerful. It is designed to be used by both beginners and advanced users. It is also designed to be flexible, so you can use it to create any kind of trading strategy you want. It is also designed to be fast, so you can backtest your strategies quickly.
 
-Lumiwealth
-**********
+Build AI Trading Agents
+=======================
 
-At Lumiwealth, you can join our **community of traders**, take comprehensive **courses on algorithmic trading**, and access our library of **profitable trading bots**. Our strategies have shown exceptional results, with some achieving over **100% annual returns** and others reaching up to **1,000% in backtesting**. 
+Lumibot now supports **AI trading agents** inside the ``Strategy`` class. If you want an **agentic trading** workflow, you can create an agent in ``initialize()``, run it from ``on_trading_iteration()`` or ``on_filled_order()``, query time-series data with DuckDB, and replay the same agent decisions during backtests.
 
-.. important::
+Read :doc:`agents` for the full guide.
 
-   Visit `Lumiwealth <https://www.lumiwealth.com/?utm_source=documentation&utm_medium=referral&utm_campaign=lumibot_getting_started>`_ to learn more, and discover how you can enhance your trading skills and potentially achieve high returns with our expert guidance and resources.
+Need Help Building Or Running Strategies?
+=========================================
+
+Lumibot is open source, but the full workflow is better on `BotSpot <https://botspot.trade/sales?showLogin=1&utm_source=documentation&utm_medium=getting_started&utm_campaign=lumibot&utm_content=top_text&sample=lumibot_deploy_sample>`_ when you want to build, backtest, and run strategies without assembling every data source, broker connection, server, scheduler, log pipeline, and monitoring tool yourself.
+
+BotSpot gives Lumibot users a managed layer around the code:
+
+- **Backtesting data included.** Use supported hosted datasets without wrangling every vendor, API key, downloader, and local file yourself.
+- **Cheaper deployment at scale.** Run scheduled or periodic bots on infrastructure built for Lumibot instead of paying for a separate always-on cloud server per strategy.
+- **Lumibot-tuned AI.** Generate and revise strategies with workflows built around Lumibot conventions, backtests, artifacts, brokers, and deployment.
+- **MCP for coding agents.** Let Codex, Claude Code, Cursor, and other MCP clients launch backtests, inspect artifacts, compare results, and prepare deployment.
+- **Marketplace and strategy library.** Start from existing strategy examples, clone or adapt code when allowed, run marketplace strategies, or publish your own.
+- **Monitoring and control.** Inspect charts, logs, trades, account state, audit history, alerts, and kill switches from one place.
+- **Work from anywhere.** Use the web app, your phone, Telegram, Discord, Claude, ChatGPT, or BotSpot MCP without losing your strategy context.
+
+.. image:: ../docs/assets/readme/cta_deploy_on_botspot.png
+   :alt: Try deploying a sample Lumibot strategy on BotSpot
+   :align: center
+   :width: 520px
+   :target: https://botspot.trade/sales?showLogin=1&utm_source=documentation&utm_medium=getting_started&utm_campaign=lumibot&utm_content=deploy_button&sample=lumibot_deploy_sample
+
+If you want your coding agent to work directly with BotSpot, open the :doc:`BotSpot MCP guide <botspot_mcp>`. If you want guided training, the AI Trading Bootcamp teaches the full path from strategy idea to backtest to live deployment.
+
+.. image:: ../docs/assets/readme/cta_bootcamp.png
+   :alt: AI Trading Bootcamp
+   :align: center
+   :width: 520px
+   :target: https://www.botspot.trade/ai-bot-builder-bootcamp?utm_source=documentation&utm_medium=getting_started&utm_campaign=lumibot&utm_content=bootcamp_button
 
 Getting Started With Lumibot
-*****************************
+============================
 
 Welcome to Lumibot! This guide will help you get started with Lumibot. We hope you enjoy it!
 
@@ -205,7 +232,7 @@ Here it is all together:
 Or you can download the file here: `https://github.com/Lumiwealth/lumibot/blob/dev/lumibot/example_strategies/simple_start_single_file.py <https://github.com/Lumiwealth/lumibot/blob/dev/lumibot/example_strategies/simple_start_single_file.py>`_.
 
 Adding Trading Fees
-*******************
+===================
 
 If you want to add trading fees to your backtesting, you can do so by setting up your backtesting like this:
 
@@ -214,9 +241,11 @@ If you want to add trading fees to your backtesting, you can do so by setting up
     from lumibot.backtesting import YahooDataBacktesting
     from lumibot.entities import TradingFee
 
-    # Create two trading fees, one that is a percentage and one that is a flat fee
-    trading_fee_1 = TradingFee(flat_fee=5)  # $5 flat fee
+    # Create trading fees: flat (per order), percent (of order value), or per-contract
+    trading_fee_1 = TradingFee(flat_fee=5)  # $5 flat fee per order
     trading_fee_2 = TradingFee(percent_fee=0.01)  # 1% trading fee
+    # For options/futures, use per_contract_fee instead:
+    # trading_fee = TradingFee(per_contract_fee=0.65)  # $0.65 per contract
 
     backtesting_start = datetime(2020, 1, 1)
     backtesting_end = datetime(2020, 12, 31)
@@ -230,7 +259,7 @@ If you want to add trading fees to your backtesting, you can do so by setting up
     )
 
 Profiling to Improve Performance
-********************************
+================================
 
 Sometimes you may want to profile your code to see where it is spending the most time and improve performance.
 
@@ -292,3 +321,25 @@ This will open a web browser with a visualization of the profiling results.
 
    **Profiling can be complex**, so it is recommended to read the `yappi documentation <https://yappi.readthedocs.io/en/latest/>`__.
 
+Frequently Asked Questions
+==========================
+
+**What is the fastest way to test a strategy?**
+
+Use Yahoo Finance backtesting -- it's free and requires no API keys. Import ``YahooDataBacktesting``, set a date range, and call ``.backtest()``. See the example at the top of this page.
+
+**Do I need a broker account to get started?**
+
+No. You can backtest strategies using free data from Yahoo Finance without any broker account. You only need a broker when you're ready to paper trade or go live. Alpaca offers free paper trading accounts.
+
+**Can I build an AI-powered trading strategy?**
+
+Yes! LumiBot supports AI trading agents that use LLMs to make decisions on every bar. Create an agent in ``initialize()``, run it from ``on_trading_iteration()``, and it can call external tools, analyze data with DuckDB, and submit orders. The same code works for backtesting and live trading. See :doc:`agents` for the full guide.
+
+**Why must I use ``self.get_datetime()`` instead of ``datetime.now()``?**
+
+During backtesting, ``datetime.now()`` returns the real current time, not the simulated historical time. This will make your strategy think it's in the present when it's actually replaying historical data. Always use ``self.get_datetime()`` -- it works correctly in both backtesting and live trading.
+
+**Where can I find more help?**
+
+Check the :doc:`faq` for 70+ answered questions covering backtesting, brokers, AI agents, options, crypto, and more.

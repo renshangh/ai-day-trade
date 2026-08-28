@@ -12,8 +12,10 @@ These tests ensure that the timezone handling and error logging fixes remain sta
 import pytest
 from datetime import datetime, timedelta
 import pandas as pd
+import pytz
 
 from lumibot.data_sources import DataBentoData
+from lumibot.data_sources.polars_data import PolarsData
 from lumibot.entities import Asset
 
 # Set up unified logging for tests
@@ -144,6 +146,35 @@ class TestTimezoneHandling:
         assert len(filtered_df) >= 0
         assert df.index.tz is None
 
+    def test_clean_trading_times_handles_dst_fallback(self):
+        """PolarsData.clean_trading_times should return a monotonic index across DST."""
+        ny_tz = pytz.timezone("America/New_York")
+        # Build a UTC minute range that covers the 2025 DST fallback and convert to NY time
+        utc_range = pd.date_range("2025-11-02 04:30", periods=360, freq="min", tz="UTC")
+        ny_minutes = utc_range.tz_convert(ny_tz)
+        # Mimic the bug trigger: downstream code often sees a tz-naive index
+        naive_index = ny_minutes.tz_localize(None)
+
+        market_open = ny_minutes[0]
+        market_close = ny_minutes[-1]
+        calendar_index = pd.DatetimeIndex([market_open.tz_localize(None).normalize()])
+        pcal = pd.DataFrame(
+            {"market_open": [market_open], "market_close": [market_close]},
+            index=calendar_index,
+        )
+
+        polars_data = PolarsData.__new__(PolarsData)
+        polars_data._timestep = "minute"
+
+        cleaned_index = PolarsData.clean_trading_times(polars_data, naive_index, pcal)
+
+        assert cleaned_index.tz is not None
+        assert cleaned_index.tz.zone == ny_tz.zone
+        assert cleaned_index.is_monotonic_increasing
+        assert cleaned_index.is_unique
+        assert cleaned_index[0] == market_open
+        assert cleaned_index[-1] == market_close
+
 
 class TestDataBentoIntegration:
     """Test DataBento integration with fixes"""
@@ -198,6 +229,47 @@ class TestDataBentoIntegration:
         assert data_source.IS_BACKTESTING_DATA_SOURCE is False
         assert data_source.name == "data_source"
         
+
+class TestPolarsDSTHandling:
+    """Ensure Polars backtesting utilities keep time monotonic across DST changes."""
+
+    def test_clean_trading_times_handles_dst_fallback(self):
+        tz = pytz.timezone("America/New_York")
+        market_open = tz.localize(datetime(2025, 11, 2, 0, 0))
+        market_close = tz.localize(datetime(2025, 11, 2, 9, 0))
+
+        # Build a UTC range that, once converted, spans the DST fallback hour.
+        dt_index = pd.date_range(
+            start="2025-11-02 04:00:00",
+            end="2025-11-02 14:00:00",
+            freq="1min",
+            tz="UTC",
+        ).tz_convert(tz)
+
+        calendar_index = pd.DatetimeIndex([market_open])
+        pcal = pd.DataFrame(
+            {"market_open": [market_open], "market_close": [market_close]},
+            index=calendar_index,
+        )
+
+        dummy = object.__new__(PolarsData)
+        dummy._timestep = "minute"
+
+        cleaned = PolarsData.clean_trading_times(dummy, dt_index, pcal)
+
+        # Returned index stays in the strategy timezone and strictly increases even across DST fallback.
+        assert cleaned.tz.zone == tz.zone
+        assert cleaned.is_monotonic_increasing
+        cleaned_utc = cleaned.tz_convert("UTC")
+        diffs = cleaned_utc.to_series().diff().dropna()
+        assert (diffs == pd.Timedelta(minutes=1)).all()
+
+        expected_minutes = int(
+            (market_close.astimezone(pytz.UTC) - market_open.astimezone(pytz.UTC)).total_seconds() / 60
+        ) + 1
+        assert len(cleaned) == expected_minutes
+        assert cleaned[0] == market_open
+        assert cleaned[-1] == market_close
     def test_databento_supported_asset_types(self):
         """Test that DataBento supports the expected asset types"""
         data_source = DataBentoData(api_key="test_key")
@@ -273,10 +345,27 @@ def test_databento_api_integration(api_key_available):
     """Test DataBento API integration when API key is available"""
     if not api_key_available:
         pytest.skip("DataBento API key not available")
-    
-    # This test would run with real API key if available
-    # For now, we skip to avoid API calls in unit tests
-    pass
+
+    # Test actual DataBento API integration with real credentials
+    from lumibot.credentials import DATABENTO_CONFIG
+
+    # Verify credentials are available
+    api_key = DATABENTO_CONFIG.get('API_KEY')
+    if not api_key or api_key == '<your key here>':
+        pytest.skip("Valid DataBento API key not configured")
+
+    # Initialize DataBento data source with real API key
+    data_source = DataBentoData(api_key=api_key)
+
+    # Verify initialization succeeded
+    assert data_source is not None
+    assert data_source.SOURCE == "DATABENTO"
+    assert data_source._api_key == api_key  # Note: private attribute
+
+    # Verify the data source is a live data source (not backtesting)
+    assert hasattr(data_source, 'get_last_price') or hasattr(data_source, 'get_quote')
+
+    print(f"✓ DataBento API integration successful with key: {api_key[:10]}...")
 
 
 if __name__ == "__main__":

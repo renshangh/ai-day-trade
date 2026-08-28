@@ -715,6 +715,7 @@ def get_chains_cached(
 
     # 2) Ensure we have a PolygonClient
     if polygon_client is None:
+        from lumibot.tools.polygon_helper import PolygonClient
         logger.debug("No polygon_client provided; creating a new one.")
         polygon_client = PolygonClient.create(api_key=api_key)
 

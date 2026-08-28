@@ -3,19 +3,20 @@ import datetime
 import time
 import traceback
 from asyncio import CancelledError
+from collections import Counter
 from datetime import timezone
 from decimal import Decimal
 
 import pandas_market_calendars as mcal
 from alpaca.trading.client import TradingClient
-from alpaca.trading.enums import QueryOrderStatus
+from alpaca.trading.enums import ActivityType, QueryOrderStatus, PositionSide
 from alpaca.trading.requests import GetOrdersRequest, ReplaceOrderRequest
 from alpaca.trading.stream import TradingStream
 from dateutil import tz
 from termcolor import colored
 
 from lumibot.data_sources import AlpacaData
-from lumibot.entities import Asset, Order, Position, Quote
+from lumibot.entities import Asset, CashEvent, Order, Position, Quote
 from lumibot.tools.helpers import has_more_than_n_decimal_places
 from lumibot.tools.lumibot_logger import get_logger
 from lumibot.trading_builtins import PollingStream
@@ -113,6 +114,39 @@ class Alpaca(Broker):
         forex=[],
         crypto=["crypto", "CRYPTO"],  # Added support for crypto asset class names
     )
+    CASH_ACTIVITY_TYPES = tuple(activity.value for activity in ActivityType if activity != ActivityType.FILL)
+    DIVIDEND_ACTIVITY_TYPES = {
+        "DIV",
+        "DIVCGL",
+        "DIVCGS",
+        "DIVNRA",
+        "DIVROC",
+        "DIVTXEX",
+    }
+    TAX_ACTIVITY_TYPES = {"DIVWH", "WH"}
+    FEE_ACTIVITY_TYPES = {"CFEE", "FEE"}
+    INTEREST_ACTIVITY_TYPES = {"INT", "INTPNL"}
+    JOURNAL_ACTIVITY_TYPES = {"JNL", "JNLC", "JNLS"}
+    EXTERNAL_CASH_ACTIVITY_TYPES = {"ACATC", "ACATS", "CSD", "CSW"}
+    TRADE_LIKE_ACTIVITY_TYPES = {"FXTRD", "OPTRD"}
+    ADJUSTMENT_ACTIVITY_TYPES = {
+        "CIL",
+        "EXTRD",
+        "MA",
+        "MEM",
+        "NC",
+        "OCT",
+        "OPASN",
+        "OPCSH",
+        "OPEXC",
+        "OPEXP",
+        "PTC",
+        "REORG",
+        "SPIN",
+        "SPLIT",
+        "SWP",
+        "VOF",
+    }
 
     def __init__(self, config, max_workers=20, chunk_size=100, connect_stream=True, data_source=None, polling_interval=5.0):
         # Calling init methods
@@ -393,7 +427,7 @@ class Alpaca(Broker):
             asset = Asset.symbol2asset(position.symbol)
         else:
             asset = Asset(
-                symbol=position.symbol,
+                symbol=self._normalize_symbol_for_internal(position.symbol, asset_type=Asset.AssetType.STOCK),
             )
 
         quantity = position.qty
@@ -404,6 +438,13 @@ class Alpaca(Broker):
             avg_fill_price = None
 
         position = Position(strategy, asset, quantity, orders=orders, avg_fill_price=avg_fill_price)
+
+        position.pnl = float(broker_position.unrealized_pl) if broker_position.unrealized_pl else None
+        position.current_price = float(broker_position.current_price) if broker_position.current_price else None
+        position.side = Position.PositionSide.LONG if broker_position.side == PositionSide.LONG else Position.PositionSide.SHORT
+        position.market_value = float(broker_position.market_value) if broker_position.market_value else None
+        
+
         return position
 
     def _pull_broker_position(self, asset):
@@ -496,15 +537,6 @@ class Alpaca(Broker):
             else:
                 raise ValueError(f"Order symbol is missing in response for order id {getattr(response, 'id', None)}")
 
-        # Parse crypto symbol format
-        if "/" in resp_symbol:
-            symbol = resp_symbol.split("/")[0]
-            quote = resp_symbol.split("/")[1]
-            if quote != 'USD':
-                raise ValueError(f"Order has non-USD quote for symbol {symbol}/{quote} in response for order id {getattr(response, 'id', None)}")
-        else:
-            symbol = resp_symbol
-
         # Retrieve order fields, falling back to raw JSON for multi-leg legs
         if isinstance(response, dict):
             resp_raw = response
@@ -526,6 +558,18 @@ class Alpaca(Broker):
                     asset_class_value = first_leg.get('asset_class')
                 else:
                     asset_class_value = getattr(first_leg, 'asset_class', None)
+
+        mapped_asset_type = self.map_asset_type(asset_class_value)
+
+        # Parse symbol format based on the asset class. Only crypto uses slash pairs here.
+        if "/" in resp_symbol and mapped_asset_type == Asset.AssetType.CRYPTO:
+            symbol, quote = resp_symbol.split("/", 1)
+            if quote != "USD":
+                raise ValueError(
+                    f"Order has non-USD quote for symbol {symbol}/{quote} in response for order id {getattr(response, 'id', None)}"
+                )
+        else:
+            symbol = self._normalize_symbol_for_internal(resp_symbol, asset_type=mapped_asset_type)
         # Quantity and side
         qty_value = getattr(response, 'qty', None) or resp_raw.get('qty')
         side_value = getattr(response, 'side', None) or resp_raw.get('side')
@@ -545,17 +589,32 @@ class Alpaca(Broker):
         trail_price_value = getattr(response, 'trail_price', None) or resp_raw.get('trail_price')
         trail_percent_value = getattr(response, 'trail_percent', None) or resp_raw.get('trail_percent')
         stop_limit_price = limit_price_value if order_type_value == Order.OrderType.STOP_LIMIT or order_type_value == "stop_limit" else None
+        # Average fill price: prefer raw dict first, support both Alpaca field names,
+        # then fall back to explicit attributes on the response object
+        avg_fill_price_value = (
+            (resp_raw.get('filled_avg_price') if isinstance(resp_raw, dict) else None)
+            or (resp_raw.get('avg_fill_price') if isinstance(resp_raw, dict) else None)
+            or getattr(response, 'filled_avg_price', None)
+            or getattr(response, 'avg_fill_price', None)
+        )
 
         # Time in force and status
         time_in_force_value = getattr(response, 'time_in_force', None) or resp_raw.get('time_in_force')
         status_value = getattr(response, 'status', None) or resp_raw.get('status')
+
+        if status_value in ('filled', 'fill', 'partially_filled') and avg_fill_price_value is None:
+            logger.warning(f"Filled or partially filled order with no average price available for {resp_symbol}.\n{resp_raw}")
 
         # Identifier
         identifier_value = getattr(response, 'id', None) or resp_raw.get('id')
 
         # Handle None quantity - skip invalid orders
         if qty_value is None:
-            logger.warning(f"Skipping order {identifier_value} - quantity is None (invalid order data from Alpaca)")
+            logger.warning(
+                f"Skipping order {identifier_value} - quantity is None (invalid order data from Alpaca). "
+                f"Order details: symbol={symbol}, side={side_value}, status={status_value}, "
+                f"order_type={order_type_value}, raw_data={resp_raw}"
+            )
             return None
 
         # Construct Order object
@@ -563,11 +622,11 @@ class Alpaca(Broker):
             strategy_name,
             Asset(
                 symbol=symbol,
-                asset_type=self.map_asset_type(asset_class_value),
+                asset_type=mapped_asset_type,
             ),
             quantity=float(Decimal(qty_value)),
             side=side_value,
-            avg_fill_price=getattr(response, 'filled_avg_price', None),
+            avg_fill_price=avg_fill_price_value,
             limit_price=limit_price_value if order_type_value != Order.OrderType.STOP_LIMIT else None,
             stop_price=stop_price_value,
             stop_limit_price=stop_limit_price,
@@ -576,12 +635,13 @@ class Alpaca(Broker):
             time_in_force=time_in_force_value,
             order_class=order_class_value,
             order_type=order_type_value if order_type_value != "trailing_stop" else Order.OrderType.TRAIL,
-            date_created=getattr(response, 'created_at', None),
+            # Prefer raw first to avoid MagicMock traps
+            date_created=(resp_raw.get('created_at') if isinstance(resp_raw, dict) else None) or getattr(response, 'created_at', None),
             # TODO: remove hardcoding in case Alpaca allows crypto to crypto trading
             quote=Asset(symbol="USD", asset_type="forex"),
         )
         order.set_identifier(identifier_value)
-        order.broker_create_date = getattr(response, 'created_at', None)
+        order.broker_create_date = (resp_raw.get('created_at') if isinstance(resp_raw, dict) else None) or getattr(response, 'created_at', None)
         order.broker_update_date = getattr(response, 'updated_at', None)
         order.status = status_value
         order.update_raw(response)
@@ -643,8 +703,10 @@ class Alpaca(Broker):
         - The sign of the limit price (positive/negative) is not used by Alpaca to distinguish credit/debit.
         - Alpaca requires that the leg ratio quantities are relatively prime (GCD == 1).
         """
+        requested_multileg_type = order_type if order_type in ("credit", "debit", "even") else None
+
         # Convert Tradier-specific order types to Alpaca-supported types
-        if order_type in ("credit", "debit", "even"):
+        if requested_multileg_type is not None:
             order_type = "limit"
         # All legs must have the same underlying symbol
         symbol = orders[0].asset.symbol
@@ -660,30 +722,33 @@ class Alpaca(Broker):
                 option_symbol = f"{order.asset.symbol}{date}{order.asset.right[0]}{strike_formatted}"
             else:
                 option_symbol = order.asset.symbol
-            # Determine position_intent (buy_to_open, sell_to_open, etc.)
+            # Determine leg side + position intent for Alpaca's mleg payload.
+            # - leg.side must be "buy" or "sell"
+            # - leg.position_intent must be one of: buy_to_open, buy_to_close, sell_to_open, sell_to_close
             position_intent = getattr(order, "position_intent", None)
-            if not position_intent:
-                # Check if we have an open position in this option
-                pos = self.get_tracked_position(order.strategy, order.asset)
-                if pos is not None and pos.quantity != 0:
-                    # Closing position
-                    if order.side == "buy":
-                        position_intent = "buy_to_close"
-                    elif order.side == "sell":
-                        position_intent = "sell_to_close"
-                else:
-                    # Opening position
-                    if order.side == "buy":
-                        position_intent = "buy_to_open"
-                    elif order.side == "sell":
-                        position_intent = "sell_to_open"
+            raw_side = order.side
+            if raw_side in ("buy_to_open", "buy_to_close"):
+                leg_side = "buy"
+                position_intent = position_intent or raw_side
+            elif raw_side in ("sell_to_open", "sell_to_close"):
+                leg_side = "sell"
+                position_intent = position_intent or raw_side
+            else:
+                leg_side = "buy" if order.is_buy_order() else "sell"
+                if not position_intent:
+                    # Fall back to position-based intent inference when the side doesn't encode open/close.
+                    pos = self.get_tracked_position(order.strategy, order.asset)
+                    if pos is not None and pos.quantity != 0:
+                        position_intent = "buy_to_close" if leg_side == "buy" else "sell_to_close"
+                    else:
+                        position_intent = "buy_to_open" if leg_side == "buy" else "sell_to_open"
             # Collect leg quantities for GCD check
             leg_qty = int(abs(order.quantity))
             leg_quantities.append(leg_qty)
             legs.append({
                 "symbol": option_symbol,
                 "ratio_qty": str(order.quantity),
-                "side": order.side,
+                "side": leg_side,
                 "position_intent": position_intent
             })
         # Ensure leg ratio quantities are relatively prime (GCD == 1)
@@ -701,12 +766,19 @@ class Alpaca(Broker):
         # For multi-leg orders, we need to set the primary asset info from the first leg
         first_order = orders[0]
         
-        # Map extended side values to simple buy/sell for Alpaca API
-        side = first_order.side
-        if side in ("buy_to_open", "buy_to_close"):
+        # Determine top-level side for Alpaca.
+        # Alpaca mleg orders require a primary side; for debit/credit packages, this should
+        # reflect the net debit/credit rather than the first leg ordering.
+        if requested_multileg_type == "debit":
             side = "buy"
-        elif side in ("sell_to_open", "sell_to_close"):
+        elif requested_multileg_type == "credit":
             side = "sell"
+        else:
+            side = first_order.side
+            if side in ("buy_to_open", "buy_to_close"):
+                side = "buy"
+            elif side in ("sell_to_open", "sell_to_close"):
+                side = "sell"
         
         # multileg is not a valid order_class for Alpaca. It is mleg now, and cannot be combined with a symbol.
 
@@ -778,7 +850,7 @@ class Alpaca(Broker):
         elif order.asset.asset_type == Asset.AssetType.CRYPTO:
             trade_symbol = f"{order.asset.symbol}/{order.quote.symbol}"
         else:
-            trade_symbol = order.asset.symbol
+            trade_symbol = self._normalize_symbol_for_broker(order.asset.symbol, asset_type=order.asset.asset_type)
 
         # If order class is OCO, set to type limit (Alpaca wants this for OCO), Bracket becomes 'market'
         alpaca_type = order.order_type
@@ -1027,10 +1099,24 @@ class Alpaca(Broker):
 
             # Try to replace the order on Alpaca, handle APIError for accepted status
             try:
-                self.api.replace_order_by_id(
+                replaced = self.api.replace_order_by_id(
                     order_id=order.identifier,
                     order_data=replace_req,
                 )
+                # Alpaca can return a *new* order id when replacing. Keep LumiBot's order object
+                # aligned so SMART_LIMIT can continue repricing/canceling reliably.
+                new_id = getattr(replaced, "id", None)
+                if new_id:
+                    order.identifier = new_id
+                    try:
+                        for child in getattr(order, "child_orders", []) or []:
+                            child.parent_identifier = new_id
+                    except Exception:
+                        pass
+                    try:
+                        order.update_raw(replaced)
+                    except Exception:
+                        pass
             except Exception as e:
                 # If error is "cannot replace order in accepted status", just log and skip
                 if hasattr(e, "args") and e.args and "cannot replace order in accepted status" in str(e.args[0]):
@@ -1054,6 +1140,205 @@ class Alpaca(Broker):
             "hour": response_hour.df,
             "day": response_day.df,
         }
+
+    @classmethod
+    def _map_cash_event_type(cls, raw_type: str, amount: float) -> tuple[str, bool]:
+        normalized_raw_type = str(raw_type or "").upper().strip()
+
+        if normalized_raw_type == "CSD":
+            return "deposit", True
+        if normalized_raw_type in {"ACATS", "CSW"}:
+            return "withdrawal", True
+        if normalized_raw_type == "ACATC":
+            return ("deposit" if amount >= 0 else "withdrawal"), True
+        if normalized_raw_type in cls.DIVIDEND_ACTIVITY_TYPES:
+            return "dividend", False
+        if normalized_raw_type in cls.TAX_ACTIVITY_TYPES:
+            return "tax", False
+        if normalized_raw_type in cls.FEE_ACTIVITY_TYPES:
+            return "fee", False
+        if normalized_raw_type in cls.INTEREST_ACTIVITY_TYPES:
+            return "interest", False
+        if normalized_raw_type == "JNLC":
+            return ("deposit" if amount >= 0 else "withdrawal"), True
+        if normalized_raw_type in cls.JOURNAL_ACTIVITY_TYPES:
+            return "journal", False
+        if normalized_raw_type in cls.ADJUSTMENT_ACTIVITY_TYPES:
+            return "adjustment", False
+        return "other_cash", normalized_raw_type in cls.EXTERNAL_CASH_ACTIVITY_TYPES
+
+    @staticmethod
+    def _coerce_activity_dict(activity) -> dict | None:
+        if isinstance(activity, dict):
+            return activity
+        for method_name in ("model_dump", "dict"):
+            method = getattr(activity, method_name, None)
+            if callable(method):
+                try:
+                    payload = method()
+                except Exception:
+                    continue
+                if isinstance(payload, dict):
+                    return payload
+        payload = getattr(activity, "__dict__", None)
+        if isinstance(payload, dict):
+            return payload
+        return None
+
+    @classmethod
+    def _coerce_activity_page(cls, raw_activities) -> list[dict]:
+        if raw_activities is None or isinstance(raw_activities, (str, bytes)):
+            return []
+
+        if isinstance(raw_activities, dict):
+            for key in ("activities", "activity"):
+                nested = raw_activities.get(key)
+                if nested:
+                    return cls._coerce_activity_page(nested)
+            else:
+                if "activity_type" in raw_activities:
+                    raw_activities = [raw_activities]
+                else:
+                    raw_activities = list(raw_activities.values())
+
+        if isinstance(raw_activities, (str, bytes)) or not isinstance(raw_activities, (list, tuple)):
+            return []
+
+        activities = []
+        for activity in raw_activities:
+            activity_dict = cls._coerce_activity_dict(activity)
+            if activity_dict is not None:
+                activities.append(activity_dict)
+        return activities
+
+    @classmethod
+    def _normalize_activity_to_cash_event(cls, activity: dict) -> CashEvent | None:
+        activity = cls._coerce_activity_dict(activity)
+        if activity is None:
+            return None
+
+        raw_type = str(activity.get("activity_type") or "").upper().strip()
+        if not raw_type or raw_type == ActivityType.FILL.value or raw_type in cls.TRADE_LIKE_ACTIVITY_TYPES:
+            return None
+
+        amount = CashEvent.coerce_amount(activity.get("net_amount"))
+        event_type, is_external_cash_flow = cls._map_cash_event_type(raw_type, amount)
+        occurred_at = (
+            activity.get("date")
+            or activity.get("transaction_time")
+            or activity.get("created_at")
+        )
+
+        return CashEvent(
+            event_id=CashEvent.build_event_id(
+                broker_name="alpaca",
+                broker_event_id=activity.get("id"),
+                raw_type=raw_type,
+                raw_subtype=activity.get("status"),
+                occurred_at=occurred_at,
+                amount=amount,
+                description=activity.get("description"),
+            ),
+            broker_event_id=activity.get("id"),
+            broker_name="alpaca",
+            event_type=event_type,
+            raw_type=raw_type,
+            raw_subtype=activity.get("status"),
+            amount=amount,
+            currency=activity.get("currency") or "USD",
+            occurred_at=occurred_at,
+            description=activity.get("description"),
+            direction=CashEvent._infer_direction(amount),
+            is_external_cash_flow=is_external_cash_flow,
+        )
+
+    def get_cash_events(
+        self,
+        *,
+        since: datetime.datetime | None = None,
+        limit: int | None = 100,
+    ) -> list[CashEvent]:
+        normalized_limit = max(int(limit or 100), 1)
+        page_size = min(max(normalized_limit * 10, normalized_limit), 100)
+        normalized_events = []
+        seen_event_ids = set()
+
+        # Query non-fill categories separately so real funding rows (TRANS/CSD/CSW) cannot be
+        # hidden behind a first page dominated by dividends or other non-trade activity.
+        activity_type_filters = ("TRANS", "DIV", "MISC")
+        max_pages = 50
+        raw_activity_count = 0
+        raw_activity_type_counts = Counter()
+        pages_read = 0
+        for activity_type_filter in activity_type_filters:
+            page_token = None
+            events_before_filter = len(normalized_events)
+            request_fields = {
+                "activity_types": activity_type_filter,
+                "direction": "desc",
+                "page_size": page_size,
+            }
+            if since is not None:
+                request_fields["after"] = CashEvent.coerce_datetime(since).isoformat()
+
+            for _ in range(max_pages):
+                if page_token:
+                    request_fields["page_token"] = page_token
+                else:
+                    request_fields.pop("page_token", None)
+
+                try:
+                    raw_activities = self.api.get("/account/activities", request_fields)
+                except Exception as exc:
+                    logger.warning(
+                        "Alpaca cash-event fetch failed: %s (activity_types=%s, page_size=%s, "
+                        "page_token_present=%s, since_set=%s)",
+                        exc,
+                        request_fields.get("activity_types"),
+                        request_fields.get("page_size"),
+                        bool(request_fields.get("page_token")),
+                        since is not None,
+                    )
+                    raise
+                raw_activities = self._coerce_activity_page(raw_activities)
+
+                if not raw_activities:
+                    break
+                pages_read += 1
+                raw_activity_count += len(raw_activities)
+                raw_activity_type_counts.update(
+                    str(activity.get("activity_type") or "").upper().strip()
+                    for activity in raw_activities
+                    if isinstance(activity, dict)
+                )
+
+                for activity in raw_activities:
+                    event = self._normalize_activity_to_cash_event(activity)
+                    if event is not None and event.event_id not in seen_event_ids:
+                        normalized_events.append(event)
+                        seen_event_ids.add(event.event_id)
+
+                if len(normalized_events) - events_before_filter >= normalized_limit:
+                    break
+
+                last_row = raw_activities[-1]
+                next_token = last_row.get("id")
+                if not next_token or next_token == page_token:
+                    break
+                page_token = next_token
+
+        normalized_events.sort(key=lambda event: (event.occurred_at, event.event_id))
+        if len(normalized_events) > normalized_limit:
+            normalized_events = normalized_events[-normalized_limit:]
+        logger.debug(
+            "Alpaca returned %s normalized cash events from %s raw non-fill activities across %s pages "
+            "(raw_activity_types=%s)",
+            len(normalized_events),
+            raw_activity_count,
+            pages_read,
+            dict(raw_activity_type_counts),
+        )
+        return normalized_events
 
     # =======Stream functions=========
 
@@ -1170,6 +1455,11 @@ class Alpaca(Broker):
                 strategy_name = strategy.name if strategy else "default"
                 order = self._parse_broker_order(alpaca_order, strategy_name=strategy_name)
 
+                # Skip if parsing returned None (invalid order data)
+                if order is None:
+                    logger.warning(f"OAuth Polling: Skipping invalid order from Alpaca - _parse_broker_order returned None")
+                    continue
+
                 logger.debug(f"OAuth Polling: Processing Alpaca order {order.identifier} with status {order.status}")
 
                 # Check if this order exists in our stored orders
@@ -1183,8 +1473,19 @@ class Alpaca(Broker):
                         # Update the stored order with new data and dispatch the event
                         stored_order.update_raw(alpaca_order)
 
+                        # Capture and propagate average filled price from Alpaca into the stored order
+                        try:
+                            avg_price = (
+                                getattr(alpaca_order, 'filled_avg_price', None)
+                                or getattr(alpaca_order, 'avg_fill_price', None)
+                            )
+                            if avg_price is not None:
+                                stored_order.avg_fill_price = avg_price
+                        except Exception:
+                            pass
+
                         # Dispatch the appropriate event based on the new status
-                        if order.status == "filled" or order.status == "fill":
+                        if order.status == "filled" or order.status == "fill": 
                             # Get price and quantity with proper fallbacks for Alpaca API
                             price = (getattr(alpaca_order, 'filled_avg_price', None) or
                                    getattr(alpaca_order, 'avg_fill_price', None) or
@@ -1229,6 +1530,17 @@ class Alpaca(Broker):
                         if individual_order.status != order.status:
                             logger.debug(f"OAuth Polling: Individual order status changed - {order_id}: {order.status} -> {individual_order.status}")
                             order.update_raw(individual_order)
+
+                            # Capture and propagate average filled price for individual lookup
+                            try:
+                                avg_price = (
+                                    getattr(individual_order, 'filled_avg_price', None)
+                                    or getattr(individual_order, 'avg_fill_price', None)
+                                )
+                                if avg_price is not None:
+                                    order.avg_fill_price = avg_price
+                            except Exception:
+                                pass
 
                             # Dispatch appropriate event based on new status
                             if individual_order.status in ["filled", "fill"]:
@@ -1278,7 +1590,16 @@ class Alpaca(Broker):
                 logger.error(error_msg)
                 raise ValueError(error_msg)
             else:
-                logger.error(f"OAuth Polling error: {e}")
+                is_rate_limited = (
+                    "rate limit" in error_message
+                    or "too many requests" in error_message
+                    or "42910000" in error_message
+                    or "status code: 429" in error_message
+                )
+                if is_rate_limited:
+                    logger.warning(f"OAuth Polling error (rate-limited): {e}", exc_info=True)
+                else:
+                    logger.error(f"OAuth Polling error: {e}", exc_info=True)
         # No need to schedule next poll - PollingStream handles this automatically via timeout
 
     def _run_stream(self):
@@ -1306,6 +1627,22 @@ class Alpaca(Broker):
 
                     price = trade_update.price
                     filled_quantity = trade_update.qty
+
+                    # Propagate average filled price to stored order if available
+                    try:
+                        # Prefer any available average fill price fields
+                        avg_price = getattr(logged_order, 'filled_avg_price', None)
+                        if avg_price is None:
+                            avg_price = getattr(logged_order, 'avg_fill_price', None)
+                        if avg_price is None:
+                            avg_price = getattr(trade_update, 'avg_fill_price', None)
+                        if avg_price is None:
+                            avg_price = getattr(trade_update, 'price', None)
+                        if avg_price is not None:
+                            stored_order.avg_fill_price = avg_price
+                    except Exception:
+                        pass
+
                     self._process_trade_event(
                         stored_order,
                         type_event,

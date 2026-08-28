@@ -3,17 +3,40 @@
 Crypto Brokers (Using CCXT)
 ===========================
 
-This is the guide for connecting to any cryptocurrency broker through Lumibot. For this, we use the CCXT library, which is a popular library for cryptocurrency trading. If you are interested (but not required!), you can find the documentation for CCXT here: https://ccxt.readthedocs.io/en/latest/
+This is the guide for Lumibot's CCXT-based cryptocurrency broker integrations. CCXT is a popular library for cryptocurrency trading. If you are interested (but not required!), you can find the documentation for CCXT here: https://ccxt.readthedocs.io/en/latest/
 
-CCXT is a versatile library for cryptocurrency trading, which enables Lumibot to interact with a wide range of cryptocurrency brokers including Coinbase, Binance, Kraken, Kucoin, and many more. We are constantly adding support for more brokers, so if you don't see your broker listed here, please let us know and we'll add it!
+Lumibot does **not** automatically support every exchange in the CCXT ecosystem. The selected CCXT paths documented in Lumibot include Coinbase, Kraken, KuCoin, Binance, BitMEX, WEEX, Bybit, and OKX, but they do not all have the same status:
 
-LumiBot supports trading cryptocurrencies through CCXT, which provides access to many popular cryptocurrency exchanges. Each broker requires its own specific environment variables.
+* **Auto-detected CCXT credential paths**: Coinbase, Kraken, and WEEX.
+* **Exchange-specific CCXT order handling in the shared broker**: Coinbase/Coinbase Pro, Kraken, KuCoin, and Binance.
+* **Documented CCXT backtesting examples**: Kraken, Binance, KuCoin, BitMEX, Bybit, and OKX.
+
+Other CCXT exchanges may be possible with additional adapter/config work, but they should not be assumed to work until they are tested in Lumibot.
+
+Each documented exchange path requires its own specific credentials or manual CCXT config.
+
+Exchange-Specific Guides
+------------------------
+
+Use these pages for exchange-specific setup details:
+
+.. toctree::
+   :maxdepth: 1
+
+   brokers.ccxt.coinbase
+   brokers.ccxt.kraken
+   brokers.ccxt.weex
+   brokers.ccxt.kucoin
+   brokers.ccxt.binance
+   brokers.ccxt.bitmex
+   brokers.ccxt.bybit
+   brokers.ccxt.okx
 
 Features
 --------
 
 * **Cryptocurrency Trading**: Spot and margin trading
-* **Multiple Exchanges**: Supports 7+ different cryptocurrency exchanges
+* **Selected Exchanges**: Coinbase, Kraken, and WEEX have auto-detected credential paths; KuCoin, Binance, and BitMEX have documented manual setup paths; Kraken, Binance, KuCoin, BitMEX, Bybit, and OKX have documented backtesting examples
 * **Real-time Data**: Live order and position updates
 * **Order Types**: Market, limit, stop orders
 * **Auto-Detection**: Automatically connects when environment variables are set
@@ -21,7 +44,7 @@ Features
 Prerequisites
 -------------
 
-1. **Account**: Create an account with a supported cryptocurrency exchange
+1. **Account**: Create an account with a documented cryptocurrency exchange
 2. **API Credentials**: Generate API credentials from your exchange's website
 3. **Environment Variables**: Set your broker's API credentials
 
@@ -38,9 +61,10 @@ Prerequisites
       KRAKEN_API_KEY=your_kraken_api_key_here
       KRAKEN_API_SECRET=your_kraken_secret_here
       
-      # For Binance  
-      BINANCE_API_KEY=your_binance_api_key_here
-      BINANCE_SECRET=your_binance_secret_here
+      # For WEEX
+      WEEX_API_KEY=your_weex_api_key_here
+      WEEX_API_SECRET=your_weex_secret_here
+      WEEX_API_PASSPHRASE=your_weex_passphrase_here
    
    That's it! LumiBot handles the rest automatically.
 
@@ -54,8 +78,10 @@ For trading with cryptocurrencies, always remember to set your market to 24/7 in
 
     self.set_market("24/7")
 
-Supported Brokers
------------------
+Auto-Detected Credential Paths
+------------------------------
+
+These are the CCXT credential sets Lumibot can auto-detect from environment variables.
 
 Kraken
 ^^^^^^
@@ -68,60 +94,101 @@ Kraken
 Coinbase
 ^^^^^^^^
 
+Coinbase's current Cloud Developer Platform (CDP) keys use ECDSA/Ed25519 **private keys** rather than the legacy HMAC API-key + secret scheme. Generate a key at https://portal.cdp.coinbase.com/ — the downloaded JSON contains ``name`` (an organization-qualified identifier like ``organizations/<org>/apiKeys/<id>``) and ``privateKey`` (a multi-line PEM block starting with ``-----BEGIN EC PRIVATE KEY-----``).
+
+Paste the ``name`` into ``COINBASE_API_KEY_NAME`` and the full PEM block (newlines and all) into ``COINBASE_PRIVATE_KEY``. ``COINBASE_API_PASSPHRASE`` is only required for legacy HMAC keys and should be omitted for new CDP keys.
+
 .. code-block:: bash
 
-   COINBASE_API_KEY_NAME=your_api_key_name
-   COINBASE_PRIVATE_KEY=your_private_key
-   COINBASE_API_PASSPHRASE=your_passphrase
+   COINBASE_API_KEY_NAME=organizations/<org-id>/apiKeys/<key-id>
+   COINBASE_PRIVATE_KEY="-----BEGIN EC PRIVATE KEY-----\n...\n-----END EC PRIVATE KEY-----\n"
+   # COINBASE_API_PASSPHRASE=your_passphrase   # only for legacy HMAC keys
 
-Kucoin
+WEEX
+^^^^
+
+WEEX requires **three** credentials: an API key, a secret, and a mandatory passphrase. Generate these in the WEEX web UI under API Management — make sure the key has *Trade* permission and, if needed, *Read* permission for balance/order lookups.
+
+.. code-block:: bash
+
+   WEEX_API_KEY=your_api_key
+   WEEX_API_SECRET=your_api_secret
+   WEEX_API_PASSPHRASE=your_passphrase
+
+.. warning::
+   WEEX's Terms of Use exclude residents of the United States, Canada, and several other jurisdictions (see https://weexsupport.zendesk.com/hc/en-us/articles/4417379529241). WEEX does **not** provide an API sandbox — all trades run against live infrastructure. Start with very small quantities until you have verified behavior.
+
+.. note::
+   LumiBot's WEEX path is spot-oriented through the shared CCXT broker configuration. WEEX's primary business is USDT-margined perpetual swap (futures); swap support is not wired into the shared broker today and would require position/leverage/funding-rate modeling beyond what the current CCXT path provides.
+
+Manual CCXT Config Examples
+---------------------------
+
+These exchanges have selected Lumibot/CCXT examples or exchange-specific handling, but they are not currently auto-detected from global ``credentials.py`` environment variables. Use an explicit ``Ccxt`` config and validate balances, positions, order submission, fills, and cancellation with a very small test before increasing size.
+
+KuCoin
 ^^^^^^
 
-.. code-block:: bash
+.. code-block:: python
 
-   KUCOIN_API_KEY=your_api_key
-   KUCOIN_SECRET=your_secret
-   KUCOIN_PASSPHRASE=your_passphrase
+   from lumibot.brokers import Ccxt
+
+   KUCOIN_CONFIG = {
+       "exchange_id": "kucoin",
+       "apiKey": "your_api_key",
+       "secret": "your_api_secret",
+       "password": "your_passphrase",
+       "margin": False,
+       "sandbox": False,
+   }
+
+   broker = Ccxt(KUCOIN_CONFIG)
 
 Binance
 ^^^^^^^
 
-.. code-block:: bash
+.. code-block:: python
 
-   BINANCE_API_KEY=your_api_key
-   BINANCE_SECRET=your_secret
+   from lumibot.brokers import Ccxt
 
-Bitmex
+   BINANCE_CONFIG = {
+       "exchange_id": "binance",
+       "apiKey": "your_api_key",
+       "secret": "your_api_secret",
+       "margin": False,
+       "sandbox": False,
+   }
+
+   broker = Ccxt(BINANCE_CONFIG)
+
+BitMEX
 ^^^^^^
 
-.. code-block:: bash
+.. code-block:: python
 
-   BITMEX_API_KEY=your_api_key
-   BITMEX_SECRET=your_secret
+   from lumibot.brokers import Ccxt
 
-Bybit
-^^^^^
+   BITMEX_CONFIG = {
+       "exchange_id": "bitmex",
+       "apiKey": "your_api_key",
+       "secret": "your_api_secret",
+       "margin": False,
+       "sandbox": False,
+   }
 
-.. code-block:: bash
+   broker = Ccxt(BITMEX_CONFIG)
 
-   BYBIT_API_KEY=your_api_key
-   BYBIT_SECRET=your_secret
+Documented Backtesting Exchange IDs
+-----------------------------------
 
-OKX
-^^^
-
-.. code-block:: bash
-
-   OKX_API_KEY=your_api_key
-   OKX_SECRET=your_secret
-   OKX_PASSPHRASE=your_passphrase
+The CCXT backtesting adapter has documented examples for Kraken, Binance, KuCoin, BitMEX, Bybit, and OKX. These examples are useful for historical crypto strategy tests, but they are not the same thing as tested live broker integrations. Do not assume a backtesting exchange id is live-trading ready unless the live broker path has been validated separately.
 
 Usage
 -----
 
 1. **Set Environment Variables**: Configure your broker's API credentials
 2. **Create Strategy**: Import Lumibot and create your trading strategy  
-3. **Run**: CCXT will auto-detect and connect
+3. **Run**: CCXT will auto-detect and connect when one of the auto-detected credential sets is present, or you can pass an explicit ``Ccxt`` config as shown above
 
 .. code-block:: python
 
@@ -152,7 +219,8 @@ Usage
                )
                self.submit_order(order)
 
-   # Run the strategy (CCXT auto-detects from environment variables)
+   # Run the strategy (CCXT auto-detects supported environment variables,
+   # or use an explicit Ccxt config for manual exchange paths)
    strategy = MyStrategy()
    strategy.run_live()
 

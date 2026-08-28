@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from typing import Dict, List
 
+from lumibot.constants import LUMIBOT_DEFAULT_PYTZ
 from lumibot.data_sources.data_source import DataSource
 from lumibot.entities import Asset, Bars, Quote
 from lumibot.tools.lumibot_logger import get_logger
@@ -113,12 +114,12 @@ class ProjectXData(DataSource):
             if not contract_id:
                 return None
 
-            end_dt = datetime.now()
-            start_dt = end_dt - timedelta(minutes=1)
+            end_dt = datetime.now().replace(second=59, microsecond=999999).astimezone(LUMIBOT_DEFAULT_PYTZ)
+            start_dt = (end_dt - timedelta(minutes=1)).replace(second=0, microsecond=0)
             df = self.client.history_retrieve_bars(
                 contract_id=contract_id,
-                start_datetime=start_dt.isoformat(),
-                end_datetime=end_dt.isoformat(),
+                start_datetime=start_dt,
+                end_datetime=end_dt,
                 unit=self.TIME_UNIT_MAPPING["minute"],
                 unit_number=1,
                 limit=1,
@@ -139,8 +140,22 @@ class ProjectXData(DataSource):
             return None
 
     def get_quote(self, asset: Asset, quote: Asset = None, exchange: str = None) -> Quote:
+        """
+        Get current quote (bid/ask) for an asset.
+
+        Note: This is a basic implementation using last price.
+        Real-time quote data would require streaming connection.
+
+        Args:
+            asset: Asset to get quote for
+            quote: Quote asset (for cryptocurrency pairs, not used in ProjectX)
+            exchange: Exchange to get quote from (not used in ProjectX)
+
+        Returns:
+            Quote object with quote information
+        """
         price = self.get_last_price(asset, quote=quote, exchange=exchange)
-        timestamp = datetime.now()
+        timestamp = datetime.now().astimezone(LUMIBOT_DEFAULT_PYTZ)
 
         if price is None:
             return Quote(asset=asset, price=None, raw_data={"source": "projectx_rest", "live": False})
@@ -199,7 +214,7 @@ class ProjectXData(DataSource):
                 self.logger.error(f"Unsupported timespan: {timestep}")
                 return None
 
-            end_datetime = datetime.now()
+            end_datetime = datetime.now().astimezone(LUMIBOT_DEFAULT_PYTZ)
             if timeshift:
                 if timestep == "minute":
                     end_datetime -= timedelta(minutes=timeshift)
@@ -225,10 +240,12 @@ class ProjectXData(DataSource):
             else:
                 start_datetime = end_datetime - timedelta(days=length)
 
+            start_datetime = start_datetime.replace(second=0, microsecond=0)
+            end_datetime = end_datetime.replace(second=59, microsecond=999999)
             df = self.client.history_retrieve_bars(
                 contract_id=contract_id,
-                start_datetime=start_datetime.isoformat(),
-                end_datetime=end_datetime.isoformat(),
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
                 unit=unit,
                 unit_number=unit_number,
                 limit=length + 100,
@@ -276,9 +293,8 @@ class ProjectXData(DataSource):
                                 dropped = (~valid_mask).sum()
                                 self.logger.debug(f"Dropping {dropped} rows with invalid datetime during index set for {asset.symbol}")
                                 df = df.loc[valid_mask]
-                                dt_series = dt_series.loc[valid_mask]
-                            df = df.set_index(dt_series)
-                            df.index.name = "datetime"
+                            df = df.set_index("datetime")
+
                             # Convert to local timezone similar to other sources (Bars keeps tz-aware). Use UTC to be consistent.
                             if df.index.tz is None:
                                 df.index = df.index.tz_localize('UTC')
@@ -355,44 +371,45 @@ class ProjectXData(DataSource):
             return self._contract_cache[cache_key]
 
         try:
-            contract_id = None
+            # Start with the API client lookup because ProjectX only allows a single contract per symbol and
+            # near the end of the quarter it is hard to predict which contract will be active. Result will be cached
+            # to avoid repeated API lookups.
+            contract_id = self.client.find_contract_by_symbol(asset.symbol)
 
-            # Handle continuous futures using Asset class logic
-            if asset.asset_type == Asset.AssetType.CONT_FUTURE:
-                self.logger.debug(f"🔄 Resolving continuous future {asset.symbol} using Asset class")
-
-                try:
-                    # Use Asset class method to get potential contracts
-                    potential_contracts = asset.get_potential_futures_contracts()
-
-                    for contract_symbol in potential_contracts:
-                        # Convert to ProjectX format if needed
-                        if not contract_symbol.startswith("CON.F.US."):
-                            # Parse symbol like "MESU25" -> "CON.F.US.MES.U25"
-                            if len(contract_symbol) >= 4:
-                                base_symbol = contract_symbol[:-3]  # Remove last 3 chars
-                                month_year = contract_symbol[-3:]   # Get month + year code
-                                if len(month_year) == 3:
-                                    month_code = month_year[0]
-                                    year_code = month_year[1:]
-                                    contract_id = f"CON.F.US.{base_symbol}.{month_code}{year_code}"
-                                else:
-                                    contract_id = f"CON.F.US.{asset.symbol}.{month_year}"
-                            else:
-                                contract_id = f"CON.F.US.{asset.symbol}.U25"  # Fallback
-                        else:
-                            contract_id = contract_symbol
-
-                        # Use the first potential contract
-                        self.logger.debug(f"✅ Using Asset class contract: {contract_id}")
-                        break
-
-                except Exception as asset_error:
-                    self.logger.warning(f"⚠️ Asset class resolution failed: {asset_error}")
-
-            # Fallback to client method if Asset class didn't work or for other asset types
+            # Fallback to asset method if client lookup didn't work or for other asset types
             if not contract_id:
-                contract_id = self.client.find_contract_by_symbol(asset.symbol)
+                # Handle continuous futures using Asset class logic
+                if asset.asset_type == Asset.AssetType.CONT_FUTURE:
+                    self.logger.debug(f"🔄 Resolving continuous future {asset.symbol} using Asset class")
+
+                    try:
+                        # Use Asset class method to get potential contracts
+                        potential_contracts = asset.get_potential_futures_contracts()
+
+                        for contract_symbol in potential_contracts:
+                            # Convert to ProjectX format if needed
+                            if not contract_symbol.startswith("CON.F.US."):
+                                # Parse symbol like "MESU25" -> "CON.F.US.MES.U25"
+                                if len(contract_symbol) >= 4:
+                                    base_symbol = contract_symbol[:-3]  # Remove last 3 chars
+                                    month_year = contract_symbol[-3:]   # Get month + year code
+                                    if len(month_year) == 3:
+                                        month_code = month_year[0]
+                                        year_code = month_year[1:]
+                                        contract_id = f"CON.F.US.{base_symbol}.{month_code}{year_code}"
+                                    else:
+                                        contract_id = f"CON.F.US.{asset.symbol}.{month_year}"
+                                else:
+                                    contract_id = f"CON.F.US.{asset.symbol}.U25"  # Fallback
+                            else:
+                                contract_id = contract_symbol
+
+                            # Use the first potential contract
+                            self.logger.debug(f"✅ Using Asset class contract: {contract_id}")
+                            break
+
+                    except Exception as asset_error:
+                        self.logger.warning(f"⚠️ Asset class resolution failed: {asset_error}")
 
             if contract_id:
                 # Cache the result with asset type for better cache key
@@ -513,43 +530,6 @@ class ProjectXData(DataSource):
         except Exception as e:
             self.logger.error(f"Error searching contracts for '{search_text}': {e}")
             return []
-
-    def get_quote(self, asset: Asset, quote: Asset = None, exchange: str = None) -> Quote:
-        """
-        Get current quote (bid/ask) for an asset.
-
-        Note: This is a basic implementation using last price.
-        Real-time quote data would require streaming connection.
-
-        Args:
-            asset: Asset to get quote for
-            quote: Quote asset (for cryptocurrency pairs, not used in ProjectX)
-            exchange: Exchange to get quote from (not used in ProjectX)
-
-        Returns:
-            Quote object with quote information
-        """
-        try:
-            last_price = self.get_last_price(asset)
-
-            if last_price is not None:
-                # For futures, we approximate bid/ask with last price
-                # In a real implementation, you'd get actual bid/ask from streaming
-                spread = last_price * 0.0001  # 0.01% spread approximation
-
-                return Quote(
-                    asset=asset,
-                    price=last_price,
-                    bid=last_price - spread,
-                    ask=last_price + spread,
-                    timestamp=datetime.now()
-                )
-
-            return Quote(asset=asset)
-
-        except Exception as e:
-            self.logger.error(f"Error getting quote for {asset.symbol}: {e}")
-            return Quote(asset=asset)
 
     def get_bars_from_datetime(self, asset: Asset, start_datetime: datetime,
                               end_datetime: datetime, timespan: str = "minute") -> Bars:

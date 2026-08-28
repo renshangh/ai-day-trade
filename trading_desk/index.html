@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trading Desk — Hot Sector Board</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Trading Desk — Hot Sector Board</h1>
+    <span class="meta" id="asof">loading…</span>
+    <span class="spacer"></span>
+    <form id="symbol-form" class="symbol-search" role="search" autocomplete="off">
+      <label for="symbol-input" class="sr-only">Look up a stock symbol</label>
+      <input id="symbol-input" type="text" placeholder="Symbol e.g. NVDA" maxlength="10" spellcheck="false">
+      <button type="submit">View chart</button>
+    </form>
+    <!-- Symbol-aware: points at the charted symbol's Yahoo page, or the Yahoo
+         Finance home page when nothing is loaded yet. Kept as a real <a> so
+         middle-click / cmd-click behave normally. -->
+    <a id="yahoo-link" class="ext-link" href="https://finance.yahoo.com"
+       target="_blank" rel="noopener noreferrer"
+       title="Open Yahoo Finance in a new tab">Yahoo Finance ↗</a>
+    <button id="refresh" title="Force a fresh pull from Alpaca">Refresh</button>
+    <button id="theme" title="Toggle light / dark">Light</button>
+  </header>
+
+  <main>
+    <div id="notices"></div>
+
+    <!-- Filter rows, above everything they scope. -->
+    <div class="filters">
+      <span class="label">View</span>
+      <div class="tabs" id="view-tabs" role="tablist" aria-label="Screen type"></div>
+      <span class="meta" id="view-note"></span>
+    </div>
+    <div class="filters" id="lookback-row">
+      <span class="label">Lookback</span>
+      <div class="tabs" id="lookback-tabs" role="tablist" aria-label="Lookback window"></div>
+      <span class="meta" id="lookback-note"></span>
+    </div>
+
+    <section class="card" id="hero-card" aria-live="polite">
+      <div class="hero" id="hero"><div class="loading">Loading board…</div></div>
+    </section>
+
+    <section class="card" id="rank-card">
+      <h2 id="rank-title">Group ranking</h2>
+      <p class="sub" id="rank-sub">Equal-weight mean return of each group's constituents. Click a row to inspect its leaders.</p>
+      <div id="rank-chart"></div>
+    </section>
+
+    <section class="card" id="leaders-card">
+      <h2 id="leaders-title">Top 5</h2>
+      <p class="sub" id="leaders-sub"></p>
+      <div class="leaders" id="leaders"></div>
+    </section>
+
+    <section class="card hidden" id="earnings-card">
+      <div class="detail-head">
+        <h2 id="earn-title" style="margin:0">Earnings timing</h2>
+        <span class="spacer"></span>
+        <div class="tabs" id="horizon-tabs" role="tablist" aria-label="Calendar horizon"></div>
+      </div>
+      <p class="sub" id="earn-sub"></p>
+      <div id="earn-alerts"></div>
+      <div class="table-wrap" id="earn-table"></div>
+    </section>
+
+    <section class="card" id="detail-card">
+      <div class="detail-head">
+        <span class="sym" id="d-sym">—</span>
+        <span class="px" id="d-px"></span>
+        <span class="spacer"></span>
+        <div class="tabs" id="range-tabs" role="tablist" aria-label="Chart range"></div>
+        <button id="table-toggle" aria-pressed="false">Table view</button>
+      </div>
+
+      <div class="toggles" id="overlay-toggles" aria-label="Indicator overlays"></div>
+
+      <div class="legend" id="chart-legend"></div>
+
+      <div class="chart-wrap" id="chart-wrap">
+        <canvas id="chart" tabindex="0" role="img"
+                aria-label="Price candlestick chart with volume, RSI and MACD panes. Use left and right arrow keys to move the crosshair."></canvas>
+        <div class="tooltip" id="tooltip"></div>
+      </div>
+
+      <div class="table-wrap hidden" id="table-view"></div>
+    </section>
+
+    <section class="card" id="company-card">
+      <div class="detail-head">
+        <h2 id="c-title" style="margin:0">Company detail</h2>
+        <span class="meta" id="c-entity"></span>
+        <span class="spacer"></span>
+        <span class="meta" id="c-source"></span>
+      </div>
+
+      <div id="c-stats" class="stat-grid"></div>
+
+      <div class="two-col">
+        <div>
+          <h3 class="sub-head">Latest SEC filings <span class="hint" id="c-facts-hint"></span></h3>
+          <div class="table-wrap" id="c-facts"></div>
+        </div>
+        <div>
+          <h3 class="sub-head">Recent news</h3>
+          <div id="c-news"></div>
+        </div>
+      </div>
+
+      <h3 class="sub-head">Research &amp; analyst coverage</h3>
+      <div class="linkrow" id="c-links"></div>
+    </section>
+
+    <section class="card" id="rank-table-card">
+      <h2 id="rank-table-title">Ranking table</h2>
+      <p class="sub" id="rank-table-sub">The same board as above in text form — every value readable without color.
+         Click any row to load that group's top movers.</p>
+      <div class="table-wrap" id="rank-table"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

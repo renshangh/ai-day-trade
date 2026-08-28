@@ -2,6 +2,7 @@ import os
 import pickle
 import time
 import random
+from pathlib import Path
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -85,6 +86,19 @@ class YahooHelper:
         if YahooHelper.CACHING_ENABLED:
             file_name = f"{symbol}_{type.lower()}.pickle"
             pickle_file_path = os.path.join(YahooHelper.LUMIBOT_YAHOO_CACHE_FOLDER, file_name)
+
+            # CI/prod-like backtests start with empty disks. If the remote S3 cache is enabled,
+            # hydrate the Yahoo pickle before deciding it's a cache miss (keeps runs deterministic
+            # and avoids unnecessary Yahoo throttling sleeps).
+            try:
+                from lumibot.tools.backtest_cache import get_backtest_cache
+
+                cache = get_backtest_cache()
+                if cache is not None and cache.enabled and not os.path.exists(pickle_file_path):
+                    cache.ensure_local_file(Path(pickle_file_path))
+            except Exception:
+                pass
+
             if os.path.exists(pickle_file_path):
                 try:
                     with open(pickle_file_path, "rb") as f:
@@ -105,6 +119,14 @@ class YahooHelper:
             pickle_file_path = os.path.join(YahooHelper.LUMIBOT_YAHOO_CACHE_FOLDER, file_name)
             with open(pickle_file_path, "wb") as f:
                 pickle.dump(yahoo_data, f)
+            try:
+                from lumibot.tools.backtest_cache import get_backtest_cache
+
+                cache = get_backtest_cache()
+                if cache is not None and cache.enabled:
+                    cache.on_local_update(Path(pickle_file_path))
+            except Exception:
+                pass
 
     # ====================Formatters methods===============================
 
@@ -464,14 +486,14 @@ class YahooHelper:
     @staticmethod
     def get_symbol_actions(symbol, caching=True):
         """https://github.com/ranaroussi/yfinance/blob/main/yfinance/base.py"""
-        history = YahooHelper.get_symbol__data(symbol, caching=caching)
+        history = YahooHelper.get_symbol_data(symbol, caching=caching)
         actions = history[["Dividends", "Stock Splits"]]
         return actions[actions != 0].dropna(how="all").fillna(0)
 
     @staticmethod
     def get_symbols_actions(symbols, caching=True):
         result = {}
-        data = YahooHelper.get_symbols__data(symbols, caching=caching)
+        data = YahooHelper.get_symbols_data(symbols, caching=caching)
         for symbol, df in data.items():
             actions = df[["Dividends", "Stock Splits"]]
             result[symbol] = actions[actions != 0].dropna(how="all").fillna(0)

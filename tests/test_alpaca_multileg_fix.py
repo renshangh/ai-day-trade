@@ -7,10 +7,21 @@ due to incorrect order_class value and missing required fields.
 import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 from lumibot.entities.order import Order
 from lumibot.entities.asset import Asset
+from lumibot.entities.smart_limit import SmartLimitConfig, SmartLimitPreset
 from lumibot.brokers.alpaca import Alpaca
+from lumibot.strategies.strategy import Strategy
+
+
+class _StubStrategy(Strategy):
+    def initialize(self, parameters=None):
+        self.sleeptime = "1M"
+
+    def on_trading_iteration(self):
+        return
 
 
 class TestAlpacaMultiLegOrders:
@@ -211,6 +222,70 @@ class TestAlpacaMultiLegOrders:
         with pytest.raises(ValueError, match="limit price is required"):
             # This should raise an error because price is None for a limit order
             broker._submit_multileg_order(orders, order_type="limit", price=None)
+
+    @patch('lumibot.brokers.alpaca.TradingClient')
+    def test_smart_limit_submits_as_limit(self, mock_trading_client):
+        """Smart limit should downgrade to limit before broker submission."""
+        mock_trading_client.return_value = Mock()
+        broker = Alpaca(self.test_config, connect_stream=False)
+        broker._set_initial_positions = Mock()
+        captured = {}
+
+        def _capture_submit(order):
+            captured["order_type"] = order.order_type
+            return order
+
+        broker.submit_order = Mock(side_effect=_capture_submit)
+
+        with patch.object(Strategy, "update_broker_balances", return_value=None):
+            strategy = _StubStrategy(broker=broker, budget=100_000.0, analyze_backtest=False, parameters={})
+            strategy._first_iteration = False
+            strategy.get_quote = Mock(return_value=SimpleNamespace(bid=99.0, ask=101.0))
+
+            asset = Asset("SPY", asset_type=Asset.AssetType.STOCK)
+            config = SmartLimitConfig(preset=SmartLimitPreset.NORMAL)
+            order = strategy.create_order(
+                asset,
+                1,
+                Order.OrderSide.BUY,
+                order_type=Order.OrderType.SMART_LIMIT,
+                smart_limit=config,
+            )
+            strategy.submit_order(order)
+
+        assert captured["order_type"] == Order.OrderType.LIMIT
+
+    @patch('lumibot.brokers.alpaca.TradingClient')
+    def test_smart_limit_downgrades_to_market_without_quotes(self, mock_trading_client):
+        """Smart limit should downgrade to market when bid/ask are missing."""
+        mock_trading_client.return_value = Mock()
+        broker = Alpaca(self.test_config, connect_stream=False)
+        broker._set_initial_positions = Mock()
+        captured = {}
+
+        def _capture_submit(order):
+            captured["order_type"] = order.order_type
+            return order
+
+        broker.submit_order = Mock(side_effect=_capture_submit)
+
+        with patch.object(Strategy, "update_broker_balances", return_value=None):
+            strategy = _StubStrategy(broker=broker, budget=100_000.0, analyze_backtest=False, parameters={})
+            strategy._first_iteration = False
+            strategy.get_quote = Mock(return_value=SimpleNamespace(bid=None, ask=None))
+
+            asset = Asset("SPY", asset_type=Asset.AssetType.STOCK)
+            config = SmartLimitConfig(preset=SmartLimitPreset.NORMAL)
+            order = strategy.create_order(
+                asset,
+                1,
+                Order.OrderSide.BUY,
+                order_type=Order.OrderType.SMART_LIMIT,
+                smart_limit=config,
+            )
+            strategy.submit_order(order)
+
+        assert captured["order_type"] == Order.OrderType.MARKET
 
 
 if __name__ == "__main__":

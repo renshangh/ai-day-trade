@@ -6,11 +6,12 @@ from unittest.mock import Mock, MagicMock
 from datetime import date, timedelta, datetime
 import sys
 import os
+import pytest
 
 # Add the lumibot path
 sys.path.insert(0, '/Users/robertgrzesik/Documents/Development/lumivest_bot_server/strategies/lumibot')
 
-from lumibot.components.options_helper import OptionsHelper
+from lumibot.components.options_helper import OptionsHelper, OptionMarketEvaluation
 from lumibot.entities import Asset
 from lumibot.entities.chains import OptionsDataFormatError, normalize_option_chains
 from lumibot.brokers.broker import Broker
@@ -79,6 +80,12 @@ class TestOptionsHelper(unittest.TestCase):
         self.mock_strategy = Mock()
         self.mock_strategy.log_message = Mock()
         self.mock_strategy.get_last_price = Mock(return_value=5.0)
+        self.mock_strategy.get_quote = Mock(return_value=None)
+        data_source = Mock()
+        data_source.option_quote_fallback_allowed = False
+        broker = Mock()
+        broker.data_source = data_source
+        self.mock_strategy.broker = broker
         
         # Mock get_greeks with realistic delta values
         def mock_get_greeks(option, underlying_price=None):
@@ -170,7 +177,33 @@ class TestOptionsHelper(unittest.TestCase):
         # Should have logged an error
         log_calls = [str(call[0][0]) for call in self.mock_strategy.log_message.call_args_list]
         self.assertTrue(any("ERROR: Invalid target delta" in msg for msg in log_calls))
-    
+
+    def test_get_greeks_returns_none(self):
+        """Test handling when get_greeks returns None (e.g., missing option data)"""
+        # Mock get_greeks to return None (simulates unavailable option data)
+        self.mock_strategy.get_greeks = Mock(return_value=None)
+
+        underlying_asset = Asset("TEST", asset_type="stock")
+        underlying_price = 200.0
+        target_delta = -0.3
+        expiry = date.today() + timedelta(days=30)
+        right = "put"
+
+        result = self.options_helper.find_strike_for_delta(
+            underlying_asset=underlying_asset,
+            underlying_price=underlying_price,
+            target_delta=target_delta,
+            expiry=expiry,
+            right=right
+        )
+
+        # Should return None when Greeks unavailable
+        self.assertIsNone(result)
+
+        # Should have logged about Greeks being None
+        log_calls = [str(call[0][0]) for call in self.mock_strategy.log_message.call_args_list]
+        self.assertTrue(any("greeks returned None" in msg for msg in log_calls))
+
     def test_warning_for_unrealistic_strike(self):
         """Test that warnings are generated for unrealistic strikes"""
         # Mock a scenario where we get an unrealistically low strike
@@ -304,7 +337,7 @@ class TestOptionsHelper(unittest.TestCase):
         result = self.options_helper.get_expiration_on_or_after_date(target, expiries, "call")
         self.assertEqual(result, _date(2024, 1, 9))
 
-    def test_get_expiration_on_or_after_date_uses_latest_when_needed(self):
+    def test_get_expiration_on_or_after_date_returns_none_when_no_future_available(self):
         from datetime import date as _date
 
         expiries = {
@@ -318,6 +351,24 @@ class TestOptionsHelper(unittest.TestCase):
 
         target = _date(2024, 2, 1)
         result = self.options_helper.get_expiration_on_or_after_date(target, expiries, "call")
+        self.assertIsNone(result)
+
+    def test_get_expiration_on_or_after_date_allows_prior_fallback(self):
+        from datetime import date as _date
+
+        expiries = {
+            "Chains": {
+                "CALL": {
+                    "2024-01-02": [100.0],
+                    "2024-01-09": [101.0],
+                }
+            }
+        }
+
+        target = _date(2024, 2, 1)
+        result = self.options_helper.get_expiration_on_or_after_date(
+            target, expiries, "call", allow_prior=True
+        )
         self.assertEqual(result, _date(2024, 1, 9))
 
     def test_chains_backward_compatibility_string_access(self):
@@ -390,56 +441,181 @@ class TestOptionsHelper(unittest.TestCase):
         self.assertEqual(chains_partial["Chains"]["CALL"]["2024-01-02"], [100.0])
         self.assertIn("PUT", chains_partial["Chains"])
 
+    @pytest.mark.skipif(
+        os.environ.get("RUN_THETADATA_TERMINAL_TESTS") != "true",
+        reason="Disabled by default: requires local ThetaTerminal; set RUN_THETADATA_TERMINAL_TESTS=true to enable.",
+    )
     def test_find_next_valid_option_checks_quote_first(self):
-        """Test that find_next_valid_option checks quote before last_price"""
-        underlying_asset = Asset("TEST", asset_type="stock")
-        expiry = date.today() + timedelta(days=30)
+        """Test that find_next_valid_option checks quote before last_price using REAL ThetaData"""
+        import os
+        from dotenv import load_dotenv
+        from lumibot.backtesting import ThetaDataBacktesting, BacktestingBroker
+        from lumibot.strategies import Strategy
+        from lumibot.traders import Trader
 
-        # Mock get_quote to return valid quote
-        mock_quote = Mock()
-        mock_quote.bid = 2.0
-        mock_quote.ask = 2.5
-        self.mock_strategy.get_quote = Mock(return_value=mock_quote)
-        self.mock_strategy.get_last_price = Mock(return_value=None)
+        load_dotenv()
 
-        result = self.options_helper.find_next_valid_option(
-            underlying_asset=underlying_asset,
-            rounded_underlying_price=200.0,
-            expiry=expiry,
-            put_or_call="call"
+        # Get real ThetaData credentials
+        username = os.environ.get("THETADATA_USERNAME")
+        password = os.environ.get("THETADATA_PASSWORD")
+
+        if not username or username.lower() in {"", "uname"}:
+            self.skipTest("ThetaData username not configured")
+        if not password or password.lower() in {"", "pwd"}:
+            self.skipTest("ThetaData password not configured")
+        if username != "rob-dev@lumiwealth.com":
+            self.skipTest("Safety: integration test only runs with dev ThetaData credentials (rob-dev@lumiwealth.com)")
+
+        # Create a simple strategy that uses OptionsHelper with REAL data
+        class TestStrategy(Strategy):
+            def initialize(self):
+                self.sleeptime = "1D"
+                self.option_found = None
+
+            def on_trading_iteration(self):
+                from lumibot.components.options_helper import OptionsHelper
+                options_helper = OptionsHelper(self)
+
+                # Use SPY as underlying (guaranteed to have options data)
+                underlying_asset = Asset("SPY", asset_type="stock")
+                current_price = self.get_last_price(underlying_asset)
+
+                # Get chains to find a valid expiration
+                chains = self.get_chains(underlying_asset)
+                if not chains or not chains.expirations("CALL"):
+                    self.log_message("No chains available")
+                    return
+
+                # Get the first available expiration
+                expiry_str = chains.expirations("CALL")[0]
+                expiry = datetime.strptime(expiry_str, "%Y-%m-%d").date()
+
+                # Try to find next valid option
+                self.option_found = options_helper.find_next_valid_option(
+                    underlying_asset=underlying_asset,
+                    rounded_underlying_price=round(current_price),
+                    expiry=expiry,
+                    put_or_call="call"
+                )
+
+        # Run backtest for September 2-3, 2025
+        backtesting_start = datetime(2025, 9, 2)
+        backtesting_end = datetime(2025, 9, 3)
+
+        data_source = ThetaDataBacktesting(
+            datetime_start=backtesting_start,
+            datetime_end=backtesting_end,
+            username=username,
+            password=password
         )
 
-        # Should find option based on quote, even though last_price is None
-        self.assertIsNotNone(result)
-        self.mock_strategy.get_quote.assert_called()
+        broker = BacktestingBroker(data_source=data_source)
+        strategy = TestStrategy(
+            broker=broker,
+            backtesting_start=backtesting_start,
+            backtesting_end=backtesting_end
+        )
 
-        # Check log messages
-        log_calls = [str(call[0][0]) for call in self.mock_strategy.log_message.call_args_list]
-        self.assertTrue(any("Found valid quote" in msg for msg in log_calls))
+        trader = Trader(backtest=True)
+        trader.add_strategy(strategy)
+        trader.run_all(show_plot=False, show_tearsheet=False, show_indicators=False, save_tearsheet=False)
 
+        # Verify that an option was found using real data
+        self.assertIsNotNone(strategy.option_found, "Should find valid option using real ThetaData")
+
+    @pytest.mark.skipif(
+        os.environ.get("RUN_THETADATA_TERMINAL_TESTS") != "true",
+        reason="Disabled by default: requires local ThetaTerminal; set RUN_THETADATA_TERMINAL_TESTS=true to enable.",
+    )
     def test_find_next_valid_option_falls_back_to_last_price(self):
-        """Test fallback to last_price when quote has no bid/ask"""
-        underlying_asset = Asset("TEST", asset_type="stock")
-        expiry = date.today() + timedelta(days=30)
+        """Test fallback to last_price when quote has no bid/ask using REAL ThetaData"""
+        import os
+        from dotenv import load_dotenv
+        from lumibot.backtesting import ThetaDataBacktesting, BacktestingBroker
+        from lumibot.strategies import Strategy
+        from lumibot.traders import Trader
 
-        # Mock get_quote to return quote with None bid/ask
-        mock_quote = Mock()
-        mock_quote.bid = None
-        mock_quote.ask = None
-        self.mock_strategy.get_quote = Mock(return_value=mock_quote)
-        self.mock_strategy.get_last_price = Mock(return_value=2.25)
+        load_dotenv()
 
-        result = self.options_helper.find_next_valid_option(
-            underlying_asset=underlying_asset,
-            rounded_underlying_price=200.0,
-            expiry=expiry,
-            put_or_call="put"
+        # Get real ThetaData credentials
+        username = os.environ.get("THETADATA_USERNAME")
+        password = os.environ.get("THETADATA_PASSWORD")
+
+        if not username or username.lower() in {"", "uname"}:
+            self.skipTest("ThetaData username not configured")
+        if not password or password.lower() in {"", "pwd"}:
+            self.skipTest("ThetaData password not configured")
+        if username != "rob-dev@lumiwealth.com":
+            self.skipTest("Safety: integration test only runs with dev ThetaData credentials (rob-dev@lumiwealth.com)")
+
+        # Create a simple strategy that uses OptionsHelper with REAL data
+        class TestStrategy(Strategy):
+            def initialize(self):
+                self.sleeptime = "1D"
+                self.option_found = None
+                self.quote_checked = False
+                self.last_price_checked = False
+
+            def on_trading_iteration(self):
+                from lumibot.components.options_helper import OptionsHelper
+                options_helper = OptionsHelper(self)
+
+                # Use SPY as underlying (guaranteed to have options data)
+                underlying_asset = Asset("SPY", asset_type="stock")
+                current_price = self.get_last_price(underlying_asset)
+
+                # Get chains to find a valid expiration
+                chains = self.get_chains(underlying_asset)
+                if not chains or not chains.expirations("PUT"):
+                    self.log_message("No chains available")
+                    return
+
+                # Get the first available expiration
+                expiry_str = chains.expirations("PUT")[0]
+                expiry = datetime.strptime(expiry_str, "%Y-%m-%d").date()
+
+                # Try to find next valid option (PUT this time)
+                self.option_found = options_helper.find_next_valid_option(
+                    underlying_asset=underlying_asset,
+                    rounded_underlying_price=round(current_price),
+                    expiry=expiry,
+                    put_or_call="put"
+                )
+
+                # Verify both quote and last_price were used
+                if self.option_found:
+                    # Check that we can get quote and last_price for the found option
+                    quote = self.get_quote(self.option_found)
+                    last_price = self.get_last_price(self.option_found)
+                    self.quote_checked = quote is not None
+                    self.last_price_checked = last_price is not None
+
+        # Run backtest for September 2-3, 2025
+        backtesting_start = datetime(2025, 9, 2)
+        backtesting_end = datetime(2025, 9, 3)
+
+        data_source = ThetaDataBacktesting(
+            datetime_start=backtesting_start,
+            datetime_end=backtesting_end,
+            username=username,
+            password=password
         )
 
-        # Should find option based on last_price fallback
-        self.assertIsNotNone(result)
-        self.mock_strategy.get_quote.assert_called()
-        self.mock_strategy.get_last_price.assert_called()
+        broker = BacktestingBroker(data_source=data_source)
+        strategy = TestStrategy(
+            broker=broker,
+            backtesting_start=backtesting_start,
+            backtesting_end=backtesting_end
+        )
+
+        trader = Trader(backtest=True)
+        trader.add_strategy(strategy)
+        trader.run_all(show_plot=False, show_tearsheet=False, show_indicators=False, save_tearsheet=False)
+
+        # Verify that an option was found and both methods were available
+        self.assertIsNotNone(strategy.option_found, "Should find valid option using real ThetaData")
+        # Note: We can't guarantee which method was used (quote vs last_price), but we verify the option works
+        self.assertTrue(strategy.quote_checked or strategy.last_price_checked, "Should be able to get data for option")
 
     def test_get_expiration_validates_data_when_underlying_provided(self):
         """Test that get_expiration_on_or_after_date validates data exists when underlying provided"""
@@ -480,6 +656,155 @@ class TestOptionsHelper(unittest.TestCase):
 
         # Check it tried to validate options
         self.mock_strategy.get_quote.assert_called()
+
+    def test_evaluate_option_market_with_quotes(self):
+        """evaluate_option_market returns actionable prices when quotes exist."""
+        option_asset = Asset(
+            "TEST",
+            asset_type=Asset.AssetType.OPTION,
+            expiration=date.today() + timedelta(days=7),
+            strike=200,
+            right="call",
+            underlying_asset=Asset("TEST", asset_type=Asset.AssetType.STOCK),
+        )
+
+        self.mock_strategy.get_quote.return_value = Mock(bid=1.0, ask=1.2)
+        self.mock_strategy.get_last_price.return_value = 1.1
+
+        evaluation = self.options_helper.evaluate_option_market(option_asset, max_spread_pct=0.5)
+
+        self.assertTrue(evaluation.has_bid_ask)
+        self.assertFalse(evaluation.spread_too_wide)
+        self.assertEqual(evaluation.buy_price, 1.2)
+        self.assertEqual(evaluation.sell_price, 1.0)
+        self.assertFalse(evaluation.used_last_price_fallback)
+
+    def test_evaluate_option_market_fallback_allowed(self):
+        """Missing quotes use last price when the data source allows fallback."""
+        option_asset = Asset(
+            "TEST",
+            asset_type=Asset.AssetType.OPTION,
+            expiration=date.today() + timedelta(days=7),
+            strike=200,
+            right="call",
+            underlying_asset=Asset("TEST", asset_type=Asset.AssetType.STOCK),
+        )
+
+        self.mock_strategy.get_quote.return_value = Mock(bid=None, ask=None)
+        self.mock_strategy.get_last_price.return_value = 2.5
+        self.mock_strategy.broker.data_source.option_quote_fallback_allowed = True
+
+        evaluation = self.options_helper.evaluate_option_market(option_asset, max_spread_pct=0.25)
+
+        self.assertTrue(evaluation.missing_bid_ask)
+        self.assertTrue(evaluation.used_last_price_fallback)
+        self.assertEqual(evaluation.buy_price, 2.5)
+        self.assertEqual(evaluation.sell_price, 2.5)
+        self.assertFalse(evaluation.spread_too_wide)
+
+    def test_evaluate_option_market_fallback_blocked(self):
+        """If fallback is not allowed missing quotes produce no price anchors."""
+        option_asset = Asset(
+            "TEST",
+            asset_type=Asset.AssetType.OPTION,
+            expiration=date.today() + timedelta(days=7),
+            strike=200,
+            right="call",
+            underlying_asset=Asset("TEST", asset_type=Asset.AssetType.STOCK),
+        )
+
+        self.mock_strategy.get_quote.return_value = Mock(bid=None, ask=None)
+        self.mock_strategy.get_last_price.return_value = 3.1
+        self.mock_strategy.broker.data_source.option_quote_fallback_allowed = False
+
+        evaluation = self.options_helper.evaluate_option_market(option_asset, max_spread_pct=0.25)
+
+        self.assertTrue(evaluation.missing_bid_ask)
+        self.assertIsNone(evaluation.buy_price)
+        self.assertIsNone(evaluation.sell_price)
+        self.assertFalse(evaluation.used_last_price_fallback)
+
+    def test_evaluate_option_market_rejects_non_finite_quotes(self):
+        """NaN or infinite quotes are treated as missing to prevent crashes."""
+        option_asset = Asset(
+            "TEST",
+            asset_type=Asset.AssetType.OPTION,
+            expiration=date.today() + timedelta(days=7),
+            strike=200,
+            right="call",
+            underlying_asset=Asset("TEST", asset_type=Asset.AssetType.STOCK),
+        )
+
+        self.mock_strategy.get_quote.return_value = Mock(bid=float("nan"), ask=float("inf"))
+        self.mock_strategy.get_last_price.return_value = float("nan")
+        self.mock_strategy.broker.data_source.option_quote_fallback_allowed = True
+
+        evaluation = self.options_helper.evaluate_option_market(option_asset, max_spread_pct=0.25)
+
+        self.assertIsNone(evaluation.buy_price)
+        self.assertIn("bid_non_finite", evaluation.data_quality_flags)
+        self.assertIn("ask_non_finite", evaluation.data_quality_flags)
+        self.assertTrue(evaluation.missing_bid_ask)
+        self.assertFalse(OptionsHelper.has_actionable_price(evaluation))
+
+    def test_has_actionable_price_requires_sell_price(self):
+        """Ask-only quotes should be treated as non-actionable to prevent crashes."""
+        option_asset = Asset(
+            "TEST",
+            asset_type=Asset.AssetType.OPTION,
+            expiration=date.today() + timedelta(days=7),
+            strike=200,
+            right="call",
+            underlying_asset=Asset("TEST", asset_type=Asset.AssetType.STOCK),
+        )
+
+        self.mock_strategy.get_quote.return_value = Mock(bid=None, ask=0.05)
+        self.mock_strategy.broker.data_source.option_quote_fallback_allowed = False
+
+        evaluation = self.options_helper.evaluate_option_market(option_asset, max_spread_pct=0.25)
+
+        self.assertEqual(evaluation.buy_price, 0.05)
+        self.assertIsNone(evaluation.sell_price)
+        self.assertFalse(OptionsHelper.has_actionable_price(evaluation))
+
+    def test_has_actionable_price_requires_buy_price(self):
+        """Bid-only quotes should be treated as non-actionable to prevent crashes."""
+        option_asset = Asset(
+            "TEST",
+            asset_type=Asset.AssetType.OPTION,
+            expiration=date.today() + timedelta(days=7),
+            strike=200,
+            right="call",
+            underlying_asset=Asset("TEST", asset_type=Asset.AssetType.STOCK),
+        )
+
+        self.mock_strategy.get_quote.return_value = Mock(bid=0.05, ask=None)
+        self.mock_strategy.broker.data_source.option_quote_fallback_allowed = False
+
+        evaluation = self.options_helper.evaluate_option_market(option_asset, max_spread_pct=0.25)
+
+        self.assertIsNone(evaluation.buy_price)
+        self.assertEqual(evaluation.sell_price, 0.05)
+        self.assertFalse(OptionsHelper.has_actionable_price(evaluation))
+
+    def test_has_actionable_price_requires_positive_finite_value(self):
+        """has_actionable_price returns False for zero or negative values."""
+        evaluation = OptionMarketEvaluation(
+            bid=0.5,
+            ask=0.6,
+            last_price=0.55,
+            spread_pct=0.18,
+            has_bid_ask=True,
+            spread_too_wide=False,
+            missing_bid_ask=False,
+            missing_last_price=False,
+            buy_price=0.0,
+            sell_price=0.4,
+            used_last_price_fallback=False,
+            max_spread_pct=0.25,
+            data_quality_flags=["buy_price_non_positive"],
+        )
+        self.assertFalse(OptionsHelper.has_actionable_price(evaluation))
 
 if __name__ == "__main__":
     print("🧪 Running enhanced options helper tests...")

@@ -3,27 +3,62 @@
 Deployment Guide
 ================
 
-This guide will walk you through the deployment process for your trading strategy. We will cover the following topics:
+This guide walks you through the options for running your Lumibot trading strategy outside your local machine. You have two paths:
 
-- **Choosing Your Deployment Platform:** Decide whether to deploy on **Render** or **Replit**.
-- **Deploying to Render:** Step-by-step instructions for deploying on Render.
-- **Deploying to Replit:** Step-by-step instructions for deploying on Replit.
-- **Secrets Configuration:** Detailed information on setting up your environment variables.
-- **Broker Configuration:** Required secrets for different brokers.
-- **General Environment Variables:** Additional environment variables required for the strategy to function correctly.
+- **Option A — BotSpot (recommended):** Managed Lumibot cloud. Hosted backtesting data, parallel backtests, broker connections, cheaper scheduled deployment, monitoring, logs, alerts, audit history, and kill switches are already wired together. Best for most users.
+- **Option B — Self-hosted (Render or Replit):** Deploy it yourself on a general-purpose cloud host. Full control, you manage everything. Best for developers who want to own the infrastructure.
 
-Before deploying your application, ensure that you have the necessary environment variables configured. The environment variables are crucial for the successful deployment of your application. We will cover the required environment variables for different brokers and general environment variables that are essential for the strategy to function correctly.
+Pick the option that matches how much infrastructure you want to manage. Both run the exact same Lumibot strategy code.
+
+Option A — Deploy on BotSpot (Recommended)
+------------------------------------------
+
+`BotSpot <https://botspot.trade/sales?showLogin=1&utm_source=documentation&utm_medium=deployment_guide&utm_campaign=lumibot&utm_content=deploy_top_text&sample=lumibot_deploy_sample>`_ is the managed cloud platform built around Lumibot. It is better than starting from a blank server because the expensive parts are already solved: market data setup, backtesting workers, broker connections, scheduling, logs, alerts, monitoring, audit history, and kill-switch controls.
+
+BotSpot is also better than using a generic coding assistant by itself. Claude, Codex, Cursor, and ChatGPT can write Python, but BotSpot adds the Lumibot-specific layer around the code: tuned strategy prompts, hosted backtests, artifacts, broker setup, deployment, observability, and MCP tools your coding agent can call directly.
+
+**Why BotSpot:**
+
+- **Backtesting data included.** Use supported hosted data for stocks, futures, options, macro data, filings, and other strategy inputs without wrangling every vendor, API key, downloader, and local file yourself. Some data is included; premium datasets can be much cheaper than buying direct subscriptions.
+- **Cheaper deployment at scale.** Scheduled or periodic bots should not need a full always-on cloud server per strategy. BotSpot runs Lumibot bots on infrastructure built for this workload, so running many strategies can be dramatically cheaper than maintaining your own servers.
+- **Lumibot-tuned AI.** BotSpot's AI workflows are built for Lumibot strategy structure, broker setup, backtests, artifacts, and deployment. That produces a stronger workflow than asking a generic coding assistant to write a file and leaving the rest to you.
+- **MCP for your coding agents.** Connect BotSpot to Codex, Claude Code, Cursor, and other MCP clients so your assistant can run backtests, inspect artifacts, compare results, and prepare deployment instead of only generating code.
+- **Work from anywhere.** Start in the web app, continue from your phone, Telegram, Discord, Claude, ChatGPT, or another connected client, and keep the same strategies, backtests, logs, and broker context in one place.
+- **Marketplace and strategy library.** Browse existing strategies, clone or adapt code when the author allows it, run marketplace strategies yourself, and publish your own strategies for others to use.
+- **Broker connections built in.** Connect supported brokers through the website instead of hand-wiring secrets, environment variables, and account checks on every server you run.
+- **Observability and control.** Inspect why a strategy acted, review charts, trades, logs, artifacts, audit trails, alerts, account checks, and kill switches without building that stack yourself.
+
+.. image:: ../docs/assets/readme/cta_deploy_on_botspot.png
+   :alt: Try deploying a sample Lumibot strategy on BotSpot
+   :align: center
+   :width: 520px
+   :target: https://botspot.trade/sales?showLogin=1&utm_source=documentation&utm_medium=deployment_guide&utm_campaign=lumibot&utm_content=deploy_primary_button&sample=lumibot_deploy_sample
+
+Browse the `BotSpot marketplace <https://botspot.trade/marketplace?utm_source=documentation&utm_medium=deployment_guide&utm_campaign=lumibot&utm_content=marketplace_text>`_, or connect the `BotSpot MCP server <https://botspot.trade/agents?utm_source=documentation&utm_medium=deployment_guide&utm_campaign=lumibot&utm_content=mcp_text>`_.
+
+.. tip::
+
+   **Already have a Lumibot strategy you wrote locally?** You can bring your own code into BotSpot through the strategy editor. You can also use BotSpot's AI agent to adapt existing strategies.
+
+Option B — Self-hosted Deployment (Render or Replit)
+----------------------------------------------------
+
+If you want full control of your infrastructure, you can deploy Lumibot yourself on any cloud host that runs Python. This guide covers the two platforms we have tested end-to-end: **Render** and **Replit**.
+
+.. note::
+
+   Self-hosting means you manage the server, scheduler, environment variables, broker credentials, logs, alerts, and uptime. If any of that sounds like more work than you want to take on, use :doc:`Option A — BotSpot <deployment>` instead.
 
 Example Strategy for Deployment
 -------------------------------
 
 .. important::
 
-   **Important:** This example strategy is for those without a strategy ready to deploy. If you have your own strategy, skip to `Choosing Your Deployment Platform <#id1>`_.
+   **Important:** This example strategy is for those without a strategy ready to deploy. If you have your own strategy, skip to `Choosing Your Self-hosted Platform <#id1>`_.
 
-Use this example to see the deployment process in action. It’s not intended for real-money use. More details are available in the GitHub repository: `Example Algorithm GitHub <https://github.com/Lumiwealth-Strategies/stock_example_algo>`_
+Use this example to see the self-hosted deployment process in action. It's not intended for real-money use. More details are available in the GitHub repository: `Example Algorithm GitHub <https://github.com/Lumiwealth-Strategies/stock_example_algo>`_
 
-To run the example strategy, click the Deploy to Render button or the Run on Repl.it button. See `Deploying to Render <#id2>`_ and `Deploying to Replit <#id3>`_ for more details.
+To run the example strategy yourself, click the Deploy to Render button or the Run on Repl.it button below. If you would rather skip the infrastructure setup entirely, `try deploying a sample strategy on BotSpot <https://botspot.trade/sales?showLogin=1&utm_source=documentation&utm_medium=deployment_guide&utm_campaign=lumibot&utm_content=example_botspot_text&sample=lumibot_deploy_sample>`_ instead.
 
 .. raw:: html
 
@@ -36,20 +71,21 @@ To run the example strategy, click the Deploy to Render button or the Run on Rep
         </a>
     </div>
 
-Render is recommended for ease of use and affordability. Replit is more expensive but great for in-browser code editing, if you want to see/edit the code directly in your browser.
-
 .. tip::
 
    **Tip:** Scroll down to the :ref:`Secrets Configuration <secrets-configuration>` section for detailed information on setting up your environment variables.
 
-Choosing Your Deployment Platform
----------------------------------
+Choosing Your Self-hosted Platform
+----------------------------------
 
-We recommend using **Render** for deployment because it is easier to use and more affordable compared to Replit. However, **Replit** is an excellent choice for developers who want to edit code directly in the browser.
+If you have decided to self-host, pick between **Render** and **Replit**:
+
+- **Render** costs about **$7/month**. It is easier to use and more affordable, and is our recommendation for self-hosted deployment.
+- **Replit** costs about **$25/month**. It is more expensive but is a great choice if you want to edit your code directly in the browser.
 
 .. note::
 
-   **Render** costs **$7/month**, while **Replit** is priced at **$25/month**. Choose the platform that best fits your needs and budget.
+   Neither Render nor Replit are affiliated with Lumibot or BotSpot. Prices and features may change; check their websites for current pricing.
 
 Deploying to Render
 -------------------
@@ -252,7 +288,7 @@ Replit is a versatile platform that allows you to deploy applications quickly. F
       **Note:** Monitor the bot's performance regularly to ensure that it is functioning correctly and making profitable trades.
 
 Secrets Configuration
-=====================
+---------------------
 
 Proper configuration of environment variables is crucial for the successful deployment of your application. The most important secrets are those related to your chosen broker. First, set up the secrets for your broker, then add any additional general secrets if needed.
 
@@ -265,7 +301,7 @@ Proper configuration of environment variables is crucial for the successful depl
    **The secrets required for your chosen broker are mandatory, you only need to pick one. Also, depending on the strategy you are running, you might also need to set the `LIVE_CONFIG` environment variable.**
 
 Broker Configuration
-====================
+--------------------
 
 To support different brokers, we have separate sections. Choose the one that corresponds to the broker you are using.
 
@@ -396,12 +432,19 @@ Kraken is an excellent cryptocurrency broker offering very low fees and a wide r
      - Your API secret for Kraken. **Required** if you are using Kraken as your broker.
      - abcdef1234567890abcdef1234567890abcdef1234
 
-Kucoin Configuration
---------------------
+Additional CCXT Exchange Examples
+---------------------------------
 
-Kucoin is a popular global cryptocurrency exchange offering a wide variety of cryptocurrencies and trading pairs. To create an account, visit the `Kucoin <https://www.kucoin.com/>`_ website.
+Lumibot implements selected CCXT exchange paths. This does **not** mean Lumibot supports every exchange in CCXT.
 
-.. list-table:: Kucoin Configuration
+Coinbase, Kraken, and WEEX are the CCXT credential paths that Lumibot can auto-detect from environment variables. KuCoin, Binance, and BitMEX are included here as manual CCXT config examples because they have selected Lumibot/CCXT handling or examples. Bybit and OKX are included for CCXT backtesting/custom-config reference. Before using any CCXT exchange for live trading, verify account state, positions, order submission, fills, and cancellation behavior with a very small test.
+
+KuCoin Configuration
+^^^^^^^^^^^^^^^^^^^^
+
+KuCoin is a global cryptocurrency exchange offering a wide variety of cryptocurrencies and trading pairs. Lumibot's shared CCXT broker has exchange-specific order handling for KuCoin when you pass an explicit ``Ccxt`` config. To create an account, visit the `KuCoin <https://www.kucoin.com/>`_ website.
+
+.. list-table:: KuCoin Configuration
    :widths: 25 50 25
    :header-rows: 1
 
@@ -409,19 +452,19 @@ Kucoin is a popular global cryptocurrency exchange offering a wide variety of cr
      - **Description**
      - **Example**
    * - KUCOIN_API_KEY
-     - Your Kucoin API key. **Required** if you are using Kucoin as your broker.
+     - Your KuCoin API key.
      - 5f6a7b8c9d0e1f2a3b4c
    * - KUCOIN_SECRET
-     - Your Kucoin secret. **Required** if you are using Kucoin as your broker.
+     - Your KuCoin secret.
      - abcdef1234567890abcdef1234567890abcdef12
    * - KUCOIN_PASSPHRASE
-     - Your Kucoin passphrase. **Required** if you are using Kucoin as your broker.
+     - Your KuCoin passphrase.
      - mypassphrase456
 
 Binance Configuration
----------------------
+^^^^^^^^^^^^^^^^^^^^^
 
-Binance is the world's largest cryptocurrency exchange by trading volume, offering extensive cryptocurrency trading options. To create an account, visit the `Binance <https://www.binance.com/>`_ website.
+Binance is a large cryptocurrency exchange by trading volume, offering extensive cryptocurrency trading options. Lumibot's shared CCXT broker has exchange-specific order handling for Binance when you pass an explicit ``Ccxt`` config. To create an account, visit the `Binance <https://www.binance.com/>`_ website.
 
 .. list-table:: Binance Configuration
    :widths: 25 50 25
@@ -431,18 +474,18 @@ Binance is the world's largest cryptocurrency exchange by trading volume, offeri
      - **Description**
      - **Example**
    * - BINANCE_API_KEY
-     - Your Binance API key. **Required** if you are using Binance as your broker.
+     - Your Binance API key.
      - 9a8b7c6d5e4f3g2h1i0j
    * - BINANCE_SECRET
-     - Your Binance secret key. **Required** if you are using Binance as your broker.
+     - Your Binance secret key.
      - abcdef1234567890abcdef1234567890abcdef12
 
-Bitmex Configuration
---------------------
+BitMEX Configuration
+^^^^^^^^^^^^^^^^^^^^
 
-Bitmex is a cryptocurrency derivatives exchange specializing in futures and perpetual contracts. To create an account, visit the `Bitmex <https://www.bitmex.com/>`_ website.
+BitMEX is a cryptocurrency derivatives exchange specializing in futures and perpetual contracts. Lumibot documents BitMEX as a selected CCXT path/example, but live derivatives behavior requires careful validation before real trading. To create an account, visit the `BitMEX <https://www.bitmex.com/>`_ website.
 
-.. list-table:: Bitmex Configuration
+.. list-table:: BitMEX Configuration
    :widths: 25 50 25
    :header-rows: 1
 
@@ -450,16 +493,16 @@ Bitmex is a cryptocurrency derivatives exchange specializing in futures and perp
      - **Description**
      - **Example**
    * - BITMEX_API_KEY
-     - Your Bitmex API key. **Required** if you are using Bitmex as your broker.
+     - Your BitMEX API key.
      - 1a2b3c4d5e6f7g8h9i0j
    * - BITMEX_SECRET
-     - Your Bitmex secret. **Required** if you are using Bitmex as your broker.
+     - Your BitMEX secret.
      - abcdef1234567890abcdef1234567890abcdef12
 
 Bybit Configuration
--------------------
+^^^^^^^^^^^^^^^^^^^
 
-Bybit is a popular derivatives exchange offering futures and perpetual contracts for cryptocurrency trading. To create an account, visit the `Bybit <https://www.bybit.com/>`_ website.
+Bybit is a derivatives exchange offering futures and perpetual contracts for cryptocurrency trading. Lumibot documents Bybit for CCXT backtesting/custom-config reference; do not assume the live path is production-ready without validation. To create an account, visit the `Bybit <https://www.bybit.com/>`_ website.
 
 .. list-table:: Bybit Configuration
    :widths: 25 50 25
@@ -469,16 +512,16 @@ Bybit is a popular derivatives exchange offering futures and perpetual contracts
      - **Description**
      - **Example**
    * - BYBIT_API_KEY
-     - Your Bybit API key. **Required** if you are using Bybit as your broker.
+     - Your Bybit API key.
      - 2b3c4d5e6f7g8h9i0j1k
    * - BYBIT_SECRET
-     - Your Bybit secret. **Required** if you are using Bybit as your broker.
+     - Your Bybit secret.
      - abcdef1234567890abcdef1234567890abcdef12
 
 OKX Configuration
------------------
+^^^^^^^^^^^^^^^^^
 
-OKX is a major global cryptocurrency exchange offering spot, futures, and options trading. To create an account, visit the `OKX <https://www.okx.com/>`_ website.
+OKX is a global cryptocurrency exchange offering spot, futures, and options trading. Lumibot documents OKX for CCXT backtesting/custom-config reference; do not assume the live path is production-ready without validation. To create an account, visit the `OKX <https://www.okx.com/>`_ website.
 
 .. list-table:: OKX Configuration
    :widths: 25 50 25
@@ -488,14 +531,41 @@ OKX is a major global cryptocurrency exchange offering spot, futures, and option
      - **Description**
      - **Example**
    * - OKX_API_KEY
-     - Your OKX API key. **Required** if you are using OKX as your broker.
+     - Your OKX API key.
      - 3c4d5e6f7g8h9i0j1k2l
    * - OKX_SECRET
-     - Your OKX secret key. **Required** if you are using OKX as your broker.
+     - Your OKX secret key.
      - abcdef1234567890abcdef1234567890abcdef12
    * - OKX_PASSPHRASE
-     - Your OKX passphrase. **Required** if you are using OKX as your broker.
+     - Your OKX passphrase.
      - mypassphrase789
+
+WEEX Configuration
+^^^^^^^^^^^^^^^^^^
+
+WEEX is an auto-detected CCXT credential path in Lumibot. WEEX does not provide a public API sandbox, and its terms exclude residents of some jurisdictions. Start with very small quantities until you have verified behavior.
+
+.. list-table:: WEEX Configuration
+   :widths: 25 50 25
+   :header-rows: 1
+
+   * - **Secret**
+     - **Description**
+     - **Example**
+   * - WEEX_API_KEY
+     - Your WEEX API key. **Required** if you are using WEEX as your broker.
+     - 5f6a7b8c9d0e1f2a3b4c
+   * - WEEX_API_SECRET
+     - Your WEEX API secret. **Required** if you are using WEEX as your broker.
+     - abcdef1234567890abcdef1234567890abcdef12
+   * - WEEX_API_PASSPHRASE
+     - Your WEEX API passphrase. **Required** if you are using WEEX as your broker.
+     - mypassphrase456
+
+CCXT Backtesting Examples
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Lumibot also documents CCXT backtesting examples for Kraken, Binance, KuCoin, BitMEX, Bybit, and OKX. These are selected documented exchange paths, not a claim that every CCXT exchange works out of the box.
 
 Interactive Brokers Configuration
 ---------------------------------
@@ -607,7 +677,7 @@ DataBento provides high-quality market data for stocks, futures, and options. Th
 ProjectX Configuration
 ----------------------
 
-ProjectX is a futures-only broker that connects to multiple prop trading firms and futures brokers. Each broker requires its own specific environment variables. Choose the section below that matches your broker.
+ProjectX is a futures-only broker path currently documented for TopstepX. The adapter contains some firm-specific ProjectX prefixes for testing and future expansion, but new firms should be validated before production use.
 
 TopstepX
 ^^^^^^^^
@@ -990,7 +1060,7 @@ Demo/Testing
      - Practice Account 1
 
 General Environment Variables
-=============================
+-----------------------------
 
 In addition to broker-specific secrets, the following environment variables are required for the strategy to function correctly:
 
@@ -1035,10 +1105,10 @@ In addition to broker-specific secrets, the following environment variables are 
      - **(Optional)** The maximum memory in bytes that the Polygon API can use. This is useful for limiting memory usage during backtesting.
      - 512000000
    * - TRADING_BROKER
-     - **(Optional)** For live trading, specify the broker to use for executing trades. If not set, the default broker configuration will be used for both trading and data. Valid options (case insensitive): "alpaca", "tradier", "ccxt", "coinbase", "kraken", "ib" (or "interactivebrokers"), "ibrest" (or "interactivebrokersrest"), "tradovate", "schwab", "bitunix", "projectx"
+     - **(Optional)** For live trading, specify the broker to use for executing trades. If not set, the default broker configuration will be used for both trading and data. Valid options (case insensitive): "alpaca", "tradier", "ccxt", "coinbase", "kraken", "weex", "ib" (or "interactivebrokers"), "ibrest" (or "interactivebrokersrest"), "tradovate", "schwab", "bitunix", "projectx"
      - tradier
    * - DATA_SOURCE
-     - **(Optional)** For live trading, specify a separate data source for market data. If not set, the same broker as trading will be used for data. This allows you to use one broker for trading and a different data provider for market data. Valid options (case insensitive): "alpaca", "tradier", "ccxt", "coinbase", "kraken", "ib" (or "interactivebrokers"), "ibrest" (or "interactivebrokersrest"), "yahoo", "schwab", "databento", "bitunix", "projectx"
+     - **(Optional)** For live trading, specify a separate data source for market data. If not set, the same broker as trading will be used for data. This allows you to use one broker for trading and a different data provider for market data. Valid options (case insensitive): "alpaca", "tradier", "ccxt", "coinbase", "kraken", "weex", "ib" (or "interactivebrokers"), "ibrest" (or "interactivebrokersrest"), "yahoo", "schwab", "databento", "bitunix", "projectx"
      - databento
    * - DATA_SOURCE_DELAY
      - **(Optional)** Sets a delay parameter to control how many minutes to delay non-crypto data for. For example, the AlpacaData source uses a 16 minute delay by default. Override this to 0 if you have the paid SIP plan with not delayed data.

@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from lumibot.backtesting import BacktestingBroker, PandasDataBacktesting
-from lumibot.entities import Asset, Data
+from lumibot.entities import Asset, Data, SmartLimitConfig, SmartLimitPreset
 from lumibot.entities.order import Order
 from lumibot.strategies.strategy import Strategy
 
@@ -186,3 +186,125 @@ def test_multileg_child_fills_adjust_cash_once_and_parent_is_cash_neutral():
     child_fills = fills[fills["status"] == "fill"]
     assert len(child_fills) == 2
     assert parent.trade_cost == pytest.approx(0.0, abs=1e-9)
+
+
+def test_multileg_parent_fill_price_uses_net_child_prices():
+    strategy, broker, asset, quote = _build_stock_strategy(price=50.0)
+
+    buy_child = _make_child_order(strategy, asset, quote, "10", Order.OrderSide.BUY)
+    sell_child = _make_child_order(strategy, asset, quote, "10", Order.OrderSide.SELL)
+
+    parent = Order(
+        strategy=strategy,
+        asset=asset,
+        quantity=Decimal("20"),
+        side=Order.OrderSide.BUY,
+        order_type=Order.OrderType.MARKET,
+        order_class=Order.OrderClass.MULTILEG,
+        child_orders=[buy_child, sell_child],
+    )
+
+    strategy.submit_order(parent)
+
+    broker._execute_filled_order(buy_child, price=50.0, filled_quantity=Decimal("10"), strategy=strategy)
+    strategy._executor.process_queue()
+
+    broker._execute_filled_order(sell_child, price=60.0, filled_quantity=Decimal("10"), strategy=strategy)
+    strategy._executor.process_queue()
+
+    broker.process_pending_orders(strategy)
+    strategy._executor.process_queue()
+
+    assert parent.is_filled()
+    assert parent.avg_fill_price == pytest.approx(-10.0, abs=1e-9)
+    assert parent.trade_cost == pytest.approx(0.0, abs=1e-9)
+
+
+def test_multileg_parent_limit_order_still_fills_after_children():
+    strategy, broker, asset, quote = _build_stock_strategy(price=50.0)
+
+    buy_child = _make_child_order(strategy, asset, quote, "5", Order.OrderSide.BUY)
+    sell_child = _make_child_order(strategy, asset, quote, "5", Order.OrderSide.SELL)
+
+    parent = Order(
+        strategy=strategy,
+        asset=asset,
+        quantity=Decimal("10"),
+        side=Order.OrderSide.BUY,
+        order_type=Order.OrderType.LIMIT,
+        limit_price=49.0,
+        order_class=Order.OrderClass.MULTILEG,
+        child_orders=[buy_child, sell_child],
+    )
+
+    strategy.submit_order(parent)
+
+    broker._execute_filled_order(buy_child, price=50.0, filled_quantity=Decimal("5"), strategy=strategy)
+    strategy._executor.process_queue()
+
+    broker._execute_filled_order(sell_child, price=50.0, filled_quantity=Decimal("5"), strategy=strategy)
+    strategy._executor.process_queue()
+
+    broker.process_pending_orders(strategy)
+    strategy._executor.process_queue()
+
+    assert parent.is_filled()
+    assert parent.trade_cost == pytest.approx(0.0, abs=1e-9)
+
+
+def test_multileg_smart_limit_net_fill_price():
+    asset_a = Asset("AAA", asset_type=Asset.AssetType.STOCK)
+    asset_b = Asset("BBB", asset_type=Asset.AssetType.STOCK)
+    quote = Asset("USD", asset_type=Asset.AssetType.FOREX)
+
+    df_a = _make_df(price=100.0)
+    df_a["bid"] = [99.0 for _ in range(len(df_a))]
+    df_a["ask"] = [101.0 for _ in range(len(df_a))]
+    df_b = _make_df(price=20.0)
+    df_b["bid"] = [19.0 for _ in range(len(df_b))]
+    df_b["ask"] = [21.0 for _ in range(len(df_b))]
+
+    data_a = Data(asset=asset_a, df=df_a.tz_convert("America/New_York").tz_localize(None), quote=quote, timestep="minute", timezone="America/New_York")
+    data_b = Data(asset=asset_b, df=df_b.tz_convert("America/New_York").tz_localize(None), quote=quote, timestep="minute", timezone="America/New_York")
+    pandas_data = {(asset_a, quote): data_a, (asset_b, quote): data_b}
+
+    data_source = PandasDataBacktesting(
+        pandas_data=pandas_data,
+        datetime_start=df_a.index[0],
+        datetime_end=df_a.index[-1] + pd.Timedelta(minutes=1),
+        show_progress_bar=False,
+        market="24/7",
+        auto_adjust=True,
+    )
+    data_source.load_data()
+
+    broker = BacktestingBroker(data_source=data_source)
+    broker.initialize_market_calendars(data_source.get_trading_days_pandas())
+    broker._first_iteration = False
+
+    strategy = _StubStrategy(broker=broker, budget=100_000.0, analyze_backtest=False, parameters={})
+    strategy._first_iteration = False
+
+    config = SmartLimitConfig(preset=SmartLimitPreset.FAST, slippage=0.1)
+    buy_leg = strategy.create_order(asset_a, Decimal("1"), "buy", order_type=Order.OrderType.MARKET)
+    sell_leg = strategy.create_order(asset_b, Decimal("1"), "sell", order_type=Order.OrderType.MARKET)
+
+    parent = Order(
+        strategy=strategy.name,
+        asset=asset_a,
+        quantity=Decimal("2"),
+        side=Order.OrderSide.BUY,
+        order_type=Order.OrderType.SMART_LIMIT,
+        order_class=Order.OrderClass.MULTILEG,
+        child_orders=[buy_leg, sell_leg],
+        smart_limit=config,
+    )
+
+    strategy.submit_order(parent)
+    parent._date_created = broker.datetime - timedelta(seconds=60)
+
+    broker.process_pending_orders(strategy)
+    strategy._executor.process_queue()
+
+    assert parent.is_filled()
+    assert parent.get_fill_price() == pytest.approx(80.1)

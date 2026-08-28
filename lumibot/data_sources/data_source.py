@@ -27,6 +27,7 @@ class DataSource(ABC):
     TIMESTEP_MAPPING = []
     DEFAULT_TIMEZONE = LUMIBOT_DEFAULT_TIMEZONE
     DEFAULT_PYTZ = LUMIBOT_DEFAULT_PYTZ
+    option_quote_fallback_allowed = False
 
     def __init__(
             self,
@@ -71,6 +72,31 @@ class DataSource(ABC):
         # Initialize caches centrally (avoid ad-hoc hasattr checks in methods)
         self._greeks_cache = {}
 
+        # Thread pool for parallel operations - reuse to avoid creation/destruction overhead
+        self._thread_pool = None
+        self._thread_pool_max_workers = kwargs.get('max_workers', 10)
+
+        # Dividend cache for backtest performance
+        self._dividend_cache = {}  # {asset: {date: dividend_value}}
+        self._dividend_cache_enabled = kwargs.get('cache_dividends', True)
+
+        # Ensure the instance has an explicit attribute for fallback behaviour
+        if not hasattr(self, "option_quote_fallback_allowed"):
+            self.option_quote_fallback_allowed = False
+
+    def _get_or_create_thread_pool(self):
+        """Get or create the thread pool for parallel operations"""
+        if self._thread_pool is None:
+            from concurrent.futures import ThreadPoolExecutor
+            self._thread_pool = ThreadPoolExecutor(max_workers=self._thread_pool_max_workers)
+        return self._thread_pool
+
+    def shutdown(self):
+        """Cleanup thread pool resources"""
+        if self._thread_pool is not None:
+            self._thread_pool.shutdown(wait=True)
+            self._thread_pool = None
+
     # ========Required Implementations ======================
     @abstractmethod
     def get_chains(self, asset: Asset, quote: Asset = None) -> dict:
@@ -97,7 +123,7 @@ class DataSource(ABC):
 
     @abstractmethod
     def get_historical_prices(
-        self, asset, length, timestep="", timeshift=None, quote=None, exchange=None, include_after_hours=True, return_polars=False
+        self, asset, length, timestep="", timeshift=None, quote=None, exchange=None, include_after_hours=True, **kwargs
     ) -> Bars:
         """
         Get bars for a given asset, going back in time from now, getting length number of bars by timestep.
@@ -127,13 +153,15 @@ class DataSource(ABC):
             The exchange to get the bars for.
         include_after_hours : bool
             Whether to include after hours data.
-        return_polars : bool
-            If True, return Bars with Polars DataFrame for better performance. Default is False (returns pandas).
+        return_polars : bool (deprecated)
+            Deprecated. Do not use in strategy code. This keyword will be removed in a future release.
+            Strategy logic should use pandas operations on ``bars.pandas_df`` and should not depend on
+            the underlying DataFrame backend.
 
         Returns
         -------
         Bars
-            The bars for the asset.
+            The bars for the asset. For strategy code, prefer ``bars.pandas_df`` for a pandas DataFrame.
         """
         pass
 
@@ -275,6 +303,7 @@ class DataSource(ABC):
         # Define mapping from timestep units to equivalent minutes
         time_unit_map = {
             "minute": 1,
+            "min": 1,  # Common shorthand (e.g., "15min")
             "hour": 60,
             "day": 24 * 60,
             "m": 1,  # "M" is for minutes
@@ -306,7 +335,16 @@ class DataSource(ABC):
             quantity_in_minutes = quantity * time_unit_map[unit]
             # Convert minutes to timedelta
             delta = timedelta(minutes=quantity_in_minutes)
-            return delta, unit
+            canonical_unit = {
+                "m": "minute",
+                "min": "minute",
+                "minute": "minute",
+                "h": "hour",
+                "hour": "hour",
+                "d": "day",
+                "day": "day",
+            }.get(unit, unit)
+            return delta, canonical_unit
         else:
             raise ValueError(f"Unknown unit: {unit}. Valid units are minute, hour, day, M, H, D")
 
@@ -348,11 +386,15 @@ class DataSource(ABC):
         quote=None,
         exchange=None,
         include_after_hours=True,
-        sleep_time=0.1,
+        sleep_time: float | None = None,
     ):
         """Get bars for the list of assets"""
         if not isinstance(assets, list):
             assets = [assets]
+
+        effective_sleep_time = sleep_time
+        if effective_sleep_time is None:
+            effective_sleep_time = 0.0 if getattr(self, "IS_BACKTESTING_DATA_SOURCE", False) else 0.1
 
         def process_chunk(chunk):
             chunk_result = {}
@@ -375,7 +417,8 @@ class DataSource(ABC):
                     )
 
                     # Sleep to prevent rate limiting
-                    time.sleep(sleep_time)
+                    if effective_sleep_time:
+                        time.sleep(effective_sleep_time)
                 except Exception as e:
                     # Log once per asset to avoid spamming with a huge traceback
                     logger.warning(f"Error retrieving data for {base_asset.symbol}: {e}")
@@ -391,10 +434,11 @@ class DataSource(ABC):
         chunks = [assets[i : i + chunk_size] for i in range(0, len(assets), chunk_size)]
 
         results = {}
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(process_chunk, chunk) for chunk in chunks]
-            for future in as_completed(futures):
-                results.update(future.result())
+        # Reuse thread pool to avoid creation/destruction overhead
+        executor = self._get_or_create_thread_pool()
+        futures = [executor.submit(process_chunk, chunk) for chunk in chunks]
+        for future in as_completed(futures):
+            results.update(future.result())
 
         return results
 
@@ -427,9 +471,90 @@ class DataSource(ABC):
         return bars.get_last_dividend()
 
     def get_yesterday_dividends(self, assets, quote=None):
-        """Return dividend per share for a list of
-        assets for the day before"""
+        """Return dividend per share for a list of assets for the day before.
+
+        For backtesting, this method caches all dividend data to avoid repeated API calls.
+        On the first call for an asset, it fetches ALL historical dividend data and caches it.
+        Subsequent calls use the cache.
+        """
         result = {}
+
+        # For backtesting with dividends, use an efficient caching strategy
+        if hasattr(self, '_datetime') and self._datetime:
+            current_date = self._datetime.date() if hasattr(self._datetime, 'date') else self._datetime
+
+            # Process each asset
+            for asset in assets:
+                # Check if we've already cached ALL dividends for this asset
+                if asset not in self._dividend_cache:
+                    # First time seeing this asset - fetch ALL its historical data and cache dividends
+                    # Get enough bars to cover the entire backtest period
+                    # Most backtests are < 1000 days; limit the fetch to what's needed for this backtest
+                    # to avoid slow API calls (especially Polygon) and keep CI fast.
+                    try:
+                        # Default to a conservative upper bound, but shrink for short backtests.
+                        length = 2000
+                        if (
+                            hasattr(self, "datetime_start")
+                            and hasattr(self, "datetime_end")
+                            and getattr(self, "datetime_start", None) is not None
+                            and getattr(self, "datetime_end", None) is not None
+                        ):
+                            try:
+                                span_days = (self.datetime_end.date() - self.datetime_start.date()).days + 1
+                                # Add a small cushion for weekends/holidays; ensure at least ~1 month.
+                                length = min(2000, max(span_days + 10, 30))
+                            except Exception:
+                                length = 2000
+
+                        bars = self.get_bars([asset], length, timestep="day", quote=quote).get(asset)
+
+                        # Extract all dividends from the bars and store by date
+                        asset_dividends = {}
+                        if bars is not None and hasattr(bars, 'df') and 'dividend' in bars.df.columns:
+                            # Store dividend for each date
+                            for idx, row in bars.df.iterrows():
+                                date = idx.date() if hasattr(idx, 'date') else idx
+                                dividend_val = row.get('dividend', 0)
+                                if dividend_val and dividend_val > 0:
+                                    asset_dividends[date] = dividend_val
+
+                        # Cache the dividend dict for this asset
+                        self._dividend_cache[asset] = asset_dividends
+                        if asset_dividends:
+                            logger.debug(
+                                "[DIVIDEND][CACHE] Cached %d entries for %s (%s -> %s)",
+                                len(asset_dividends),
+                                getattr(asset, "symbol", asset),
+                                min(asset_dividends.keys()),
+                                max(asset_dividends.keys()),
+                            )
+                        else:
+                            logger.debug(
+                                "[DIVIDEND][CACHE] No dividend entries available for %s",
+                                getattr(asset, "symbol", asset),
+                            )
+                    except Exception as e:
+                        # If fetching fails, cache empty dict to avoid repeated failures
+                        self._dividend_cache[asset] = {}
+
+                # Now look up the dividend for the current trading date. Daily bars already align
+                # dividends with the ex-date, so there's no need to subtract a day here.
+                asset_dividends = self._dividend_cache.get(asset, {})
+                dividend = asset_dividends.get(current_date, 0)
+                if dividend:
+                    logger.debug(
+                        "[DIVIDEND][APPLY] %s -> %s pays %.4f on %s",
+                        getattr(asset, "symbol", asset),
+                        getattr(self, "_name", "strategy"),
+                        dividend,
+                        current_date,
+                    )
+                result[asset] = dividend
+
+            return AssetsMapping(result)
+
+        # Fallback to normal flow for non-backtesting
         assets_bars = self.get_bars(assets, 1, timestep="day", quote=quote)
         for asset, bars in assets_bars.items():
             if bars is not None:

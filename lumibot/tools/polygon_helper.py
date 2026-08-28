@@ -1,4 +1,5 @@
 # This file contains helper functions for getting data from Polygon.io
+import os
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -142,6 +143,35 @@ def get_price_data_from_polygon(
     if not missing_dates:
         if df_all is not None:
             df_all = df_all.dropna(how="all")
+            # Filter cached data to requested date range before returning
+            if not df_all.empty:
+                # For daily data, use date-based filtering (timestamps vary by provider)
+                # For intraday data, use precise datetime filtering
+                if timespan == "day":
+                    # Convert index to dates for comparison
+                    import pandas as pd
+                    df_dates = pd.to_datetime(df_all.index).date
+                    start_date = start.date() if hasattr(start, 'date') else start
+                    end_date = end.date() if hasattr(end, 'date') else end
+                    mask = (df_dates >= start_date) & (df_dates <= end_date)
+                    df_all = df_all[mask]
+                else:
+                    # Intraday: use precise datetime filtering
+                    import datetime as dt
+                    import pytz
+                    from lumibot import LUMIBOT_DEFAULT_PYTZ
+
+                    # Convert date to datetime if needed
+                    if isinstance(start, dt.date) and not isinstance(start, dt.datetime):
+                        start = dt.datetime.combine(start, dt.time.min)
+                    if isinstance(end, dt.date) and not isinstance(end, dt.datetime):
+                        end = dt.datetime.combine(end, dt.time.max)
+
+                    if start.tzinfo is None:
+                        start = LUMIBOT_DEFAULT_PYTZ.localize(start).astimezone(pytz.UTC)
+                    if end.tzinfo is None:
+                        end = LUMIBOT_DEFAULT_PYTZ.localize(end).astimezone(pytz.UTC)
+                    df_all = df_all[(df_all.index >= start) & (df_all.index <= end)]
         return df_all
 
     # Create a PolygonClient and get the symbol for the asset.
@@ -209,6 +239,42 @@ def get_price_data_from_polygon(
     else:
         df_all_output = df_all_full.copy()
     df_all_output = df_all_output.dropna(how="all")
+
+    # Filter cached data to requested date range before returning
+    if not df_all_output.empty:
+        # For daily data, use date-based filtering (timestamps vary by provider)
+        # For intraday data, use precise datetime filtering
+        if timespan == "day":
+            # Convert index to dates for comparison
+            import pandas as pd
+            df_dates = pd.to_datetime(df_all_output.index).date
+            start_date = start.date() if hasattr(start, 'date') else start
+            end_date = end.date() if hasattr(end, 'date') else end
+            mask = (df_dates >= start_date) & (df_dates <= end_date)
+            df_all_output = df_all_output[mask]
+        else:
+            # Intraday: use precise datetime filtering
+            import datetime as dt
+            import pytz
+            from lumibot import LUMIBOT_DEFAULT_PYTZ
+
+            # Convert date to datetime if needed
+            if isinstance(start, dt.date) and not isinstance(start, dt.datetime):
+                start = dt.datetime.combine(start, dt.time.min)
+            if isinstance(end, dt.date) and not isinstance(end, dt.datetime):
+                end = dt.datetime.combine(end, dt.time.max)
+
+            # Handle datetime objects with midnight time (users often pass datetime(YYYY, MM, DD))
+            if isinstance(end, dt.datetime) and end.time() == dt.time.min:
+                # Convert end-of-period midnight to end-of-day
+                end = dt.datetime.combine(end.date(), dt.time.max)
+
+            if start.tzinfo is None:
+                start = LUMIBOT_DEFAULT_PYTZ.localize(start).astimezone(pytz.UTC)
+            if end.tzinfo is None:
+                end = LUMIBOT_DEFAULT_PYTZ.localize(end).astimezone(pytz.UTC)
+            df_all_output = df_all_output[(df_all_output.index >= start) & (df_all_output.index <= end)]
+
     return df_all_output
 
 
@@ -222,35 +288,61 @@ def validate_cache(force_cache_update: bool, asset: Asset, cache_file: Path, api
     """
     if asset.asset_type not in [Asset.AssetType.STOCK, Asset.AssetType.OPTION]:
         return force_cache_update
-    cached_splits = pd.DataFrame()
-    splits_file_stale = True
+
+    # No cached price data => nothing to invalidate. Avoid an extra Polygon call (list_splits)
+    # which can contribute to rate limits in CI and doesn't provide correctness value here.
+    if not cache_file.exists() and not force_cache_update:
+        return force_cache_update
+
     # Use parquet only
     base_path = str(cache_file).rpartition(".parquet")[0]
     splits_file_path = Path(base_path + "_splits.parquet")
 
+    splits_file_stale = True
+    cached_splits: Optional[pd.DataFrame] = None
     if splits_file_path.exists():
         splits_file_stale = datetime.fromtimestamp(splits_file_path.stat().st_mtime).date() != date.today()
         if splits_file_stale:
-            cached_splits = pd.read_parquet(splits_file_path, engine='pyarrow')
-    if splits_file_stale or force_cache_update:
-        polygon_client = PolygonClient.create(api_key=api_key)
-        # Need to get the splits in execution order to make the list comparable across invocations.
-        splits = polygon_client.list_splits(ticker=asset.symbol, sort="execution_date", order="asc")
-        if isinstance(splits, Iterator):
-            # Convert the generator to a list so DataFrame will make a row per item.
-            splits_df = pd.DataFrame(list(splits))
-            if splits_file_path.exists() and cached_splits.eq(splits_df).all().all():
-                # No need to rewrite contents.  Just update the timestamp.
-                splits_file_path.touch()
-            else:
-                logger.info(f"Invalidating cache for {asset.symbol} because its splits have changed.")
-                force_cache_update = True
-                cache_file.unlink(missing_ok=True)
-                # Create the directory if it doesn't exist
-                cache_file.parent.mkdir(parents=True, exist_ok=True)
-                splits_df.to_parquet(splits_file_path, compression='snappy', engine='pyarrow')
+            try:
+                cached_splits = pd.read_parquet(splits_file_path, engine="pyarrow")
+            except Exception as exc:
+                logger.warning(f"Failed to read cached splits file for {asset.symbol}: {exc}")
+                cached_splits = None
         else:
-            logger.warning(f"Unexpected response getting splits for {asset.symbol} from Polygon.  Response: {splits}")
+            # Fresh splits file for today => nothing to do.
+            return force_cache_update
+
+    if not splits_file_stale and not force_cache_update:
+        return force_cache_update
+
+    # Need to get the splits in execution order to make the list comparable across invocations.
+    try:
+        polygon_client = PolygonClient.create(api_key=api_key)
+        splits = polygon_client.list_splits(ticker=asset.symbol, sort="execution_date", order="asc")
+    except Exception as exc:
+        logger.warning(f"Failed to fetch splits for {asset.symbol} from Polygon: {exc}")
+        return force_cache_update
+
+    if not isinstance(splits, Iterator):
+        logger.warning(f"Unexpected response getting splits for {asset.symbol} from Polygon.  Response: {splits}")
+        return force_cache_update
+
+    splits_df = pd.DataFrame(list(splits))
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # If we have a prior splits snapshot, only invalidate if it actually changed.
+    if cached_splits is not None:
+        same = cached_splits.reset_index(drop=True).equals(splits_df.reset_index(drop=True))
+        if same:
+            splits_file_path.touch()
+            return force_cache_update
+
+        logger.info(f"Invalidating cache for {asset.symbol} because its splits have changed.")
+        force_cache_update = True
+        cache_file.unlink(missing_ok=True)
+
+    # Write/refresh today's splits snapshot (even if this is the first time we've recorded it).
+    splits_df.to_parquet(splits_file_path, compression="snappy", engine="pyarrow")
     return force_cache_update
 
 
@@ -833,12 +925,26 @@ class PolygonClient(RESTClient):
         Override to handle rate-limits by sleeping 60s, but *throttle*
         the log message so it isn't repeated too frequently.
         """
+        max_attempts = int(os.environ.get("POLYGON_MAX_RETRY_ATTEMPTS", "0") or "0")
+        max_total_sleep = int(os.environ.get("POLYGON_MAX_RETRY_SLEEP_SECONDS", "0") or "0")
+        wait_seconds = int(os.environ.get("POLYGON_WAIT_SECONDS_RETRY", str(PolygonClient.WAIT_SECONDS_RETRY)) or "0")
+
+        attempts = 0
+        slept = 0
         while True:
             try:
                 # Normal get from polygon-api-client
                 return super()._get(*args, **kwargs)
 
             except MaxRetryError as e:
+                attempts += 1
+
+                if max_attempts and attempts > max_attempts:
+                    raise
+
+                if max_total_sleep and slept >= max_total_sleep:
+                    raise
+
                 # We interpret MaxRetryError as a rate-limit or server rejection
                 url = urlunparse(urlparse(kwargs['path'])._replace(query=""))
 
@@ -870,8 +976,16 @@ class PolygonClient(RESTClient):
                     # If it's too soon, skip logging again
                     pass
 
-                # Sleep for WAIT_SECONDS_RETRY, then try again
-                time.sleep(PolygonClient.WAIT_SECONDS_RETRY)
+                # Sleep before retrying. In CI/tests, keep this bounded so jobs don't hang forever.
+                sleep_for = wait_seconds if wait_seconds > 0 else PolygonClient.WAIT_SECONDS_RETRY
+                if max_total_sleep:
+                    remaining = max_total_sleep - slept
+                    if remaining <= 0:
+                        raise
+                    sleep_for = min(sleep_for, remaining)
+
+                time.sleep(sleep_for)
+                slept += sleep_for
 
             except BadResponse as e:
                 # Handle Polygon BadResponse errors specifically
@@ -886,7 +1000,13 @@ class PolygonClient(RESTClient):
                         or "plan doesn\u2019t include this data timeframe" in error_str.lower()
                     ):
                         # Non-fatal: user plan doesn't cover requested timeframe
-                        logger.error(f"Polygon Access Denied: Your subscription does not allow you to backtest that far back in time. URL: {url}, Error: {error_str}")
+                        logger.error(
+                            "Polygon Access Denied: Your subscription does not allow you to backtest that far back in time. "
+                            f"URL: {url}, Error: {error_str}. "
+                            "We strongly recommend switching to ThetaData (https://www.thetadata.net/ with promo code 'BotSpot10') "
+                            "for better coverage, faster pulls, and LumiBot-native support. "
+                            "If you stay on Polygon, shorten the range or upgrade your plan (https://polygon.io/?utm_source=affiliate&utm_campaign=lumi10, code 'LUMI10')."
+                        )
                         # Return None instead of raising to allow caller to skip this chunk
                         return None
                     else:

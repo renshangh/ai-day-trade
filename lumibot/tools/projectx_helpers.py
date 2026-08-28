@@ -524,7 +524,32 @@ class ProjectX:
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Error cancelling order: {e}")
             return {"success": False, "error": str(e)}
-    
+
+    def order_modify(self, account_id: int, order_id: int, size: int = None, limit_price: float = None,
+                     stop_price: float = None, trail_price: float = None) -> dict:
+        """Modify an existing order"""
+        url = f"{self.base_url}api/order/modify"
+        payload = {
+            "accountId": account_id,
+            "orderId": order_id,
+            "size": size,
+            "limitPrice": limit_price,
+            "stopPrice": stop_price,
+            "trailPrice": trail_price,
+        }
+        # Remove None values to avoid API model binding issues
+        payload = {k: v for k, v in payload.items() if v is not None}
+        try:
+            response = requests.post(url, headers=self.headers, json=payload, timeout=10)
+            try:
+                data = response.json()
+            except ValueError:
+                data = {"success": False, "error": f"Non-JSON response {response.status_code}"}
+            return data
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Error modifying order: {e}")
+            return {"success": False, "error": str(e)}
+
     def contract_search(self, search_text: str, live: bool = False) -> dict:
         """Search for contracts by name"""
         url = f"{self.base_url}api/contract/search"
@@ -576,26 +601,20 @@ class ProjectX:
             self.logger.error(f"Error getting contract details: {e}")
             return {"success": False, "error": str(e)}
     
-    def history_retrieve_bars(self, contract_id: str, start_datetime: str, end_datetime: str,
+    def history_retrieve_bars(self, contract_id: str, start_datetime: str | datetime, end_datetime: str | datetime,
                              unit: int, unit_number: int, limit: int = 1000,
                              include_partial_bar: bool = True, live: bool = False,
                              is_est: bool = True) -> pd.DataFrame:
         """Retrieve historical bars for a contract"""
         url = f"{self.base_url}api/history/retrievebars"
-        
-        # Convert timezone if needed
+
+        # Convert timezone if needed (handle both str and datetime inputs)
         if is_est:
-            est = pytz.timezone("America/New_York")
-            start_datetime = (
-                est.localize(datetime.fromisoformat(start_datetime[:-1]))
-                .astimezone(pytz.utc)
-                .isoformat()
-            )
-            end_datetime = (
-                est.localize(datetime.fromisoformat(end_datetime[:-1]))
-                .astimezone(pytz.utc)
-                .isoformat()
-            )
+            start_datetime = _to_utc_iso(start_datetime, is_est=True)
+            end_datetime = _to_utc_iso(end_datetime, is_est=True)
+        else:
+            start_datetime = _to_utc_iso(start_datetime, is_est=False)
+            end_datetime = _to_utc_iso(end_datetime, is_est=False)
         
         payload = {
             "contractId": contract_id,
@@ -630,34 +649,28 @@ class ProjectX:
                 (df["t"] >= pd.to_datetime(start_datetime))
                 & (df["t"] <= pd.to_datetime(end_datetime))
             ]
-            
-            # Add date and time columns
-            df["date"] = df["t"].dt.date
-            df["time"] = df["t"].dt.time
-            
+
             # Map ProjectX column names to standard OHLCV format
             column_mapping = {
                 'o': 'open',
                 'h': 'high', 
                 'l': 'low',
                 'c': 'close',
-                'v': 'volume'
+                'v': 'volume',
+                't': 'datetime',
             }
             
             # Rename columns to standard format
             df.rename(columns=column_mapping, inplace=True)
             
             # Reorder columns to standard format
-            standard_columns = ["date", "time", "open", "high", "low", "close", "volume"]
+            standard_columns = ["datetime", "open", "high", "low", "close", "volume"]
             available_columns = [col for col in standard_columns if col in df.columns]
             extra_columns = [col for col in df.columns if col not in standard_columns]
             df = df[available_columns + extra_columns]
-            
-            # Drop timestamp column
-            df.drop(columns=["t"], inplace=True)
-            
+
             # Sort and reset index
-            df.sort_values(by=["date", "time"], inplace=True)
+            df.sort_values(by=["datetime"], inplace=True)
             df.reset_index(drop=True, inplace=True)
             
             return df
@@ -703,7 +716,7 @@ class ProjectXClient:
         self._positions_cache_time = 0
         self._orders_cache = None
         self._orders_cache_time = 0
-        self._cache_ttl = 30  # 30 seconds cache
+        self._cache_ttl = 5  # 30 seconds cache
     
     def get_accounts(self) -> List[Dict]:
         """Get list of available accounts"""
@@ -845,9 +858,20 @@ class ProjectXClient:
     
     def order_modify(self, account_id: int, order_id: int, size: int = None, 
                     limit_price: float = None, stop_price: float = None, trail_price: float = None) -> Dict:
-        """Modify an existing order - Not supported by ProjectX API"""
-        # ProjectX doesn't support order modification - need to cancel and re-place
-        return {"success": False, "error": "Order modification not supported by ProjectX API"}
+        """Modify an existing order - definitely supported by ProjectX API"""
+        # ProjectX certainly does support order modification
+        response = self.api.order_modify(
+            account_id=account_id,
+            order_id=order_id,
+            size=size,
+            limit_price=limit_price,
+            stop_price=stop_price,
+            trail_price=trail_price
+        )
+        if response and response.get("success"):
+            return response
+        else:
+            raise Exception(f"Failed to modify order: {response}")
     
     def get_historical_data(self, contract_id: str, start_time: str, end_time: str,
                            timeframe: str = "1minute") -> pd.DataFrame:
@@ -874,7 +898,7 @@ class ProjectXClient:
         
         return df
     
-    def history_retrieve_bars(self, contract_id: str, start_datetime: str, end_datetime: str,
+    def history_retrieve_bars(self, contract_id: str, start_datetime: str | datetime, end_datetime: str | datetime,
                              unit: int, unit_number: int, limit: int = 1000,
                              include_partial_bar: bool = True, live: bool = False,
                              is_est: bool = True) -> pd.DataFrame:
@@ -972,7 +996,32 @@ class ProjectXClient:
             
             symbol_upper = symbol.upper()
             self.logger.info(f"🔍 Searching for contract: {symbol} -> {symbol_upper}")
-            
+
+            # Search using the contract search API
+            self.logger.info(f"🔍 Searching via API for: {symbol}")
+            try:
+                contracts = self.search_contracts(symbol)
+                if contracts:
+                    self.logger.info(f"📋 Found {len(contracts)} contracts via search")
+
+                    # Find the most recent/active contract (usually sorted by expiry)
+                    active_contracts = [c for c in contracts if c.get('active', True)]
+                    to_search = active_contracts if active_contracts else contracts
+                    # If the 'name' field exists, try to match symbol
+                    to_search = [c for c in to_search if c.get('name', '').startswith(symbol_upper)] or to_search
+
+                    # Try different possible field names for contract ID
+                    contract_id = (to_search[0].get('contractId') or
+                                   to_search[0].get('id') or
+                                   to_search[0].get('symbol') or '')
+                    self.logger.info(f"✅ Using active contract: {contract_id}")
+                    return contract_id
+
+                else:
+                    self.logger.warning(f"⚠️ No contracts found via API search, falling back to search Asset logic")
+            except Exception as search_e:
+                self.logger.error(f"❌ API search failed: {search_e}, falling back to search Asset logic")
+
             # Use Asset class logic for continuous futures resolution
             try:
                 # Create continuous futures asset
@@ -1008,56 +1057,7 @@ class ProjectXClient:
                     return contract_id
                 
             except Exception as asset_error:
-                self.logger.warning(f"⚠️ Asset class method failed: {asset_error}, falling back to API search")
-            
-            # Fallback: Use hardcoded mapping for immediate compatibility
-            common_futures_fallback = {
-                'MES': 'CON.F.US.MES.U25',
-                'ES': 'CON.F.US.ES.U25',    
-                'NQ': 'CON.F.US.NQ.U25',    
-                'YM': 'CON.F.US.YM.U25',    
-                'RTY': 'CON.F.US.RTY.U25',  
-            }
-            
-            if symbol_upper in common_futures_fallback:
-                contract_id = common_futures_fallback[symbol_upper]
-                self.logger.debug(f"📋 Using fallback mapping: {contract_id}")
-                self._contract_cache[contract_id] = {"id": contract_id, "symbol": symbol_upper}
-                return contract_id
-            
-            # Search using the contract search API
-            self.logger.info(f"🔍 Searching via API for: {symbol}")
-            try:
-                contracts = self.search_contracts(symbol)
-                if contracts:
-                    self.logger.info(f"📋 Found {len(contracts)} contracts via search")
-                    
-                    # Find the most recent/active contract (usually sorted by expiry)  
-                    active_contracts = [c for c in contracts if c.get('active', True)]
-                    if active_contracts:
-                        # Try different possible field names for contract ID
-                        contract_id = (active_contracts[0].get('contractId') or 
-                                     active_contracts[0].get('id') or 
-                                     active_contracts[0].get('symbol') or '')
-                        self.logger.info(f"✅ Using active contract: {contract_id}")
-                        return contract_id
-                    elif contracts:
-                        # Try different possible field names for contract ID
-                        contract_id = (contracts[0].get('contractId') or 
-                                     contracts[0].get('id') or 
-                                     contracts[0].get('symbol') or '')
-                        self.logger.info(f"✅ Using first contract: {contract_id}")
-                        return contract_id
-                else:
-                    self.logger.warning(f"⚠️ No contracts found via API search")
-            except Exception as search_e:
-                self.logger.error(f"❌ API search failed: {search_e}")
-            
-            # If all else fails, return the hardcoded mapping anyway (might work for orders)
-            if symbol_upper in common_futures_fallback:
-                fallback_contract = common_futures_fallback[symbol_upper]
-                self.logger.info(f"🔄 Fallback to hardcoded mapping (last resort): {fallback_contract}")
-                return fallback_contract
+                self.logger.warning(f"⚠️ Asset class method failed: {asset_error}")
             
             self.logger.error(f"❌ No contract found for symbol: {symbol}")
             return ''
@@ -1109,6 +1109,44 @@ class ProjectXClient:
         except Exception as e:
             self.logger.error(f"Error in order_cancel wrapper: {e}")
             return {"success": False, "error": str(e)}
+
+
+def _to_utc_iso(dt_or_str, is_est: bool = True) -> str:
+    """
+    Normalize input (datetime or ISO string) to a UTC ISO formatted string.
+    - If input is a string it accepts ISO formats with or without trailing 'Z'.
+    - If input is a naive datetime and is_est is True, localize to America/New_York.
+      If is_est is False and naive, assume UTC.
+    - If input is timezone-aware, convert to UTC.
+    Returns ISO string with +00:00 timezone.
+    """
+    if isinstance(dt_or_str, datetime):
+        dt = dt_or_str
+    elif isinstance(dt_or_str, str):
+        s = dt_or_str
+        if s.endswith('Z'):
+            s = s[:-1]
+        # fromisoformat handles YYYY-MM-DDTHH:MM:SS[.ffffff][+HH:MM]
+        dt = datetime.fromisoformat(s)
+    else:
+        raise TypeError("start/end datetime must be a str or datetime")
+
+    if is_est:
+        est = pytz.timezone("America/New_York")
+        # If naive, localize to EST; if aware, convert to EST first (keeps DST correctness)
+        if dt.tzinfo is None:
+            dt = est.localize(dt)
+        else:
+            dt = dt.astimezone(est)
+        dt_utc = dt.astimezone(pytz.utc)
+    else:
+        # Assume UTC for naive datetimes when is_est is False
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=pytz.utc)
+        dt_utc = dt.astimezone(pytz.utc)
+
+    return dt_utc.isoformat()
+
 
 # ================= Bracket Helpers Overview =================
 # The bracket-related helpers below encapsulate pure or minimally stateful logic

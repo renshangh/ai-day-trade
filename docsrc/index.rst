@@ -6,6 +6,49 @@ Lumibot: Backtesting and Algorithmic Trading Library
 .. raw:: html
    :file: _html/main.html
 
+AI Trading Agents -- Backtest AI Agents with Real External Tools
+*****************************************************************
+
+LumiBot is built for **AI agents that reason, call external tools, and make trading decisions on every bar during a backtest** -- then run the exact same code live. This is real agentic backtesting: the LLM is inside the simulation loop, not bolted onto the side.
+
+- **Backtest AI trading agents** with real external data from 20,000+ MCP servers
+- **LLM in the loop on every bar** -- the agent reasons over point-in-time market state, calls tools, and submits orders
+- **Replay caching** makes warm backtest reruns deterministic and fast (zero LLM calls on rerun)
+- **Any LLM provider per agent** -- use a cheaper model for evidence gathering and a stronger model for debate/trading
+- **Built-in SEC fundamentals and filings** -- agents can inspect income statements, balance sheets, cash flow, company facts, and annual reports
+- **Built-in FRED macro data** -- agents can inspect rates, inflation, labor, growth, liquidity, credit spreads, and market-risk series
+- **Trading permissions** -- research agents can use read-only tools while portfolio-manager agents place orders
+- **Same code for backtest and live** -- write once, backtest it, deploy it
+- **External MCP servers are just a URL** -- no local scripts, no npm installs
+
+Key AI agent docs:
+
+- :doc:`agents` -- main guide: agentic backtesting framework, MCP trading tools, and competitive positioning
+- :doc:`agents_flows` -- design single-agent, multi-agent, debate, committee, and hybrid flows
+- :doc:`agents_investment_committee` -- one concrete multi-agent investment committee example
+- :doc:`fundamentals` -- SEC fundamentals and filing research tools
+- :doc:`macro_data` -- FRED macro data tools and point-in-time behavior
+- :doc:`agents_builtin_tools` -- built-in tools, indicators, and trading permissions
+- :doc:`agents_quickstart` -- quick start with code examples for AI agent backtesting
+- :doc:`agents_canonical_demos` -- three reference demos: news sentiment, macro risk, and M2 liquidity
+- :doc:`agents_observability` -- traces, replay cache, warnings, and debugging workflow
+
+Start with :doc:`agents` to learn how LumiBot puts AI agents inside the backtest loop with external MCP tools.
+
+Cash Accounting
+***************
+
+Lumibot supports explicit cash accounting for both backtests and live broker
+telemetry. Use the strategy cash methods for deposits, withdrawals, direct
+cash adjustments, and financing setup, then review the resulting
+cash-adjusted returns in the standard backtest artifacts.
+
+- Backtests keep external cashflows out of strategy performance
+- Live cloud payloads can include normalized broker ``cash_events``
+- Listener storage keeps raw normalized events in a dedicated event table
+
+Start with :doc:`cash_accounting` for the end-to-end guide.
+
 Getting Started
 ****************
 
@@ -153,36 +196,47 @@ Need Extra Help?
 
    **Build Trading Bots with AI**
    
-   Want to create trading bots without writing code? Visit `BotSpot <https://botspot.trade/>`_ - our platform for building, testing, and deploying trading strategies using AI!
+   Lumibot is easier to run on `BotSpot <https://botspot.trade/sales?showLogin=1&utm_source=documentation&utm_medium=home&utm_campaign=lumibot&utm_content=need_extra_help&sample=lumibot_deploy_sample>`_ because the strategy code, hosted data, backtests, broker connections, deployment, monitoring, and AI workflow are already connected.
    
-   - Create strategies using natural language
-   - Backtest on historical data
-   - Deploy to live markets
-   - Join a community of algorithmic traders
+   - **Backtesting data included:** run supported backtests without sourcing every vendor and local data file yourself.
+   - **Cheaper deployment at scale:** schedule periodic bots on managed Lumibot infrastructure instead of paying for always-on servers per strategy.
+   - **Lumibot-tuned AI:** use prompts and workflows built for Lumibot code, backtests, artifacts, brokers, and deployment.
+   - **MCP for coding agents:** let Codex, Claude Code, Cursor, and other agents launch backtests, inspect artifacts, and prepare deployment.
+   - **Marketplace and strategy library:** browse, clone, adapt, run, or publish strategies when the author allows it.
+   - **Observability and control:** inspect charts, trades, logs, audit history, alerts, account checks, and kill switches.
+   - **Work from anywhere:** use the web app, your phone, Telegram, Discord, Claude, ChatGPT, or BotSpot MCP.
    
-   **Get started at** `https://botspot.trade/ <https://botspot.trade/>`_
+   **Try a sample Lumibot strategy on BotSpot:** `https://botspot.trade <https://botspot.trade/sales?showLogin=1&utm_source=documentation&utm_medium=home&utm_campaign=lumibot&utm_content=need_extra_help_start&sample=lumibot_deploy_sample>`_
 
 Table of Contents
 *****************
 
 .. toctree::
-   :maxdepth: 3
-   
+   :maxdepth: 2
+
    Home <self>
-   Build Bots with AI <https://botspot.trade/sales?utm_source=lumibot+docs&utm_medium=documentation&utm_campaign=Menu+Build+Bots+with+AI>
+   Build Bots with AI <https://botspot.trade/sales?showLogin=1&utm_source=documentation&utm_medium=sidebar&utm_campaign=lumibot&utm_content=sidebar_build_bots&sample=lumibot_deploy_sample>
+   BotSpot MCP Integration <botspot_mcp>
    GitHub <https://github.com/Lumiwealth/lumibot>
-   Discord Community <https://discord.gg/v6asVjTCvh>
-   Get Pre-Built Profitable Strategies <https://lumiwealth.com/?utm_source=documentation&utm_medium=referral&utm_campaign=lumibot_sidebar>
-   deployment
    getting_started
+   imports_and_startup
+   agents
+   cash_accounting
    lifecycle_methods
-   vars
    strategy_methods
    strategy_properties
    entities
-   futures
+   indicators
+   fundamentals
+   macro_data
    backtesting
    brokers
+   reference
+   examples
+   deployment
+   common_mistakes
+   faq
+   Get Pre-Built Strategies <https://botspot.trade/marketplace?utm_source=documentation&utm_medium=sidebar&utm_campaign=lumibot&utm_content=sidebar_marketplace>
 
 Indices and tables
 ==================

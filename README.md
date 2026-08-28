@@ -1,243 +1,366 @@
 [![CI Status](https://github.com/Lumiwealth/lumibot/actions/workflows/cicd.yaml/badge.svg?branch=dev)](https://github.com/Lumiwealth/lumibot/actions/workflows/cicd.yaml)
 [![Coverage](https://raw.githubusercontent.com/Lumiwealth/lumibot/badge/coverage.svg)](https://github.com/Lumiwealth/lumibot/actions/workflows/cicd.yaml)
+[![PyPI](https://img.shields.io/pypi/v/lumibot)](https://pypi.org/project/lumibot/)
+[![Python](https://img.shields.io/pypi/pyversions/lumibot)](https://pypi.org/project/lumibot/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-# Lumibot - A Backtesting and Trading Library for Stocks, Options, Crypto, Futures, FOREX and More!
+# Lumibot: Backtestable AI Trading Agents for Algorithmic Trading
 
-Lumibot is a backtesting and trading library for stocks, options, crypto, futures and more. It is made so that the same code you use for backtesting can be used for live trading, making it easy to transition from backtesting to live trading. Lumibot is a highly flexible library that allows you to create your own strategies and indicators, and backtest them on historical data. It is also highly optimized for speed, so you can backtest your strategies quickly and efficiently.
+**Build deterministic trading strategies, multi-agent LLM trading systems, and hybrid strategies that backtest, paper trade, and execute through real brokers.** Lumibot is an open-source algorithmic trading framework for stocks, options, crypto, futures, forex, indexes, SEC fundamentals, macro data, technical indicators, and AI agents that can actually place orders.
 
-**IMPORTANT: This library requires data for backtesting. The recommended data source is [Polygon.io](https://polygon.io/?utm_source=affiliate&utm_campaign=lumi10) (a free tier is available too). Please click the link to give us credit for the sale, it helps support this project. You can use the coupon code 'LUMI10' for 10% off.**
+**Full docs:** [lumibot.lumiwealth.com](https://lumibot.lumiwealth.com/) · **Managed cloud:** [BotSpot.trade](https://botspot.trade/sales?showLogin=1&utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=top_text_link&sample=lumibot_readme_deploy) · **MCP:** [BotSpot for AI coding agents](https://botspot.trade/agents?utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=top_mcp_link)
 
-## Documentation - 👇 Start Here 👇
+<p align="center">
+  <img src="docs/assets/readme/lumibot_ai_trading_agents_overview.png" alt="Lumibot AI trading agents overview" width="100%">
+</p>
 
-To get started with Lumibot, you can check out our documentation below.
+## What You Can Build
 
-**Check out the documentation for the project here: 👉 <http://lumibot.lumiwealth.com/> 👈**
+- **Deterministic strategies:** normal Python logic, indicators, if statements, scheduled rules, position sizing, and risk controls.
+- **AI-agent strategies:** one or more agents that reason through evidence, call tools, write memory, and optionally place orders.
+- **Backtests:** replay historical data and simulated orders with artifacts you can inspect.
+- **Paper or live trading:** reuse the same strategy code with real broker state and real order routing.
 
-## Build Trading Bots with AI
+Start with the open-source docs, then deploy when you are ready: [Lumibot documentation](https://lumibot.lumiwealth.com/?utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=what_you_can_build_docs) · [Try a sample Lumibot strategy on BotSpot](https://botspot.trade/sales?showLogin=1&utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=what_you_can_build_botspot&sample=lumibot_readme_deploy)
 
-Want to build trading bots without code? Check out our new platform [BotSpot](https://botspot.trade/sales?utm_source=lumibot+docs&utm_medium=documentation&utm_campaign=GitHub+Readme) where you can create and deploy trading strategies using AI! BotSpot allows you to:
+## Run Lumibot Without Managing Servers
 
-- Build trading bots using natural language and AI
-- Test your strategies with historical data
-- Deploy your bots to trade automatically
-- Join a community of algorithmic traders
+BotSpot is the managed cloud built around Lumibot. It makes Lumibot easier and cheaper to run because the data, backtesting workers, broker connections, scheduling, monitoring, logs, alerts, and kill switches are already wired together.
 
-**Visit [BotSpot.trade](https://botspot.trade/sales?utm_source=lumibot+docs&utm_medium=documentation&utm_campaign=GitHub+Readme) to get started building AI-powered trading bots today!**
+BotSpot is not a generic chatbot bolted onto a broker account. Its AI workflows, prompts, MCP tools, backtest setup, broker paths, and deployment flow are built for Lumibot.
 
-## Blog
+- **Backtesting data included.** Use hosted stock, futures, options, FRED macro, SEC filing, and other supported data without wrangling every feed and API key yourself. Some data is included; premium data can be much cheaper than buying direct subscriptions for occasional experiments.
+- **Cheaper deployment at scale.** Scheduled and periodic bots should not need a full always-on server per strategy. BotSpot runs Lumibot bots on managed infrastructure built for this workflow, with monitoring and controls included.
+- **Lumibot-tuned AI.** Generic coding tools can write Python, but BotSpot is tuned for Lumibot strategy structure, broker setup, backtests, artifacts, and deployment.
+- **MCP for coding agents.** Connect BotSpot to Codex, Claude Code, Cursor, and other MCP clients so your coding agent can run backtests, inspect artifacts, compare results, and prepare deployment instead of only generating code.
+- **Work from anywhere.** Use the same strategy workspace from the web, your phone, Telegram, Discord, Claude, ChatGPT, and coding tools. Start in one place and continue in another.
+- **Marketplace and strategy library.** Browse existing strategy code, clone and adapt strategies, run strategies where available, and publish your own strategies when you are ready.
+- **Observability and control.** Inspect why a bot bought or sold, review charts, logs, decisions, orders, notifications, audit history, and kill-switch controls in one place.
 
-Our blog has lots of example strategies and shows you how to run a bot using LumiBot. Check the blog out here:
+<p align="center">
+  <a href="https://botspot.trade/sales?showLogin=1&utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=managed_cloud_banner&sample=lumibot_readme_deploy">
+    <img src="docs/assets/readme/botspot_primary_cta.png" alt="Build and deploy AI trading bots on BotSpot" width="100%">
+  </a>
+</p>
 
-**https://lumiwealth.com/blog/**
+## Backtestable AI Trading Agents
 
-## Run a backtest
+Lumibot now includes a built-in AI agent runtime for financial research, reasoning, debate, risk review, and trade execution. Agents can inspect market data, read filings, query indicators, search memory, compare macro context, and submit orders through the same Lumibot strategy loop used by normal backtests and live trading.
 
-To run a backtest, you can use the following code snippet:
+Classic Python strategies are still first-class. The point is not to replace deterministic trading logic. The point is that Lumibot lets you choose the right level of intelligence: fixed rules, AI agents, or a hybrid where Python handles the hard gates and agents reason through evidence.
+
+An investment committee is one example pattern:
+
+<p align="center">
+  <img src="docs/assets/readme/lumibot_investment_committee_architecture.png" alt="Lumibot AI investment committee architecture" width="100%">
+</p>
+
+In that pattern, read-only research agents gather evidence and a trading-enabled portfolio manager decides whether to place Lumibot orders. It is one pattern, not the only pattern. You can build a single-agent strategy, a specialist research flow, bull/bear/neutral committees, model-vs-model debates, deterministic execution gates, or agent reviewers layered on top of normal Python logic.
+
+Built-in AI agent tools include market/account state, order inspection, DuckDB queries, documentation search, Alpaca news when credentials exist, technical indicators, SEC fundamentals and filings, FRED macro data, local memory, and Telegram notifications.
+
+<p align="center">
+  <img src="docs/assets/readme/lumibot_agent_flows.png" alt="Lumibot agent flows are plain Python" width="100%">
+</p>
+
+## Quick Start
 
 ```bash
-python -m lumibot.example_strategies.stock_buy_and_hold
+pip install lumibot
 ```
 
-## Run an Example Strategy
+```python
+from datetime import datetime
+from lumibot.strategies import Strategy
+from lumibot.backtesting import YahooDataBacktesting
 
-We made a small example strategy to show you how to use Lumibot in this GitHub repository: [Example Algorithm GitHub](https://github.com/Lumiwealth-Strategies/stock_example_algo)
+class MyStrategy(Strategy):
+    def on_trading_iteration(self):
+        if self.first_iteration:
+            aapl = self.create_order("AAPL", 10, "buy")
+            self.submit_order(aapl)
 
-To run this example strategy, click on the `Deploy to Render` button below to deploy the strategy to Render (our recommendation). You can also run the strategy on Repl.it by clicking on the `Run on Repl.it` button below.
+MyStrategy.backtest(
+    YahooDataBacktesting,
+    datetime(2023, 1, 1),
+    datetime(2024, 1, 1),
+)
+```
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Lumiwealth-Strategies/stock_example_algo)
+```bash
+python my_strategy.py
+```
 
-[![Run on Repl.it](https://replit.com/badge/github/Lumiwealth-Strategies/stock_example_algo)](https://replit.com/new/github/Lumiwealth-Strategies/stock_example_algo)
+### Install and Run This Repo Locally
 
-**For more information on this example strategy, you can check out the README in the example strategy repository here: [Example Algorithm](https://github.com/Lumiwealth-Strategies/stock_example_algo)**
+```bash
+cd /Users/danielshan/Documents/Codex/github/ai-day-trade
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -e .
+python -m ai_day_trade.alpaca_day_trade --symbol NVDA --max-notional 1000
+```
 
-## Contributors
+That same strategy code works with live brokers. Just swap the broker class.
 
-If you want to contribute to Lumibot, you can check how to get started below. We are always looking for contributors to help us out!
+For full setup guides, broker tutorials, AI-agent docs, examples, and deployment notes, use the **[Lumibot documentation](https://lumibot.lumiwealth.com/)**.
 
-Here's a video to help you get started with contributing to Lumibot: [Watch The Video](https://youtu.be/Huz6VxqafZs)
+## Why Lumibot?
 
-**Steps to contribute:**
+| Feature | Lumibot | Backtrader | Freqtrade | Zipline | Backtesting.py | Jesse |
+|---------|---------|------------|-----------|---------|----------------|-------|
+| **Same code: backtest + live** | Yes | Yes | Yes (crypto) | No | No | Yes (paid) |
+| **Stocks** | Yes | Yes | No | Yes | Yes | No |
+| **Options** | **Yes** | No | No | No | No | No |
+| **Crypto** | Yes | Limited | Yes | No | Yes | Yes |
+| **Futures** | Yes | Limited | Crypto only | Partial | Yes | Crypto only |
+| **Forex** | Yes | Outdated | No | No | Yes | No |
+| **AI agent runtime** | Built-in | No | FreqAI (ML) | No | No | ML pipeline |
+| **Brokers** | Alpaca, IBKR, Tradier, Schwab, Tradovate, TopstepX (via ProjectX), Bitunix, plus selected CCXT crypto paths | IB only (outdated) | 10+ crypto exchanges | None | None | 8+ crypto (paid) |
+| **Actively maintained** | Yes (2026) | No (since 2023) | Yes | Minimal | Moderate | Yes |
+| **License** | MIT | GPL-3.0 | GPL-3.0 | Apache-2.0 | AGPL-3.0 | MIT |
 
-0. Watch the video: [Watch The Video](https://youtu.be/Huz6VxqafZs)
-1. Clone the repository to your local machine
-2. Create a new branch for your feature
-3. Run `pip install -r requirements_dev.txt` to install the developer dependencies
-4. Install all the requirements from setup.py: `pip install -e .`
-5. Make your changes
-6. Run `pytest` to make sure all the tests pass
-7. Create a pull request to merge your branch into master
+**Switching from Backtrader?** See our [migration guide](docs/MIGRATING_FROM_BACKTRADER.md) for a side-by-side comparison with code examples.
+
+## Deploy Live
+
+### Option A: BotSpot (managed cloud)
+
+[BotSpot](https://botspot.trade/sales?showLogin=1&utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=deploy_live_text_link&sample=lumibot_readme_deploy) is the managed path for taking a Lumibot strategy from idea to backtest to paper or live trading. It handles the expensive and fragile parts around the strategy: hosted data setup for supported backtests, parallel backtest runs, broker connections, scheduling, logs, alerts, monitoring, audit history, and kill-switch controls.
+
+This is especially useful when your strategy only needs to run daily or periodically. You get the same Lumibot code path without paying for always-on infrastructure, maintaining a scheduler, hand-wiring broker secrets, or building your own log and alerting stack.
+
+<p align="center">
+  <img src="docs/assets/readme/lumibot_backtest_live_parity.png" alt="One Lumibot strategy can run in backtests and live broker accounts" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://botspot.trade/sales?showLogin=1&utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=deploy_live_button&sample=lumibot_readme_deploy">
+    <img src="docs/assets/readme/cta_deploy_on_botspot.png" alt="Try deploying a sample Lumibot strategy on BotSpot" width="520">
+  </a>
+</p>
+
+### Option B: Self-hosted (full control)
+
+Run Lumibot on your own machine with any supported broker:
+
+```python
+from lumibot.brokers import Alpaca
+from lumibot.traders import Trader
+
+ALPACA_CONFIG = {
+    "API_KEY": "your-key",
+    "API_SECRET": "your-secret",
+    "PAPER": True,
+}
+
+broker = Alpaca(ALPACA_CONFIG)
+strategy = MyStrategy(broker=broker)
+
+trader = Trader()
+trader.add_strategy(strategy)
+trader.run_all()
+```
+
+## Supported Brokers
+
+Lumibot supports stocks, options, crypto, futures, forex, and indexes across several broker integrations:
+
+<p align="center">
+  <img src="docs/assets/readme/lumibot_brokers_data_sources.png" alt="Lumibot broker and data source integrations" width="100%">
+</p>
+
+- Alpaca
+- Interactive Brokers and Interactive Brokers REST
+- Tradier
+- Schwab
+- Tradovate
+- TopstepX futures (via ProjectX)
+- Bitunix
+- Selected CCXT crypto paths. Coinbase, Kraken, and WEEX have auto-detected credential paths; KuCoin, Binance, and BitMEX have documented manual CCXT setup paths; Kraken, Binance, KuCoin, BitMEX, Bybit, and OKX have documented backtesting examples. Lumibot does not claim blanket support for every CCXT exchange.
+
+## Select Backtesting Data Sources
+
+Lumibot can backtest from free daily data, broker data, premium market data, and your own files:
+
+- Yahoo Finance
+- Alpaca
+- Interactive Brokers REST
+- ThetaData
+- Polygon/Massive
+- DataBento
+- Tradier
+- Schwab
+- CCXT backtesting examples: Kraken, Binance, KuCoin, BitMEX, Bybit, and OKX
+- Pandas/CSV dataframes
+
+### Recommended Data Provider
+
+For the deepest historical coverage (stocks, options, futures, indexes), we recommend [ThetaData](https://www.thetadata.net/). Use promo code **`BotSpot10`** for 10% off your first order.
+
+## AI Trading Agents
+
+Lumibot includes a built-in AI trading agent runtime. Build agents that run identically in backtests and live trading.
+
+- Create agents with `self.agents.create(...)`
+- Use a different model per agent with `model="openai/gpt-5.5"` or any LiteLLM/ADK-supported provider string
+- Make research agents read-only with `allow_trading=False`
+- Give agents built-in SEC fundamentals, filings, FRED macro data, indicators, memory, and notifications
+- Use **DuckDB** for time-series analysis instead of dumping raw bars into prompts
+- Mount external **MCP servers** for news, macro data, filings, or any domain-specific tools
+- Replay identical agent decisions in **backtests** without paying for another model call
+
+Use **[BotSpot MCP](https://botspot.trade/agents?utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=ai_agents_mcp_link)** when you want an AI coding agent to generate Lumibot strategies, launch backtests, inspect artifacts, and iterate without leaving your editor.
+
+<p align="center">
+  <a href="https://botspot.trade/agents?utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=ai_agents_mcp_button">
+    <img src="docs/assets/readme/cta_botspot_mcp.png" alt="Use BotSpot MCP" width="520">
+  </a>
+</p>
+
+<p align="center">
+  <img src="docs/assets/readme/lumibot_point_in_time_tools.png" alt="Point-in-time AI agent tools prevent look-ahead bias" width="100%">
+</p>
+
+Start here:
+- [Agent Documentation](https://lumibot.lumiwealth.com/agents.html)
+- [Agent Flow Design](https://lumibot.lumiwealth.com/agents_flows.html)
+- [AI Investment Committee Example](lumibot/example_strategies/ai_investment_committee.py)
+- [Standalone AI Committee Demo](https://github.com/Lumiwealth/lumibot-ai-investment-committee)
+- [Discretionary Agent Example](lumibot/example_strategies/agent_discretionary.py)
+- [News Sentiment Agent Example](lumibot/example_strategies/agent_news_sentiment.py)
+- [Full Guide](docs/AI_TRADING_AGENTS.md)
+
+## Memory and Traceability
+
+AI strategies can record decisions, lessons, open theses, tool calls, and run artifacts as local files. This makes an AI backtest reviewable instead of a black box: you can inspect why the agent traded, which tools it used, and what it remembered for later iterations.
+
+<p align="center">
+  <img src="docs/assets/readme/lumibot_memory_notifications.png" alt="Lumibot AI memory and notifications" width="100%">
+</p>
+
+## Community Strategies
+
+Browse and contribute open-source strategies: **[lumibot-strategies](https://github.com/Lumiwealth/lumibot-strategies)**. For hosted strategy discovery with performance, descriptions, visuals, and deploy flows, use the **[BotSpot marketplace](https://botspot.trade/marketplace?utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=community_marketplace_link)**.
+
+<p align="center">
+  <a href="https://botspot.trade/marketplace?utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=community_marketplace_button">
+    <img src="docs/assets/readme/cta_marketplace.png" alt="Browse BotSpot marketplace strategies" width="520">
+  </a>
+</p>
+
+## Example Strategies
+
+Lumibot includes 25+ example strategies covering stocks, options, crypto, futures, and forex:
+
+```bash
+# Run a simple buy-and-hold backtest
+python -m lumibot.example_strategies.stock_buy_and_hold
+
+# Or explore all examples
+ls lumibot/example_strategies/
+```
+
+Browse all examples: [example_strategies/](lumibot/example_strategies/)
+
+**External example repo:** [stock_example_algo](https://github.com/Lumiwealth-Strategies/stock_example_algo) shows a minimal strategy repository you can run yourself or adapt inside BotSpot.
+
+## Backtesting Data Sources
+
+Select a data source via environment variable (overrides code):
+
+```bash
+export BACKTESTING_DATA_SOURCE=thetadata   # or yahoo, ibkr, polygon
+```
+
+Multi-provider routing by asset type:
+
+```bash
+export BACKTESTING_DATA_SOURCE='{"default":"thetadata","option":"thetadata","crypto":"ibkr","crypto_future":"ibkr","future":"ibkr","cont_future":"ibkr"}'
+```
+
+Crypto futures/perpetual backtests can route `Asset.AssetType.CRYPTO_FUTURE` through spot crypto history. USDT symbols such as `BTCUSDT`, `ETHUSDT`, and `SOLUSDT` use the matching USD spot proxy for prices.
+
+### Data source comparison
+
+| Data Source | OHLCV | Split Adjusted | Dividends | Dividend Adjusted Returns |
+|-------------|-------|----------------|-----------|---------------------------|
+| Yahoo       | Yes   | Yes            | Yes       | Yes                       |
+| Alpaca      | Yes   | Yes            | No        | No                        |
+| Polygon     | Yes   | Yes            | No        | No                        |
+| Tradier     | Yes   | Yes            | No        | No                        |
+| Pandas*     | Yes   | Yes            | Yes       | Yes                       |
+
+*Pandas loads CSV files in Yahoo dataframe format, which can contain dividends.
+
+## Learn More
+
+- **Documentation:** [lumibot.lumiwealth.com](https://lumibot.lumiwealth.com/)
+- **Blog:** [lumiwealth.com/blog](https://lumiwealth.com/blog/)
+- **AI strategy builder and hosted deployment:** [BotSpot.trade](https://botspot.trade/sales?showLogin=1&utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=learn_more_botspot&sample=lumibot_readme_deploy)
+- **BotSpot MCP for AI coding agents:** [botspot.trade/agents](https://botspot.trade/agents?utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=learn_more_mcp)
+- **Strategy marketplace:** [botspot.trade/marketplace](https://botspot.trade/marketplace?utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=learn_more_marketplace)
+- **YouTube strategy builds:** [Lumiwealth on YouTube](https://www.youtube.com/@Lumiwealth?sub_confirmation=1&utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=learn_more_youtube)
+
+<p align="center">
+  <a href="https://www.youtube.com/@Lumiwealth?sub_confirmation=1&utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=learn_more_youtube_button">
+    <img src="docs/assets/readme/cta_youtube.png" alt="Watch Lumiwealth on YouTube" width="520">
+  </a>
+</p>
+
+## Project Growth
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Lumiwealth/lumibot&type=Date)](https://www.star-history.com/#Lumiwealth/lumibot&Date)
+
+## AI Bootcamp
+
+Learn to build, backtest, and deploy trading strategies using AI. Join 2,400+ traders.
+
+<p align="center">
+  <a href="https://www.botspot.trade/ai-bot-builder-bootcamp?utm_source=github&utm_medium=readme&utm_campaign=lumibot&utm_content=bootcamp_button">
+    <img src="docs/assets/readme/cta_bootcamp.png" alt="AI Trading Bootcamp" width="520">
+  </a>
+</p>
+
+## Contributing
+
+We welcome contributions! Here's a video to help you get started: [Watch The Video](https://youtu.be/Huz6VxqafZs)
+
+**Steps:**
+1. Clone the repository
+2. Create a new branch: `git switch -c my-feature`
+3. Install dev dependencies: `pip install -r requirements_dev.txt && pip install -e .`
+4. Make your changes
+5. Run tests: `pytest`
+6. Create a pull request
 
 ## Running Tests
 
-We use pytest for our testing framework. Some tests require API keys to be in a `.env` file in the root directory. To run the tests, you can run the following command:
-
 ```bash
-pytest
+pytest                          # Run all tests
+pytest tests/test_asset.py      # Run a specific test file
+coverage run; coverage report   # Show code coverage
 ```
 
-To run an individual test file, you can run the following command:
+## Remote Cache Configuration
 
-```bash
-pytest tests/test_asset.py
-```
+Lumibot can mirror its local parquet caches to AWS S3. See `docs/remote_cache.md` for configuration.
 
-### Showing Code Coverage
+## Architecture Documentation
 
-To show code coverage, you can run the following command:
+- [Backtesting Architecture](docs/BACKTESTING_ARCHITECTURE.md) - Data flow diagrams for Yahoo, ThetaData, Polygon
+- [Acceptance Backtests](docs/ACCEPTANCE_BACKTESTS.md) - End-to-end acceptance suite
+- [Environment Variables](docsrc/environment_variables.rst) - All configurable env vars
+- [Changelog](CHANGELOG.md) - Release notes
+- [AI Assistant Guide](CLAUDE.md) - Instructions for AI coding assistants
+- [Production Safety](AGENTS.md) - ThetaData and production rules
 
-```bash
-coverage run; coverage report; coverage html
-```
+## Disclaimer
 
-#### Adding an Alias on Linux or MacOS
+This software is provided for educational and informational purposes only. It is not financial advice and does not constitute a recommendation to buy or sell any security. Lumibot and BotSpot are not registered broker-dealers or financial advisors. Algorithmic trading involves substantial risk of loss, including the possibility of losses greater than your initial investment. Software bugs and errors can lead to rapid financial losses. Past backtest performance does not guarantee future results. Use this software at your own risk. You are solely responsible for compliance with all applicable laws and regulations regarding the assets you choose to trade.
 
-This will show you the code coverage in the terminal and also create a folder called "htmlcov" which will have a file called "index.html". You can open this file in your browser to see the code coverage in a more readable format.
-
-If you don't want to keep typing out the command, you can add it as an alias in bash. To do this, you can run the following command:
-
-```bash
-alias cover='coverage run; coverage report; coverage html'
-```
-
-This will now allow you to run the command by just typing "cover" in the terminal.
-
-```bash
-cover
-```
-
-If you want to also add it to your .bashrc file. You can do this by running the following command:
-
-```bash
-echo "alias cover='coverage run; coverage report; coverage html'" >> ~/.bashrc
-```
-
-#### Adding an Alias on Windows
-
-If you are on Windows, you can add an alias by running the following command:
-
-Add to your PowerShell Profile: (profile.ps1)
-
-```powershell
-function cover { 
- coverage run
- coverage report
- coverage html
-}
-```
-
-### Setting Up PyTest in VS Code
-
-To set up in VS Code for debugging, you can add the following to your launch.json file under "configurations". This will allow you to go into "Run and Debug" and run the tests from there, with breakpoints and everything.
-
-NOTE: You may need to change args to the path of your tests folder.
-
-```json
-{
-    "name": "Python: Pytest",
-    "type": "python",
-    "request": "launch",
-    "module": "pytest",
-    "args": [
-        "lumibot/tests"
-    ],
-    "console": "integratedTerminal",
-}
-```
-
-Here's an example of an actual launch.json file:
-
-```json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Python: Pytest",
-            "type": "python",
-            "request": "launch",
-            "module": "pytest",
-            "args": [
-                "lumibot/tests"
-            ],
-            "console": "integratedTerminal",
-        }
-    ]
-}
-```
-
-## Notes on data sources
-
-This table points out some of the differences between the data sources we use in Lumibot. These refer to the data 
-returned in a Bars entity that is returned from calls to get_historical_prices. 
-
-| data_source | type  | OHLCV | split adjusted | dividends | returns | dividend adjusted returns |
-|-------------|-------|-------|----------------|-----------|---------|---------------------------|
-| yahoo       | stock | Yes   | Yes            | Yes       | Yes     | Yes                       |
-| alpaca      | stock | Yes   | Yes            | No        | Yes     | No                        |
-| polygon     | stock | Yes   | Yes            | No        | Yes     | No                        |
-| Tradier     | stock | Yes   | Yes            | No        | Yes     | No                        |
-| Pandas*     | stock | Yes   | Yes            | Yes       | Yes     | Yes                       |
-
-*Pandas is not a data source per se, but it can load csv files in the same format as Yahoo dataframes,
-which can contain dividends.
-
-## An assortment of git commands our contributors may find useful
-
-Making a new branch and pulling from main:
-```shell
-git checkout -b my-feature
-git fetch origin
-git merge origin/dev
-```
-Committing work to you feature branch:
-```shell
-git add .
-git commit -m "my changes"
-git push -u origin my-feature
-```
-
-If work on main progressed while you were in another branch, this is how you rebase it into your branch. Note that
-since you've rebased your local branch, you'll need to force push your changes to update the remote branch. 
-The --force-with-lease option is a safer alternative to --force as it will abort the push if there are any new 
-commits on the remote that you haven't incorporated into your local branch
-```shell
-git checkout dev
-git fetch origin
-git merge origin/dev
-git checkout my-feature
-git rebase dev
-git checkout my-feature
-git push --force-with-lease origin my-feature
-```
-
-When ready to merge the branch into main, go into github, create a pull request, and await review. When your PR is approved it will automatically be merged into the dev branch remotely. Now, you can delete your local branch and the remote branch.
-```shell
-git checkout dev
-git fetch origin
-git merge origin/dev
-git branch -D my-feature
-git push origin --delete my-feature
-```
-
-## Community
-
-If you want to learn more about Lumibot or Algorithmic Trading then you will love out communities! You can join us on Discord.
-
-**Join us on Discord: <https://discord.gg/TmMsJCKY3T>**
-
-**Build AI-powered trading bots on [BotSpot.trade](https://botspot.trade/)** - Our platform for creating, testing, and deploying trading strategies with AI assistance!
-
-## Courses
-
-If you need extra help building your algorithm, we have courses to help you out.
-
-**For our Algorithmic Trading course: <https://lumiwealth.com/algorithmic-trading-landing-page>**
-
-**For our Machine Learning for Trading course: <https://www.lumiwealth.com/product-category/machine-learning-purchase/>**
-
-**For our Options Trading course: <https://www.lumiwealth.com/product-category/options-trading-purchase/>**
-
-**Looking for a no-code solution? Build trading bots with AI on [BotSpot](https://botspot.trade/)**
+Affiliate disclosure: some provider links or promo codes, including ThetaData, may support continued Lumibot development.
 
 ## License
 
-This library is covered by the MIT license for open sourced software which can be found here: <https://github.com/Lumiwealth/lumibot/blob/master/LICENSE>
+MIT License - [View License](https://github.com/Lumiwealth/lumibot/blob/master/LICENSE)

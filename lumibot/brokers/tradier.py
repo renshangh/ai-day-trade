@@ -1,9 +1,17 @@
 import os
 import re
 import traceback
+import base64
+import json
+import time
+import threading
+import datetime
+import inspect
+from collections import Counter
 from typing import Union
 
 import pandas as pd
+import requests
 from lumiwealth_tradier import Tradier as _Tradier
 from lumiwealth_tradier.base import TradierApiError
 from lumiwealth_tradier.orders import OrderLeg
@@ -11,7 +19,7 @@ from termcolor import colored
 
 from .broker import Broker, LumibotBrokerAPIError
 from lumibot.data_sources.tradier_data import TradierData
-from lumibot.entities import Asset, Order, Position
+from lumibot.entities import Asset, CashEvent, Order, Position
 from lumibot.tools.helpers import create_options_symbol
 from lumibot.tools.lumibot_logger import get_logger
 from lumibot.trading_builtins import PollingStream
@@ -32,6 +40,201 @@ class Tradier(Broker):
     """
 
     POLL_EVENT = PollingStream.POLL_EVENT
+    CASH_ACTIVITY_TYPES = (
+        "ach",
+        "wire",
+        "dividend",
+        "fee",
+        "tax",
+        "journal",
+        "check",
+        "transfer",
+        "adjustment",
+        "interest",
+    )
+
+    # OAuth refresh endpoint (only available for approved Tradier partner apps).
+    _OAUTH_REFRESH_URL = "https://api.tradier.com/v1/oauth/refreshtoken"
+    _OAUTH_REFRESH_SKEW_SECONDS = 60  # Refresh a bit early to avoid edge-of-expiry failures.
+
+    @staticmethod
+    def _decode_base64url_json(payload_str: str) -> dict:
+        """Decode a base64url JSON payload (no padding required)."""
+        if not payload_str:
+            raise ValueError("Empty payload string provided.")
+        missing_padding = len(payload_str) % 4
+        if missing_padding:
+            payload_str += "=" * (4 - missing_padding)
+        decoded_bytes = base64.urlsafe_b64decode(payload_str)
+        return json.loads(decoded_bytes.decode("utf-8"))
+
+    @staticmethod
+    def _is_auth_error(err: Exception) -> bool:
+        msg = str(err or "")
+        # lumiwealth_tradier raises: "Error: 401 - <body>"
+        return "Error: 401" in msg or msg.strip().startswith("401")
+
+    def _oauth_enabled(self) -> bool:
+        return bool(getattr(self, "_oauth_token_payload_b64", None))
+
+    def _oauth_token_needs_refresh(self) -> bool:
+        expires_at = getattr(self, "_oauth_token_expires_at", None)
+        if not expires_at:
+            return False
+        return time.time() >= float(expires_at) - self._OAUTH_REFRESH_SKEW_SECONDS
+
+    def _apply_access_token(self, new_access_token: str) -> None:
+        """Update access token across broker + data source Tradier clients (best-effort)."""
+        if not new_access_token or not isinstance(new_access_token, str):
+            return
+
+        self._tradier_access_token = new_access_token
+
+        def _update_client(client) -> None:
+            if client is None:
+                return
+            try:
+                client.AUTH_TOKEN = new_access_token
+            except Exception:
+                pass
+            for attr in ("account", "orders", "market"):
+                try:
+                    part = getattr(client, attr, None)
+                    if part is None:
+                        continue
+                    part.AUTH_TOKEN = new_access_token
+                    headers = getattr(part, "REQUESTS_HEADERS", None)
+                    if isinstance(headers, dict):
+                        headers["Authorization"] = f"Bearer {new_access_token}"
+                except Exception:
+                    continue
+
+        _update_client(getattr(self, "tradier", None))
+
+        ds = getattr(self, "data_source", None)
+        if ds is not None:
+            try:
+                ds.api_key = new_access_token
+            except Exception:
+                pass
+            _update_client(getattr(ds, "tradier", None))
+
+    def _refresh_oauth_token(self, *, force: bool = False) -> bool:
+        """Refresh Tradier OAuth token if possible. Returns True on successful refresh."""
+        if not self._oauth_enabled():
+            return False
+        if not force and not self._oauth_token_needs_refresh():
+            return False
+
+        lock = getattr(self, "_oauth_refresh_lock", None)
+        if lock is None:
+            self._oauth_refresh_lock = threading.Lock()
+            lock = self._oauth_refresh_lock
+
+        with lock:
+            if not force and not self._oauth_token_needs_refresh():
+                return False
+
+            refresh_token = getattr(self, "_oauth_refresh_token", None)
+            client_id = getattr(self, "_oauth_client_id", None)
+            client_secret = getattr(self, "_oauth_client_secret", None)
+
+            if not refresh_token:
+                logger.warning("[Tradier] TRADIER_REFRESH_TOKEN not configured; OAuth access token may expire.")
+                return False
+            if not client_id or not client_secret:
+                logger.warning("[Tradier] TRADIER_OAUTH_CLIENT_ID / TRADIER_OAUTH_CLIENT_SECRET not configured; cannot refresh OAuth token.")
+                return False
+
+            try:
+                resp = requests.post(
+                    self._OAUTH_REFRESH_URL,
+                    auth=(client_id, client_secret),
+                    data={"grant_type": "refresh_token", "refresh_token": refresh_token},
+                    headers={"Accept": "application/json"},
+                    timeout=15,
+                )
+            except Exception as e:
+                logger.warning(f"[Tradier] OAuth refresh request failed: {e}")
+                return False
+
+            if not resp.ok:
+                logger.warning(f"[Tradier] OAuth refresh failed: {resp.status_code} - {resp.text}")
+                return False
+
+            try:
+                token_json = resp.json()
+            except Exception as e:
+                logger.warning(f"[Tradier] OAuth refresh returned non-JSON response: {e}")
+                return False
+
+            now_ms = int(time.time() * 1000)
+            if token_json.get("issued_at") is None:
+                token_json["issued_at"] = now_ms
+
+            new_access_token = token_json.get("access_token")
+            if not new_access_token:
+                logger.warning("[Tradier] OAuth refresh response missing access_token.")
+                return False
+
+            # Refresh token is typically stable for Tradier partner apps, but handle the case where it changes.
+            new_refresh_token = token_json.get("refresh_token")
+            if new_refresh_token and new_refresh_token != refresh_token:
+                logger.warning("[Tradier] OAuth refresh rotated refresh_token; rotation is not persisted in env vars and may require re-linking later.")
+                self._oauth_refresh_token = new_refresh_token
+
+            expires_in = token_json.get("expires_in")
+            try:
+                issued_at_ms = int(token_json.get("issued_at"))
+                expires_in_s = int(float(expires_in)) if expires_in is not None else None
+                if expires_in_s:
+                    self._oauth_token_expires_at = issued_at_ms / 1000.0 + expires_in_s
+            except Exception:
+                # If we can't parse expiry, keep existing best-effort expiry (or none).
+                pass
+
+            self._apply_access_token(new_access_token)
+            return True
+
+    def _install_oauth_refresh_hooks(self) -> None:
+        """Wrap Tradier API calls to refresh on expiry / 401 (best-effort)."""
+        if not self._oauth_enabled():
+            return
+
+        def _wrap_component(component) -> None:
+            if component is None:
+                return
+            if getattr(component, "_lumibot_oauth_wrapped", False):
+                return
+
+            orig_request = getattr(component, "request", None)
+            if not callable(orig_request):
+                return
+
+            def request_with_refresh(*args, **kwargs):
+                # Proactively refresh if near expiry.
+                self._refresh_oauth_token(force=False)
+                try:
+                    return orig_request(*args, **kwargs)
+                except TradierApiError as e:
+                    # Retry once on auth errors after forcing a refresh.
+                    if self._is_auth_error(e) and self._refresh_oauth_token(force=True):
+                        return orig_request(*args, **kwargs)
+                    raise
+
+            component.request = request_with_refresh
+            component._lumibot_oauth_wrapped = True
+
+        # Broker client
+        client = getattr(self, "tradier", None)
+        for attr in ("account", "orders", "market"):
+            _wrap_component(getattr(client, attr, None))
+
+        # Data source client
+        ds = getattr(self, "data_source", None)
+        ds_client = getattr(ds, "tradier", None) if ds is not None else None
+        for attr in ("account", "orders", "market"):
+            _wrap_component(getattr(ds_client, attr, None))
 
     def __init__(
             self,
@@ -73,9 +276,55 @@ class Tradier(Broker):
             account_number = config["ACCOUNT_NUMBER"]
             paper = config["PAPER"]
 
-        # Check if the user has provided the necessary keys
-        elif access_token is None or account_number is None or paper is None:
-            raise Exception("Please provide a config file or access_token, account_number, and paper")
+        # === Optional OAuth payload support (BotSpot deploy integration) ===
+        # When running in BotSpot, the runtime may receive:
+        # - TRADIER_TOKEN: base64url JSON payload from the OAuth token exchange
+        # - TRADIER_REFRESH_TOKEN: optional (partner apps only)
+        # - TRADIER_OAUTH_CLIENT_ID / TRADIER_OAUTH_CLIENT_SECRET: required to refresh
+        self._oauth_token_payload_b64 = None
+        self._oauth_refresh_token = None
+        self._oauth_client_id = None
+        self._oauth_client_secret = None
+        self._oauth_token_expires_at = None  # epoch seconds
+
+        payload_b64 = None
+        try:
+            if isinstance(config, dict):
+                payload_b64 = config.get("TRADIER_TOKEN") or config.get("OAUTH_PAYLOAD")
+        except Exception:
+            payload_b64 = None
+        payload_b64 = payload_b64 or os.environ.get("TRADIER_TOKEN")
+
+        token_json = None
+        if payload_b64:
+            self._oauth_token_payload_b64 = payload_b64
+            try:
+                token_json = self._decode_base64url_json(payload_b64)
+            except Exception as e:
+                logger.warning(f"[Tradier] Failed to decode TRADIER_TOKEN payload: {e}")
+                token_json = None
+
+        if token_json:
+            # Prefer explicit access_token argument/config; fall back to decoded payload.
+            if not access_token:
+                access_token = token_json.get("access_token") or token_json.get("AUTH_TOKEN")
+
+            self._oauth_refresh_token = os.environ.get("TRADIER_REFRESH_TOKEN") or token_json.get("refresh_token")
+            self._oauth_client_id = os.environ.get("TRADIER_OAUTH_CLIENT_ID")
+            self._oauth_client_secret = os.environ.get("TRADIER_OAUTH_CLIENT_SECRET")
+
+            try:
+                issued_at_ms = int(token_json.get("issued_at") or 0)
+                expires_in_s = int(float(token_json.get("expires_in"))) if token_json.get("expires_in") is not None else None
+                if issued_at_ms and expires_in_s:
+                    self._oauth_token_expires_at = issued_at_ms / 1000.0 + expires_in_s
+            except Exception:
+                # No reliable expiry metadata; refresh-on-401 hook still applies.
+                pass
+
+        # Check if the user has provided the necessary keys (after OAuth extraction)
+        if access_token is None or account_number is None or paper is None:
+            raise Exception("Please provide a config file or access_token, account_number, and paper (or set TRADIER_TOKEN for OAuth)")
 
         # Set the values from the keys
         self._tradier_access_token = access_token
@@ -83,18 +332,25 @@ class Tradier(Broker):
         self._tradier_paper = paper
         self.polling_interval = polling_interval
 
+        # If this is an OAuth token, refresh before building API clients (best-effort).
+        self._refresh_oauth_token(force=False)
+
         # Create the Tradier object
-        self.tradier = _Tradier(account_number, access_token, paper)
+        self.tradier = _Tradier(account_number, self._tradier_access_token, paper)
 
         # Check if the user has provided a data source, if not, create one
         if data_source is None:
             data_source = TradierData(
                 account_number=account_number,
-                access_token=access_token,
+                access_token=self._tradier_access_token,
                 paper=paper,
                 max_workers=max_workers,
                 delay=15 if paper else 0,
             )
+
+        # Install request wrappers before Broker initializes streams/threads.
+        self.data_source = data_source
+        self._install_oauth_refresh_hooks()
 
         super().__init__(
             name="Tradier",
@@ -107,6 +363,30 @@ class Tradier(Broker):
 
         # Override default market setting for Tradier to be NYSE, but still respect config/env if set
         self.market = (config.get("MARKET") if config else None) or os.environ.get("MARKET") or "NYSE"
+
+        # Telemetry counters (best-effort; used by runtime telemetry snapshots).
+        self._telemetry_polls_total = 0
+        self._telemetry_events_dispatched_total = 0
+        self._telemetry_orders_seen_max = 0
+
+    def _safe_stream_dispatch(self, event, **kwargs):
+        """Dispatch an event to the stream if it exists.
+
+        Tradier can run in polling mode and/or with `connect_stream=False`. Order submission and polling must not
+        crash purely because a stream is unavailable.
+        """
+
+        stream = getattr(self, "stream", None)
+        if stream is None:
+            return
+        try:
+            try:
+                self._telemetry_events_dispatched_total += 1
+            except Exception:
+                pass
+            stream.dispatch(event, **kwargs)
+        except Exception:
+            return
 
     def cancel_order(self, order: Order):
         """Cancels an order at the broker. Nothing will be done for orders that are already cancelled or filled."""
@@ -235,8 +515,11 @@ class Tradier(Broker):
         if len(set([order.asset.symbol for order in orders])) > 1:
             raise ValueError("All orders in a multi-leg order must have the same symbol.")
 
-        # Get the symbol from the first order
-        symbol = orders[0].asset.symbol
+        # Use broker-native class-share notation for the underlying symbol.
+        symbol = self._normalize_symbol_for_broker(
+            orders[0].asset.symbol,
+            asset_type=orders[0].asset.asset_type,
+        )
 
         # Create the legs for the multi-leg order
         legs = []
@@ -265,7 +548,9 @@ class Tradier(Broker):
         )
 
         # Each leg uses a different option asset, just use the base symbol. This matches later Tradier API response.
-        parent_asset = Asset(symbol=symbol)
+        parent_asset = Asset(
+            symbol=self._normalize_symbol_for_internal(symbol, asset_type=Asset.AssetType.STOCK)
+        )
         parent_order = Order(
             identifier=order_response["id"],
             asset=parent_asset,
@@ -285,7 +570,7 @@ class Tradier(Broker):
         parent_order.child_orders = orders
         parent_order.update_raw(order_response)  # This marks order as 'transmitted'
         self._unprocessed_orders.append(parent_order)
-        self.stream.dispatch(self.NEW_ORDER, order=parent_order)
+        self._safe_stream_dispatch(self.NEW_ORDER, order=parent_order)
         return parent_order
 
     def _submit_order(self, order: Order):
@@ -320,7 +605,7 @@ class Tradier(Broker):
                     parent_option_symbol = create_options_symbol(
                         order.asset.symbol, order.asset.expiration, order.asset.right, order.asset.strike
                     ) if order.asset.asset_type == Asset.AssetType.OPTION else None
-                    parent_stock_symbol = order.asset.symbol \
+                    parent_stock_symbol = self._normalize_symbol_for_broker(order.asset.symbol, asset_type=order.asset.asset_type) \
                         if order.asset.asset_type != Asset.AssetType.OPTION else None
 
                     # Add the parent order to the legs list
@@ -348,7 +633,7 @@ class Tradier(Broker):
                     child_option_symbol = create_options_symbol(
                         order.asset.symbol, order.asset.expiration, order.asset.right, order.asset.strike
                     ) if child_order.asset.asset_type == Asset.AssetType.OPTION else None
-                    child_stock_symbol = order.asset.symbol \
+                    child_stock_symbol = self._normalize_symbol_for_broker(order.asset.symbol, asset_type=order.asset.asset_type) \
                         if child_order.asset.asset_type != Asset.AssetType.OPTION else None
 
                     # Create the leg
@@ -375,17 +660,16 @@ class Tradier(Broker):
                     )
                 except TradierApiError as e:
                     msg = colored(f"Error submitting order {order}: {e}", color="red")
-                    self.stream.dispatch(self.ERROR_ORDER, order=order, error_msg=msg)
+                    self._safe_stream_dispatch(self.ERROR_ORDER, order=order, error_msg=msg)
                     return None
 
             elif order.asset is not None and order.asset.asset_type == Asset.AssetType.STOCK:
-                # Make sure the symbol is upper case
-                symbol = order.asset.symbol.upper()
+                symbol = self._normalize_symbol_for_broker(order.asset.symbol, asset_type=order.asset.asset_type)
 
                 # Place the order
                 order_response = self.tradier.orders.order(
                     symbol,
-                    order.side,
+                    self._lumi_side2tradier(order),
                     order.quantity,
                     order_type=order.order_type,
                     duration=order.time_in_force,
@@ -396,7 +680,7 @@ class Tradier(Broker):
 
             elif order.asset is not None and order.asset.asset_type == Asset.AssetType.OPTION:
                 tradier_side = self._lumi_side2tradier(order)
-                stock_symbol = order.asset.symbol
+                stock_symbol = self._normalize_symbol_for_broker(order.asset.symbol, asset_type=order.asset.asset_type)
                 option_symbol = create_options_symbol(
                     order.asset.symbol, order.asset.expiration, order.asset.right, order.asset.strike
                 )
@@ -425,11 +709,11 @@ class Tradier(Broker):
             order.status = Order.OrderStatus.SUBMITTED
             order.update_raw(order_response)  # This marks order as 'transmitted'
             self._unprocessed_orders.append(order)
-            self.stream.dispatch(self.NEW_ORDER, order=order)
+            self._safe_stream_dispatch(self.NEW_ORDER, order=order)
 
         except TradierApiError as e:
             msg = colored(f"Error submitting order {order}: {e}", color="red")
-            self.stream.dispatch(self.ERROR_ORDER, order=order, error_msg=msg)
+            self._safe_stream_dispatch(self.ERROR_ORDER, order=order, error_msg=msg)
 
         return order
 
@@ -475,6 +759,327 @@ class Tradier(Broker):
         logger.error("The function get_historical_account_value is not implemented yet for Tradier.")
         return {"hourly": None, "daily": None}
 
+    @staticmethod
+    def _extract_history_amount(row: dict) -> float:
+        for key in ("amount", "net_amount", "total", "cash", "value"):
+            if key in row and row.get(key) not in (None, ""):
+                return CashEvent.coerce_amount(row.get(key))
+        return 0.0
+
+    @staticmethod
+    def _extract_history_field(row: dict, raw_type: str, field_name: str):
+        nested_key = f"{raw_type}.{field_name}"
+        value = row.get(nested_key)
+        if value not in (None, ""):
+            return value
+        return row.get(field_name)
+
+    @classmethod
+    def _extract_history_description(cls, row: dict, raw_type: str) -> str | None:
+        description = cls._extract_history_field(row, raw_type, "description")
+        if description not in (None, ""):
+            return str(description)
+        symbol = cls._extract_history_field(row, raw_type, "symbol")
+        if symbol not in (None, ""):
+            return str(symbol)
+        return None
+
+    @classmethod
+    def _extract_history_symbol(cls, row: dict, raw_type: str) -> str | None:
+        symbol = cls._extract_history_field(row, raw_type, "symbol")
+        if symbol in (None, ""):
+            return None
+        return str(symbol)
+
+    @classmethod
+    def _extract_history_quantity(cls, row: dict, raw_type: str) -> str | None:
+        quantity = cls._extract_history_field(row, raw_type, "quantity")
+        if quantity in (None, ""):
+            return None
+        return str(quantity)
+
+    @staticmethod
+    def _override_cash_event_type_from_description(description: str | None) -> str | None:
+        normalized_description = str(description or "").strip().lower()
+        if not normalized_description:
+            return None
+        if "tax" in normalized_description:
+            return "tax"
+        if "fee" in normalized_description or "subscription" in normalized_description:
+            return "fee"
+        return None
+
+    @staticmethod
+    def _is_tradier_external_transfer(raw_type: str, description: str | None) -> bool:
+        normalized_raw_type = str(raw_type or "").strip().lower()
+        normalized_description = str(description or "").strip().lower()
+
+        if normalized_raw_type in {"ach", "wire", "check"}:
+            return True
+        if normalized_raw_type == "journal":
+            return "journal to account" in normalized_description or "journal from account" in normalized_description
+        if normalized_raw_type != "transfer":
+            return False
+
+        internal_markers = (
+            "annual ira fee",
+            "pro subscription",
+            "clearing fee",
+            "clearing fees",
+            "mark to market",
+            "tfr to type",
+            "tfr from type",
+        )
+        if any(marker in normalized_description for marker in internal_markers):
+            return False
+
+        external_markers = (
+            "journal to account",
+            "journal from account",
+            "cash transfer",
+            "account transfer",
+            "wire transfer",
+            "ach transfer",
+        )
+        return any(marker in normalized_description for marker in external_markers)
+
+    @classmethod
+    def _map_cash_event_type(cls, raw_type: str, amount: float, description: str | None = None) -> tuple[str, bool]:
+        normalized_raw_type = str(raw_type or "").strip().lower()
+        description_override = cls._override_cash_event_type_from_description(description)
+        if description_override is not None:
+            return description_override, False
+        if normalized_raw_type in {"ach", "wire", "check", "transfer", "journal"}:
+            if cls._is_tradier_external_transfer(normalized_raw_type, description):
+                return ("deposit" if amount >= 0 else "withdrawal"), True
+            if normalized_raw_type == "journal":
+                return "journal", False
+            if normalized_raw_type == "transfer":
+                return "adjustment", False
+        if normalized_raw_type == "dividend":
+            return "dividend", False
+        if normalized_raw_type == "interest":
+            return "interest", False
+        if normalized_raw_type == "fee":
+            return "fee", False
+        if normalized_raw_type == "tax":
+            return "tax", False
+        if normalized_raw_type == "journal":
+            return "journal", False
+        if normalized_raw_type == "adjustment":
+            return "adjustment", False
+        return "other_cash", False
+
+    @classmethod
+    def _normalize_history_row_to_cash_event(cls, row: dict) -> CashEvent | None:
+        if not isinstance(row, dict):
+            return None
+
+        raw_type = str(row.get("type") or "").strip().lower()
+        if not raw_type or raw_type in {"trade", "option"}:
+            return None
+
+        amount = cls._extract_history_amount(row)
+        if raw_type in {"ach", "wire", "check", "transfer"} and amount == 0:
+            return None
+        description = cls._extract_history_description(row, raw_type) or raw_type
+        symbol = cls._extract_history_symbol(row, raw_type)
+        quantity = cls._extract_history_quantity(row, raw_type)
+        event_type, is_external_cash_flow = cls._map_cash_event_type(raw_type, amount, description)
+        occurred_at = (
+            row.get("date")
+            or row.get("created_at")
+            or row.get("settlement_date")
+            or row.get("transaction_date")
+        )
+        broker_event_id = row.get("id") or row.get("event_id") or row.get("transaction_id")
+
+        return CashEvent(
+            event_id=CashEvent.build_event_id(
+                broker_name="tradier",
+                broker_event_id=broker_event_id,
+                raw_type=raw_type,
+                raw_subtype=row.get("status"),
+                occurred_at=occurred_at,
+                amount=amount,
+                description=description,
+                extra_components=[symbol, quantity],
+            ),
+            broker_event_id=broker_event_id,
+            broker_name="tradier",
+            event_type=event_type,
+            raw_type=raw_type,
+            raw_subtype=row.get("status"),
+            amount=amount,
+            currency=row.get("currency") or "USD",
+            occurred_at=occurred_at,
+            description=description,
+            direction=CashEvent._infer_direction(amount),
+            is_external_cash_flow=is_external_cash_flow,
+        )
+
+    @staticmethod
+    def _normalize_history_payload_to_df(data) -> pd.DataFrame:
+        if not isinstance(data, dict):
+            return pd.DataFrame()
+
+        history = data.get("history")
+        if not history or history == "null" or not isinstance(history, dict):
+            return pd.DataFrame()
+
+        events = history.get("event")
+        if not events or events == "null":
+            return pd.DataFrame()
+        if isinstance(events, dict):
+            events = [events]
+        if not isinstance(events, list):
+            return pd.DataFrame()
+
+        rows = [event for event in events if isinstance(event, dict)]
+        if not rows:
+            return pd.DataFrame()
+        return pd.json_normalize(rows)
+
+    def _get_tradier_history_page(
+        self,
+        *,
+        start_date: datetime.date | None,
+        end_date: datetime.date | None,
+        limit: int,
+        page: int,
+        activity_type: str,
+        supports_page: bool,
+    ) -> pd.DataFrame:
+        account = self.tradier.account
+        request = getattr(account, "request", None)
+        endpoint = getattr(account, "ACCOUNT_HISTORY_ENDPOINT", None)
+        if endpoint is None:
+            endpoint = f"v1/accounts/{getattr(self, '_tradier_account_number', '')}/history"
+
+        if callable(request):
+            params = {
+                "start": account.date2str(start_date),
+                "end": account.date2str(end_date),
+                "limit": limit,
+                "page": page,
+                "type": activity_type.lower(),
+            }
+            params = {key: value for key, value in params.items() if value is not None}
+            try:
+                data = request(endpoint=endpoint, params=params)
+            except Exception as exc:
+                logger.warning(
+                    "Tradier cash-event history fetch failed: %s (activity_type=%s, page=%s, "
+                    "limit=%s, endpoint=%s, since_set=%s)",
+                    exc,
+                    activity_type,
+                    page,
+                    limit,
+                    endpoint,
+                    start_date is not None,
+                )
+                raise
+            return self._normalize_history_payload_to_df(data)
+
+        # Compatibility fallback for alternate clients. Some published lumiwealth_tradier versions
+        # throw TypeError("string indices must be integers") when the API returns {"history": "null"}.
+        kwargs = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "limit": limit,
+            "activity_type": activity_type,
+        }
+        if supports_page:
+            kwargs["page"] = page
+
+        try:
+            history_df = account.get_history(**kwargs)
+        except TypeError as exc:
+            if "string indices must be integers" in str(exc):
+                logger.debug(
+                    "Tradier cash-event history returned an empty/null payload through the wrapper "
+                    "(activity_type=%s, page=%s, limit=%s). Treating as empty.",
+                    activity_type,
+                    page,
+                    limit,
+                )
+                return pd.DataFrame()
+            raise
+
+        if isinstance(history_df, pd.DataFrame):
+            return history_df
+        return self._normalize_history_payload_to_df(history_df)
+
+    def get_cash_events(
+        self,
+        *,
+        since: datetime.datetime | None = None,
+        limit: int | None = 100,
+    ) -> list[CashEvent]:
+        start_date = CashEvent.coerce_datetime(since).date() if since is not None else None
+        end_date = datetime.datetime.now(datetime.timezone.utc).date()
+        per_type_limit = max(int(limit or 100), 1)
+        per_page_limit = min(per_type_limit, 1000)
+        max_pages = max((per_type_limit - 1) // per_page_limit + 1, 1)
+        account = self.tradier.account
+        supports_page = callable(getattr(account, "request", None))
+        if not supports_page:
+            try:
+                signature = inspect.signature(account.get_history)
+                supports_page = "page" in signature.parameters or any(
+                    parameter.kind is inspect.Parameter.VAR_KEYWORD
+                    for parameter in signature.parameters.values()
+                )
+            except Exception:
+                supports_page = False
+        request_limit = per_page_limit if supports_page else per_type_limit
+        page_count = max_pages if supports_page else 1
+
+        event_by_id: dict[str, CashEvent] = {}
+        raw_row_count = 0
+        raw_type_counts = Counter()
+        for activity_type in self.CASH_ACTIVITY_TYPES:
+            for page in range(1, page_count + 1):
+                history_df = self._get_tradier_history_page(
+                    start_date=start_date,
+                    end_date=end_date,
+                    limit=request_limit,
+                    page=page,
+                    activity_type=activity_type,
+                    supports_page=supports_page,
+                )
+
+                if history_df is None or history_df.empty:
+                    break
+
+                raw_row_count += len(history_df.index)
+                if "type" in history_df.columns:
+                    raw_type_counts.update(
+                        str(raw_type or "").lower().strip()
+                        for raw_type in history_df["type"].dropna().tolist()
+                    )
+                for row in history_df.to_dict(orient="records"):
+                    event = self._normalize_history_row_to_cash_event(row)
+                    if event is not None:
+                        event_by_id[event.event_id] = event
+
+                if len(history_df.index) < per_page_limit:
+                    break
+
+        normalized_events = sorted(
+            event_by_id.values(),
+            key=lambda event: (event.occurred_at, event.event_id),
+        )
+        logger.debug(
+            "Tradier returned %s normalized cash events from %s raw history rows "
+            "(supports_page=%s, raw_types=%s)",
+            len(normalized_events),
+            raw_row_count,
+            supports_page,
+            dict(raw_type_counts),
+        )
+        return normalized_events
+
     def _pull_positions(self, strategy):
         try:
             positions_df = self.tradier.account.get_positions()
@@ -498,16 +1103,23 @@ class Tradier(Broker):
 
         positions_ret = []
 
+        if strategy is None:
+            strategy_name = "Unknown"
+        elif isinstance(strategy, str):
+            strategy_name = strategy
+        else:
+            strategy_name = getattr(strategy, "name", str(strategy))
+
         # Loop through each row in the dataframe
         for _, row in positions_df.iterrows():
             # Get the symbol/quantity and create the position asset
-            symbol = row["symbol"]
+            symbol = self._normalize_symbol_for_internal(row["symbol"], asset_type=Asset.AssetType.STOCK)
             quantity = row["quantity"]
             asset = Asset.symbol2asset(symbol)  # Parse the symbol. Handles 'stock' and 'option' types
 
             # Create the position
             position = Position(
-                strategy=strategy.name if strategy else "Unknown",
+                strategy=strategy_name,
                 asset=asset,
                 quantity=quantity,
             )
@@ -610,7 +1222,7 @@ class Tradier(Broker):
         asset = (
             Asset.symbol2asset(option_symbol)
             if option_symbol and not pd.isna(option_symbol)
-            else Asset.symbol2asset(symbol)
+            else Asset.symbol2asset(self._normalize_symbol_for_internal(symbol, asset_type=Asset.AssetType.STOCK))
         )
 
         # Get the reason_description if it exists
@@ -691,7 +1303,7 @@ class Tradier(Broker):
         try:
             df = self.tradier.orders.get_orders()
         except Exception as e:
-            logger.error(f"Error pulling orders from Tradier: {e}")
+            logger.info(f"Error pulling orders from Tradier: {e}", exc_info=True)
             return []
 
         # Check if the dataframe is empty or None
@@ -716,11 +1328,30 @@ class Tradier(Broker):
         list[dict]
             A list of dictionaries representing the cleaned order records.
         """
-        # The rounding needs to be cell by cell because OCO orders make the dataframe values inconsistent
-        # and the column types will be set to 'object'
-        rounded_df = df.apply(lambda col: col.map(lambda x: round(x, 2) if isinstance(x, float) else x))
-        cleaned_df = rounded_df.replace({pd.NA: None, pd.NaT: None, float('nan'): None})
-        return cleaned_df.to_dict("records")
+        # NOTE: This code path runs in a long-lived polling loop. Avoid full-DataFrame copies (apply/replace),
+        # which can multiply peak memory when Tradier returns many rows.
+        try:
+            records = df.to_dict("records")
+        except Exception:
+            return []
+
+        cleaned: list[dict] = []
+        for rec in records:
+            if not isinstance(rec, dict):
+                continue
+            out: dict = {}
+            for k, v in rec.items():
+                try:
+                    if isinstance(v, float):
+                        v = round(v, 2)
+                    # Handle pandas missing sentinels (NA/NaT/nan) without materializing full copies.
+                    if v is pd.NA or v is pd.NaT or (isinstance(v, float) and pd.isna(v)) or pd.isna(v):
+                        v = None
+                except Exception:
+                    pass
+                out[k] = v
+            cleaned.append(out)
+        return cleaned
 
     def _lumi_side2tradier(self, order: Order) -> str:
         # Make a copy of the side because we will modify it
@@ -728,7 +1359,17 @@ class Tradier(Broker):
 
         # Set the side that we will return
         side = order.side
+
         if order.asset.asset_type == Asset.AssetType.STOCK:
+            # Map extended side values to for Tradier API
+            if side in ("buy_to_open"):
+                side = "buy"
+            elif side in ("sell_to_close"):
+                side = "sell"
+            elif side in ("buy_to_cover", "buy_to_close"):
+                side = "buy_to_cover"
+            elif side in ("sell_to_open", "sell_short"):
+                side = "sell_short"
             return side
 
         # Convert the side to the Tradier side for options orders if necessary
@@ -823,9 +1464,17 @@ class Tradier(Broker):
         # status in Tradier.
         # df_orders = self.tradier.orders.get_orders()
         raw_orders = self._pull_broker_all_orders()
+        try:
+            self._telemetry_polls_total += 1
+            self._telemetry_orders_seen_max = max(int(self._telemetry_orders_seen_max), len(raw_orders or []))
+        except Exception:
+            pass
         stored_orders = {x.identifier: x for x in self.get_all_orders()}
+        strategy_name = self._strategy_name
+        if not strategy_name and len(self._subscribers) == 1:
+            strategy_name = self._subscribers[0].name
         for order_row in raw_orders:
-            order = self._parse_broker_order_dict(order_row, strategy_name=self._strategy_name)
+            order = self._parse_broker_order_dict(order_row, strategy_name=strategy_name)
             # Process child orders first so they are tracked in the Lumi system before the parent order
             all_orders = [child for child in order.child_orders] + [order]
 
@@ -836,20 +1485,13 @@ class Tradier(Broker):
                     # If it is the brokers first iteration then fully process the order because it is likely
                     # that the order was filled/canceled/etc before the strategy started.
                     if self._first_iteration:
-                        if order.status == Order.OrderStatus.FILLED:
+                        # IMPORTANT: Avoid ingesting large historical order lists on startup.
+                        # Tradier can return many closed orders; tracking them all in-memory can OOM long-running
+                        # workers. On the first poll, we only need to reconcile currently-active orders.
+                        if order.is_active() or order.status in {Order.OrderStatus.NEW}:
                             self._process_new_order(order)
-                            self._process_filled_order(order, order.avg_fill_price, order.quantity)
-                        elif order.status == Order.OrderStatus.CANCELED:
-                            self._process_new_order(order)
-                            self._process_canceled_order(order)
-                        elif order.status == Order.OrderStatus.PARTIALLY_FILLED:
-                            self._process_new_order(order)
-                            self._process_partially_filled_order(order, order.avg_fill_price, order.quantity)
-                        elif order.status == Order.OrderStatus.NEW:
-                            self._process_new_order(order)
-                        elif order.status == Order.OrderStatus.ERROR:
-                            self._process_new_order(order)
-                            self._process_error_order(order, order.error_message)
+                        else:
+                            continue
                     else:
                         # Add to order in lumibot.
                         self._process_new_order(order)
@@ -857,6 +1499,21 @@ class Tradier(Broker):
                     # Always Update Quantity and Children. Children can change as they are assigned an identifier
                     # for the first time.
                     stored_order = stored_orders[order.identifier]
+
+                    # Repair missing strategy using tag field (mirrors fix in projectx.py).
+                    # Tradier stores the order tag as the strategy name with underscores replaced by hyphens.
+                    if not stored_order.strategy:
+                        tag = getattr(stored_order, 'tag', None) or getattr(order, 'tag', None)
+                        if tag and hasattr(self, '_subscribers') and self._subscribers:
+                            for sub in self._subscribers:
+                                sub_name = getattr(sub, 'name', '') or str(sub)
+                                if re.sub(r'[^a-zA-Z0-9-]', '-', sub_name) == tag or sub_name == tag:
+                                    stored_order.strategy = sub_name
+                                    break
+                        if not stored_order.strategy and hasattr(self, '_subscribers') and len(self._subscribers) == 1:
+                            only_sub = self._subscribers[0]
+                            stored_order.strategy = getattr(only_sub, 'name', '') or str(only_sub)
+
                     stored_order.quantity = order.quantity  # Update the quantity in case it has changed
                     stored_order.broker_create_date = order.broker_create_date
                     stored_order.broker_update_date = order.broker_update_date
@@ -875,7 +1532,7 @@ class Tradier(Broker):
                     if not order.equivalent_status(stored_order):
                         match order.status.lower():
                             case "submitted" | "open":
-                                self.stream.dispatch(self.NEW_ORDER, order=stored_order)
+                                self._safe_stream_dispatch(self.NEW_ORDER, order=stored_order)
                             case "partial_filled":
                                 # Not handled for polling, only dispatch completely filled orders
                                 pass
@@ -905,16 +1562,18 @@ class Tradier(Broker):
                                 # values will be filled in by Tradier, so do not trigger a 'filled' event until
                                 # all the needed data has been populated.
                                 if fill_price is not None and fill_qty is not None:
-                                    self.stream.dispatch(
-                                        self.FILLED_ORDER, order=stored_order, price=fill_price,
-                                        filled_quantity=fill_qty
+                                    self._safe_stream_dispatch(
+                                        self.FILLED_ORDER,
+                                        order=stored_order,
+                                        price=fill_price,
+                                        filled_quantity=fill_qty,
                                     )
                             case "canceled":
-                                self.stream.dispatch(self.CANCELED_ORDER, order=stored_order)
+                                self._safe_stream_dispatch(self.CANCELED_ORDER, order=stored_order)
                             case "error":
                                 default_msg = f"{self.name} encountered an error with order {order.identifier} | {order}"
                                 msg = order_row["reason_description"] if "reason_description" in order_row else default_msg
-                                self.stream.dispatch(self.ERROR_ORDER, order=stored_order, error_msg=msg)
+                                self._safe_stream_dispatch(self.ERROR_ORDER, order=stored_order, error_msg=msg)
                             case "cash_settled":
                                 # Don't know how to detect this case in Tradier.
                                 # Reference: https://documentation.tradier.com/brokerage-api/reference/response/orders
@@ -941,7 +1600,10 @@ class Tradier(Broker):
                 # stopped tracking them. This is particularly true with Paper Trading where orders are not tracked
                 # overnight.
                 if order.is_active():
-                    self.stream.dispatch(self.CANCELED_ORDER, order=order)
+                    self._safe_stream_dispatch(self.CANCELED_ORDER, order=order)
+
+        if self._first_iteration:
+            self._first_iteration = False
 
     def _get_broker_id_from_raw_orders(self, raw_orders):
         ids = []

@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import lumibot.entities as entities
+from lumibot.entities.asset import StrEnum #todo: this should be centralized, and not repeated in Asset and Position
 
 
 class Position:
@@ -26,7 +27,35 @@ class Position:
         The assets that are free in the portfolio. (Crypto: only)
     avg_fill_price : float
         The average fill price of the position.
+    current_price : float
+        The current price of the asset.
+    market_value : float
+        The market value of the position.
+    pnl : float
+        The profit and loss of the position.
+    pnl_percent : float
+        The profit and loss of the position as a percentage of the average fill price.
+    asset_type : str
+        The type of the asset.
+    exchange : str
+        The exchange that the position is on.
+    currency : str
+        The currency that the position is denominated in.
+    multiplier : float
+        The multiplier of the asset.
+    expiration : datetime.date
+        The expiration of the asset. (Options and futures: only). Probably better to use on position.asset
+    strike : float
+        The strike price of the asset. (Options: only). Probably better to use on position.asset
+    option_type : str
+        The type of the option. (Options: only). Probably better to use on position.asset
+    side : PositionSide
+        The side of the position (LONG or SHORT)
     """
+
+    class PositionSide(StrEnum):
+        LONG = "LONG"
+        SHORT = "SHORT"
 
     def __init__(
             self,
@@ -38,6 +67,11 @@ class Position:
             available=0,
             avg_fill_price=None
         ):
+        """Creates a position.
+
+        NOTE: There are some properties that can be assigned to a position entity outside of the constructor (pnl, current_price, etc)
+
+        """
         self.strategy = strategy
         self.asset = asset
         self.symbol = self.asset.symbol
@@ -77,7 +111,7 @@ class Position:
 
     @property
     def quantity(self):
-        result = float(self._quantity)
+        result = self._quantity_float
 
         # If result is less than 0.000001, return 0.0 to avoid rounding errors.
         if abs(result) < 0.000001:
@@ -88,6 +122,7 @@ class Position:
     @quantity.setter
     def quantity(self, value):
         self._quantity = Decimal(value)
+        self._quantity_float = float(self._quantity)
 
     @property
     def hold(self):
@@ -173,12 +208,69 @@ class Position:
         return order
 
     def add_order(self, order: entities.Order, quantity: Decimal = Decimal(0)):
-        increment = quantity if order.side == "buy" else -quantity
-        self._quantity += Decimal(increment)
+        qty = Decimal(quantity)
+
+        if order.is_buy_order():
+            increment = qty
+        elif order.is_sell_order():
+            increment = -qty
+        else:
+            increment = qty
+
+        self._quantity += increment
+        self._quantity_float = float(self._quantity)
         if order not in self.orders:
             self.orders.append(order)
 
     # ========= Serialization methods ===========
+    def to_minimal_dict(self) -> dict:
+        """
+        Return a minimal dictionary representation of the position for progress logging.
+
+        This creates a lightweight representation suitable for real-time progress updates,
+        containing only the essential fields needed to display the position.
+
+        Returns
+        -------
+        dict
+            A minimal dictionary with keys:
+            - asset: Minimal asset dict (from asset.to_minimal_dict())
+            - qty: Position quantity
+            - val: Market value (rounded to 2 decimal places)
+            - pnl: Unrealized P&L (rounded to 2 decimal places)
+
+        Example
+        -------
+        >>> position = Position(strategy="MyStrategy", asset=Asset("AAPL"), quantity=100)
+        >>> position.to_minimal_dict()
+        {'asset': {'symbol': 'AAPL', 'type': 'stock'}, 'qty': 100, 'val': 15000.00, 'pnl': 500.00}
+        """
+        # Get market value
+        market_value = 0.0
+        if hasattr(self, 'market_value') and self.market_value is not None:
+            try:
+                market_value = float(self.market_value)
+            except (TypeError, ValueError):
+                pass
+
+        # Get unrealized P&L
+        pnl = 0.0
+        if hasattr(self, 'pnl') and self.pnl is not None:
+            try:
+                pnl = float(self.pnl)
+            except (TypeError, ValueError):
+                pass
+
+        # Build minimal dict
+        result = {
+            "asset": self.asset.to_minimal_dict() if self.asset and hasattr(self.asset, 'to_minimal_dict') else {"symbol": str(self.symbol)},
+            "qty": self.quantity if self.quantity else 0,
+            "val": round(market_value, 2),
+            "pnl": round(pnl, 2),
+        }
+
+        return result
+
     def to_dict(self):
         """
         Convert position to dictionary for serialization.
@@ -223,13 +315,13 @@ class Position:
             result['currency'] = self.currency
         if hasattr(self, 'multiplier'):
             result['multiplier'] = self.multiplier
-        if hasattr(self, 'expiration'):
+        if hasattr(self, 'expiration'):  #should probably use position.asset instead
             result['expiration'] = str(self.expiration) if self.expiration else None
-        if hasattr(self, 'strike'):
+        if hasattr(self, 'strike'): #should probably use position.asset instead
             result['strike'] = float(self.strike) if self.strike else None
-        if hasattr(self, 'option_type'):
+        if hasattr(self, 'option_type'): #should probably use position.asset instead
             result['option_type'] = self.option_type
-        if hasattr(self, 'underlying_symbol'):
+        if hasattr(self, 'underlying_symbol'): #should probably use position.asset instead
             result['underlying_symbol'] = self.underlying_symbol
 
         # Handle orders carefully - ensure to_dict() is called properly

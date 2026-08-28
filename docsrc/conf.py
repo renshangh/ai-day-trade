@@ -12,6 +12,9 @@
 #
 import os
 import sys
+from datetime import date
+from pathlib import Path
+from xml.sax.saxutils import escape
 
 # Ensure the repository root is discoverable before any installed packages so
 # autodoc resolves modules from the local checkout instead of site-packages.
@@ -45,7 +48,29 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.autosummary",
     "sphinx.ext.autodoc",
+    "sphinx_llms_txt",  # Generates llms.txt and llms-full.txt for AI assistants
 ]
+
+# ============================================================================
+# sphinx-llms-txt configuration for AI discoverability
+# ============================================================================
+llms_txt_summary = """Lumibot is a Python trading and backtesting framework for stocks, options, crypto, and futures.
+It supports multiple brokers (Alpaca, Interactive Brokers, Tradier, Schwab) and data sources (Yahoo, ThetaData, Polygon).
+Lumibot also includes built-in AI trading agents, DuckDB-powered time-series analysis, replayable agent backtests, and external MCP tool support.
+
+CRITICAL RULES FOR CODE GENERATION:
+- NEVER use datetime.now() or datetime.today() - always use self.get_datetime() for backtesting compatibility
+- NEVER use 'from __future__ import annotations' - it breaks Lumibot's type checking
+- Use self.vars for persistent variables across lifecycle methods (e.g., self.vars.my_variable = value)
+- Use self.log_message() instead of print() for proper logging
+- Get current prices with self.get_last_price(asset) - returns None if unavailable
+- Submit orders with self.submit_order(order) where order = self.create_order(asset, quantity, side)
+- Access portfolio with self.portfolio_value, self.cash, self.positions
+- Implement on_trading_iteration() for main strategy logic - runs once per bar/iteration
+- For options: Use self.create_asset(symbol, asset_type=Asset.AssetType.OPTION, expiration=date, strike=price, right='call'|'put')
+- AI agents live on self.agents and should be created in initialize()
+- Use DuckDB for agent time-series analysis instead of passing large bar payloads in prompt text
+"""
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -69,14 +94,20 @@ exclude_patterns = [
 #
 html_theme = "furo"
 
+# ============================================================================
+# Freshness signals for AI discoverability
+# ============================================================================
+# Show "Last updated" on all pages (helps AI know content is fresh)
+html_last_updated_fmt = "%B %d, %Y"
+
 html_theme_options = {
     "sidebar_hide_name": True,
     "light_logo": "Lumibot_Logo.webp",
     "dark_logo": "Lumibot_Logo.webp",
     'announcement': """
-    <div class="footer-banner bg-warning text-dark p-3">
-        <h5>Need Extra Help?</h5>
-        <p>Visit <a href="https://www.lumiwealth.com/?utm_source=documentation&utm_medium=referral&utm_campaign=lumibot_footer_banner" target="_blank" class="text-dark"><strong>Lumiwealth</strong></a> for courses, community, and profitable pre-made trading bots.</p>
+    <div class="footer-banner bg-warning text-dark p-3" style="white-space: normal; line-height: 1.35;">
+        <h5>Run Lumibot Strategies on BotSpot</h5>
+        <p>Use BotSpot for Lumibot-tuned AI strategy generation, hosted backtests, broker connections, monitoring, and paper or live runs without maintaining your own server. <a href="https://botspot.trade/sales?showLogin=1&utm_source=documentation&utm_medium=site_banner&utm_campaign=lumibot&utm_content=footer_banner&prompt=I%20want%20to%20deploy%20a%20Lumibot%20trading%20strategy%20on%20BotSpot.%20Please%20help%20me%20set%20up%20hosted%20backtesting%2C%20broker%20connections%2C%20monitoring%2C%20and%20paper%20or%20live%20deployment." target="_blank" class="text-dark"><strong>Start on BotSpot.trade</strong></a>.</p>
     </div>
     """
 }
@@ -86,6 +117,56 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_html"]
 html_css_files = ["custom.css", "bootstrap/css/bootstrap.css"]
+html_js_files = ["posthog.js"]
+html_extra_path = ["_extra"]
+
+
+def _generate_sitemap() -> None:
+    """Generate sitemap.xml from the docs source tree before Sphinx copies _extra.
+
+    The previous sitemap was a small hand-written file, so Search Console only
+    discovered a few top-level pages even though the docs contain many more
+    pages. Generating it from the source files keeps Search Console aligned with
+    the docs that Sphinx actually builds.
+    """
+
+    docs_root = Path(__file__).resolve().parent
+    extra_root = docs_root / "_extra"
+    extra_root.mkdir(parents=True, exist_ok=True)
+    urls: set[str] = set()
+
+    for source in docs_root.rglob("*.rst"):
+        relative = source.relative_to(docs_root)
+        if any(part.startswith("_") for part in relative.parts):
+            continue
+        if relative.parts[0] in {"strategy_methods.account", "strategy_methods.data", "strategy_methods.orders", "strategy_properties"}:
+            continue
+        if source.name.endswith("_template.rst"):
+            continue
+        html_path = relative.with_suffix(".html").as_posix()
+        if html_path == "index.html":
+            urls.add("https://lumibot.lumiwealth.com/")
+        urls.add(f"https://lumibot.lumiwealth.com/{html_path}")
+
+    today = date.today().isoformat()
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for url in sorted(urls):
+        lines.extend(
+            [
+                "  <url>",
+                f"    <loc>{escape(url)}</loc>",
+                f"    <lastmod>{today}</lastmod>",
+                "  </url>",
+            ]
+        )
+    lines.append("</urlset>")
+    (extra_root / "sitemap.xml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+_generate_sitemap()
 
 # html_theme_options = {
 #     "announcement": """
@@ -101,10 +182,10 @@ html_css_files = ["custom.css", "bootstrap/css/bootstrap.css"]
 html_context = {
     'note': """
     <div class="important-note" style="margin-top: 20px; padding: 20px; background-color: #ffdd57; border-radius: 5px;">
-        <h3>Important!</h3>
-        <p>If you need extra help building your strategies and making them profitable, Lumiwealth has you covered. By visiting Lumiwealth, you not only learn how to use the Lumibot library but also gain access to a wealth of highly profitable algorithms.</p>
-        <p><strong>Our strategies have shown exceptional results, with some achieving over 100% annual returns and others reaching up to 1,000% in backtesting.</strong></p>
-        <p>Join our community of traders, take comprehensive courses, and access our library of profitable trading bots. Visit <a href="https://www.lumiwealth.com/?utm_source=documentation&utm_medium=referral&utm_campaign=lumibot_every_page" target="_blank">Lumiwealth</a> to learn more.</p>
+        <h3>Run Lumibot Strategies with BotSpot</h3>
+        <p>Need help turning an idea into a working Lumibot strategy? BotSpot can generate Lumibot code with framework-specific AI prompts, run supported backtests on hosted data, compare variants in parallel, connect brokers, and schedule paper or live runs.</p>
+        <p><strong>Use BotSpot when you want charts, logs, alerts, audit history, account monitoring, kill-switch controls, and broker-connected deployment without wiring infrastructure yourself.</strong></p>
+        <p><a href="https://botspot.trade/sales?showLogin=1&utm_source=documentation&utm_medium=site_note&utm_campaign=lumibot&utm_content=every_page_note&prompt=I%20want%20to%20deploy%20a%20Lumibot%20trading%20strategy%20on%20BotSpot.%20Please%20help%20me%20set%20up%20hosted%20backtesting%2C%20broker%20connections%2C%20monitoring%2C%20and%20paper%20or%20live%20deployment." target="_blank">Start on BotSpot.trade</a>.</p>
     </div>
     """
 }

@@ -9,37 +9,125 @@
 import os
 import sys
 
-from .brokers import Alpaca, Ccxt, InteractiveBrokers, InteractiveBrokersREST, Tradier, Tradovate, Schwab, Bitunix, ProjectX
-from dotenv import load_dotenv
 import termcolor
-from dateutil import parser
+
+from lumibot.tools.lumibot_logger import get_logger
 
 # Configure logging
-from lumibot.tools.lumibot_logger import get_logger
 logger = get_logger(__name__)
+_LOAD_DOTENV = None
+_DATEUTIL_PARSER = None
+
+
+def _load_dotenv(dotenv_path, *, override=False):
+    global _LOAD_DOTENV
+    if _LOAD_DOTENV is None:
+        from dotenv import load_dotenv
+
+        _LOAD_DOTENV = load_dotenv
+    return _LOAD_DOTENV(dotenv_path, override=override)
+
+
+def _parse_datetime(value):
+    global _DATEUTIL_PARSER
+    if _DATEUTIL_PARSER is None:
+        from dateutil import parser
+
+        _DATEUTIL_PARSER = parser
+    return _DATEUTIL_PARSER.parse(value)
+
+
+def _broker_class(name: str):
+    from . import brokers
+
+    return getattr(brokers, name)
+
+
+_BROKER_CLASS_NAMES = {
+    "Alpaca",
+    "Ccxt",
+    "InteractiveBrokers",
+    "InteractiveBrokersREST",
+    "Tradier",
+    "Tradovate",
+    "Schwab",
+    "Bitunix",
+    "ProjectX",
+}
+
+
+def __getattr__(name: str):
+    if name in _BROKER_CLASS_NAMES:
+        cls = _broker_class(name)
+        globals()[name] = cls
+        return cls
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _env_flag_enabled(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _quiet_backtest_logs_requested() -> bool:
+    return _env_flag_enabled("BACKTESTING_QUIET_LOGS")
+
+
+def _disable_dotenv_local_requested() -> bool:
+    return _env_flag_enabled("LUMIBOT_DISABLE_DOTENV_LOCAL")
 
 
 def find_and_load_dotenv(base_dir) -> bool:
-    for root, dirs, files in os.walk(base_dir):
-        logger.debug(f"Checking {root} for .env file")
-        if '.env' in files:
-            dotenv_path = os.path.join(root, '.env')
-            load_dotenv(dotenv_path)
+    current = os.path.abspath(base_dir)
+    if os.path.isfile(current):
+        current = os.path.dirname(current)
 
-            # Create a colored message for the log using termcolor
+    while True:
+        logger.debug(f"Checking {current} for .env file")
+        dotenv_path = os.path.join(current, ".env")
+        if os.path.isfile(dotenv_path):
+            _load_dotenv(dotenv_path)
+
             colored_message = termcolor.colored(f".env file loaded from: {dotenv_path}", "green")
-            logger.info(colored_message)
+            if _quiet_backtest_logs_requested():
+                logger.debug(colored_message)
+            else:
+                logger.info(colored_message)
+
+            # Optional local override file. This is intentionally loaded *after* `.env` so it can
+            # override settings without requiring edits to the primary file (which may contain
+            # shared or sensitive values).
+            dotenv_local_path = os.path.join(current, ".env.local")
+            if not _disable_dotenv_local_requested() and os.path.isfile(dotenv_local_path):
+                _load_dotenv(dotenv_local_path, override=True)
+                colored_message = termcolor.colored(f".env.local file loaded from: {dotenv_local_path}", "green")
+                if _quiet_backtest_logs_requested():
+                    logger.debug(colored_message)
+                else:
+                    logger.info(colored_message)
             return True
 
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        current = parent
     return False
 
 
 # Get the directory of the original script being run
 script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 logger.debug(f"script_dir: {script_dir}")
-found_dotenv = find_and_load_dotenv(script_dir)
+_disable_dotenv = _env_flag_enabled("LUMIBOT_DISABLE_DOTENV")
 
-if not found_dotenv:
+if _disable_dotenv:
+    # In production backtests we should rely on injected environment variables rather than scanning
+    # large directory trees for `.env` files. Recursive scanning can add seconds of startup latency and,
+    # worse, can accidentally load an unrelated `.env` if the working directory contains nested repos.
+    logger.debug("Skipping .env discovery because LUMIBOT_DISABLE_DOTENV is set.")
+    found_dotenv = False
+else:
+    found_dotenv = find_and_load_dotenv(script_dir)
+
+if not found_dotenv and not _disable_dotenv:
     # Get the root directory of the project
     cwd_dir = os.getcwd()
     logger.debug(f"cwd_dir: {cwd_dir}")
@@ -48,8 +136,11 @@ if not found_dotenv:
 # If no .env file was found, print a warning message
 if not found_dotenv:
     # Create a colored message for the log using termcolor
-    colored_message = termcolor.colored("No .env file found. This is ok if you are using environment variables or secrets (like on Replit, AWS, etc), but if you are not, please create a .env file in the root directory of the project.", "yellow")
-    logger.warning(colored_message)
+    colored_message = termcolor.colored(
+        "No .env file found. This is expected when relying on environment variables or external secrets.",
+        "blue",
+    )
+    logger.debug(colored_message)
 
 # dotenv.load_dotenv()
 broker=None
@@ -73,10 +164,39 @@ backtesting_end = os.environ.get("BACKTESTING_END")
 # Check if the dates are not None and not empty strings before parsing
 BACKTESTING_START = None
 if backtesting_start:
-    BACKTESTING_START = parser.parse(backtesting_start)
+    BACKTESTING_START = _parse_datetime(backtesting_start)
 BACKTESTING_END = None
 if backtesting_end:
-    BACKTESTING_END = parser.parse(backtesting_end)
+    BACKTESTING_END = _parse_datetime(backtesting_end)
+
+# Get the backtesting data source
+BACKTESTING_DATA_SOURCE = os.environ.get("BACKTESTING_DATA_SOURCE", "ThetaData")
+
+# Get backtesting parameters override (JSON string -> dict)
+# Allows injecting strategy parameters via environment variable without code changes.
+# Example: BACKTESTING_PARAMETERS='{"symbol": "AAPL", "quantity": 10}'
+BACKTESTING_PARAMETERS = None
+_bt_params_raw = os.environ.get("BACKTESTING_PARAMETERS")
+if _bt_params_raw is not None:
+    _bt_params_raw = _bt_params_raw.strip()
+    if _bt_params_raw and _bt_params_raw.lower() not in ("none", "null", "{}"):
+        try:
+            import json as _json
+            _parsed_params = _json.loads(_bt_params_raw)
+            if isinstance(_parsed_params, dict):
+                BACKTESTING_PARAMETERS = _parsed_params
+            else:
+                colored_message = termcolor.colored(
+                    f"BACKTESTING_PARAMETERS must be a JSON object/dict, got {type(_parsed_params).__name__}. Ignoring.",
+                    "yellow",
+                )
+                logger.warning(colored_message)
+        except Exception as _e:
+            colored_message = termcolor.colored(
+                f"Failed to parse BACKTESTING_PARAMETERS: {_e}. Expected valid JSON dict. Ignoring.",
+                "yellow",
+            )
+            logger.warning(colored_message)
 
 # Check if we should hide trades
 hide_trades = os.environ.get("HIDE_TRADES")
@@ -179,6 +299,19 @@ DATABENTO_CONFIG = {
     "MAX_RETRIES": int(os.environ.get("DATABENTO_MAX_RETRIES", "3")),
 }
 
+# Remote cache configuration (disabled by default)
+CACHE_REMOTE_CONFIG = {
+    "backend": os.environ.get("LUMIBOT_CACHE_BACKEND", "local"),
+    "mode": os.environ.get("LUMIBOT_CACHE_MODE", "disabled"),
+    "s3_bucket": os.environ.get("LUMIBOT_CACHE_S3_BUCKET"),
+    "s3_prefix": os.environ.get("LUMIBOT_CACHE_S3_PREFIX", ""),
+    "s3_region": os.environ.get("LUMIBOT_CACHE_S3_REGION"),
+    "s3_access_key_id": os.environ.get("LUMIBOT_CACHE_S3_ACCESS_KEY_ID"),
+    "s3_secret_access_key": os.environ.get("LUMIBOT_CACHE_S3_SECRET_ACCESS_KEY"),
+    "s3_session_token": os.environ.get("LUMIBOT_CACHE_S3_SESSION_TOKEN"),
+    "s3_version": os.environ.get("LUMIBOT_CACHE_S3_VERSION", "v1"),
+}
+
 # Alpaca Configuration
 ALPACA_CONFIG = {
     # Add ALPACA_API_KEY, ALPACA_API_SECRET, ALPACA_OAUTH_TOKEN, and ALPACA_IS_PAPER to your .env file or set them as secrets
@@ -206,8 +339,9 @@ ALPACA_TEST_CONFIG = {  # Paper trading!
 
 # Tradier Configuration
 TRADIER_CONFIG = {
-    # Add TRADIER_ACCESS_TOKEN, TRADIER_ACCOUNT_NUMBER, and TRADIER_IS_PAPER to your .env file or set them as secrets
-    "ACCESS_TOKEN": os.environ.get("TRADIER_ACCESS_TOKEN"),
+    # Add TRADIER_ACCESS_TOKEN (or TRADIER_API_KEY), TRADIER_ACCOUNT_NUMBER, and TRADIER_IS_PAPER to your
+    # .env file or set them as secrets.
+    "ACCESS_TOKEN": os.environ.get("TRADIER_ACCESS_TOKEN") or os.environ.get("TRADIER_API_KEY"),
     "ACCOUNT_NUMBER": os.environ.get("TRADIER_ACCOUNT_NUMBER"),
     "PAPER": os.environ.get("TRADIER_IS_PAPER").lower() == "true"
     if os.environ.get("TRADIER_IS_PAPER")
@@ -216,8 +350,9 @@ TRADIER_CONFIG = {
 
 # Tradier test configuration for unit tests
 TRADIER_TEST_CONFIG = {
-    # Add TRADIER_TEST_ACCESS_TOKEN and TRADIER_TEST_ACCOUNT_NUMBER to your .env file or set them as secrets
-    "ACCESS_TOKEN": os.environ.get("TRADIER_TEST_ACCESS_TOKEN"),
+    # Add TRADIER_TEST_ACCESS_TOKEN (or TRADIER_TEST_API_KEY) and TRADIER_TEST_ACCOUNT_NUMBER to your .env file
+    # or set them as secrets.
+    "ACCESS_TOKEN": os.environ.get("TRADIER_TEST_ACCESS_TOKEN") or os.environ.get("TRADIER_TEST_API_KEY"),
     "ACCOUNT_NUMBER": os.environ.get("TRADIER_TEST_ACCOUNT_NUMBER"),
     "PAPER": True
 }
@@ -241,6 +376,19 @@ COINBASE_CONFIG = {
     "password": os.environ.get("COINBASE_API_PASSPHRASE"),   # Passphrase if required
     "margin": False,
     "sandbox": os.environ.get("COINBASE_SANDBOX", "false").lower() == "true",
+}
+
+# WEEX Configuration (spot trading only — WEEX is primarily a futures exchange,
+# but perpetual-swap support is not implemented in the shared Ccxt broker today).
+# WEEX requires three credentials (apiKey + secret + passphrase) and has no sandbox.
+# NOTE: WEEX's Terms of Use exclude US and Canadian residents.
+WEEX_CONFIG = {
+    "exchange_id": "weex",
+    "apiKey":   os.environ.get("WEEX_API_KEY"),
+    "secret":   os.environ.get("WEEX_API_SECRET"),
+    "password": os.environ.get("WEEX_API_PASSPHRASE"),  # mandatory passphrase
+    "margin": False,
+    "sandbox": False,  # WEEX has no public API sandbox
 }
 
 # Interactive Brokers Configuration
@@ -402,25 +550,27 @@ if not is_backtesting or is_backtesting.lower() == "false":
     if trading_broker_name:
         # Create broker instance based on explicitly specified name
         if trading_broker_name.lower() == "alpaca":
-            broker = Alpaca(ALPACA_CONFIG)
+            broker = _broker_class("Alpaca")(ALPACA_CONFIG)
         elif trading_broker_name.lower() == "tradier":
-            broker = Tradier(TRADIER_CONFIG)
+            broker = _broker_class("Tradier")(TRADIER_CONFIG)
         elif trading_broker_name.lower() == "ccxt":
-            broker = Ccxt(COINBASE_CONFIG)
+            broker = _broker_class("Ccxt")(COINBASE_CONFIG)
         elif trading_broker_name.lower() == "coinbase":
-            broker = Ccxt(COINBASE_CONFIG)
+            broker = _broker_class("Ccxt")(COINBASE_CONFIG)
         elif trading_broker_name.lower() == "kraken":
-            broker = Ccxt(KRAKEN_CONFIG)
+            broker = _broker_class("Ccxt")(KRAKEN_CONFIG)
+        elif trading_broker_name.lower() == "weex":
+            broker = _broker_class("Ccxt")(WEEX_CONFIG)
         elif trading_broker_name.lower() == "ib" or trading_broker_name.lower() == "interactivebrokers":
-            broker = InteractiveBrokers(INTERACTIVE_BROKERS_CONFIG)
+            broker = _broker_class("InteractiveBrokers")(INTERACTIVE_BROKERS_CONFIG)
         elif trading_broker_name.lower() == "ibrest" or trading_broker_name.lower() == "interactivebrokersrest":
-            broker = InteractiveBrokersREST(INTERACTIVE_BROKERS_REST_CONFIG)
+            broker = _broker_class("InteractiveBrokersREST")(INTERACTIVE_BROKERS_REST_CONFIG)
         elif trading_broker_name.lower() == "tradovate":
-            broker = Tradovate(TRADOVATE_CONFIG)
+            broker = _broker_class("Tradovate")(TRADOVATE_CONFIG)
         elif trading_broker_name.lower() == "schwab":
-            broker = Schwab(SCHWAB_CONFIG)
+            broker = _broker_class("Schwab")(SCHWAB_CONFIG)
         elif trading_broker_name.lower() == "bitunix":
-            broker = Bitunix(BITUNIX_CONFIG)
+            broker = _broker_class("Bitunix")(BITUNIX_CONFIG)
         elif trading_broker_name.lower() == "projectx":
             try:
                 # Get specified firm or use auto-detection
@@ -432,7 +582,7 @@ if not is_backtesting or is_backtesting.lower() == "false":
                 
                 from .data_sources import ProjectXData
                 data_source = ProjectXData(config)
-                broker = ProjectX(config, data_source=data_source)
+                broker = _broker_class("ProjectX")(config, data_source=data_source)
             except Exception as e:
                 colored_message = termcolor.colored(f"Failed to initialize ProjectX broker: {e}", "red")
                 logger.error(colored_message)
@@ -478,7 +628,7 @@ if not is_backtesting or is_backtesting.lower() == "false":
                 
                 from .data_sources import ProjectXData
                 data_source = ProjectXData(config)
-                broker = ProjectX(config, data_source=data_source)
+                broker = _broker_class("ProjectX")(config, data_source=data_source)
             except Exception as e:
                 colored_message = termcolor.colored(f"Failed to initialize ProjectX broker {trading_broker_name}: {e}", "red")
                 logger.error(colored_message)
@@ -489,7 +639,7 @@ if not is_backtesting or is_backtesting.lower() == "false":
         # Auto-detect broker based on available credentials if not explicitly specified
         if ALPACA_CONFIG["API_KEY"] or ALPACA_CONFIG["OAUTH_TOKEN"]:
             try:
-                broker = Alpaca(ALPACA_CONFIG)
+                broker = _broker_class("Alpaca")(ALPACA_CONFIG)
             except ValueError as e:
                 # If Alpaca initialization fails due to missing credentials, skip it
                 if "Either OAuth token or API key/secret must be provided" in str(e):
@@ -497,14 +647,14 @@ if not is_backtesting or is_backtesting.lower() == "false":
                 else:
                     raise e
         elif TRADIER_CONFIG["ACCESS_TOKEN"]:
-            broker = Tradier(TRADIER_CONFIG)
+            broker = _broker_class("Tradier")(TRADIER_CONFIG)
         elif INTERACTIVE_BROKERS_CONFIG["CLIENT_ID"]:
-            broker = InteractiveBrokers(INTERACTIVE_BROKERS_CONFIG)
+            broker = _broker_class("InteractiveBrokers")(INTERACTIVE_BROKERS_CONFIG)
         elif INTERACTIVE_BROKERS_REST_CONFIG["IB_USERNAME"]:
-            broker = InteractiveBrokersREST(INTERACTIVE_BROKERS_REST_CONFIG)
+            broker = _broker_class("InteractiveBrokersREST")(INTERACTIVE_BROKERS_REST_CONFIG)
         elif TRADOVATE_CONFIG["USERNAME"]:
             try:
-                broker = Tradovate(TRADOVATE_CONFIG)
+                broker = _broker_class("Tradovate")(TRADOVATE_CONFIG)
             except Exception as e:
                 # Handle rate limiting and other connection errors gracefully
                 error_str = str(e)
@@ -520,13 +670,15 @@ if not is_backtesting or is_backtesting.lower() == "false":
                     raise
         # Only check for SCHWAB_ACCOUNT_NUMBER to select Schwab
         elif SCHWAB_CONFIG.get("SCHWAB_ACCOUNT_NUMBER"):
-            broker = Schwab(SCHWAB_CONFIG)
+            broker = _broker_class("Schwab")(SCHWAB_CONFIG)
         elif COINBASE_CONFIG["apiKey"]:
-            broker = Ccxt(COINBASE_CONFIG)
+            broker = _broker_class("Ccxt")(COINBASE_CONFIG)
         elif KRAKEN_CONFIG["apiKey"]:
-            broker = Ccxt(KRAKEN_CONFIG)
+            broker = _broker_class("Ccxt")(KRAKEN_CONFIG)
+        elif WEEX_CONFIG["apiKey"] and WEEX_CONFIG["secret"] and WEEX_CONFIG["password"]:
+            broker = _broker_class("Ccxt")(WEEX_CONFIG)
         elif BITUNIX_CONFIG["API_KEY"] and BITUNIX_CONFIG["API_SECRET"]:
-            broker = Bitunix(BITUNIX_CONFIG)
+            broker = _broker_class("Bitunix")(BITUNIX_CONFIG)
         elif get_available_projectx_firms():
             try:
                 # Use first available ProjectX firm
@@ -536,7 +688,7 @@ if not is_backtesting or is_backtesting.lower() == "false":
                 if config.get("api_key") and config.get("username"):
                     from .data_sources import ProjectXData
                     data_source = ProjectXData(config)
-                    broker = ProjectX(config, data_source=data_source)
+                    broker = _broker_class("ProjectX")(config, data_source=data_source)
             except Exception as e:
                 colored_message = termcolor.colored(f"Failed to initialize ProjectX broker: {e}", "red")
                 logger.error(colored_message)
@@ -560,6 +712,9 @@ if not is_backtesting or is_backtesting.lower() == "false":
             elif data_source_name.lower() == "kraken":
                 from .data_sources import CcxtData
                 data_source = CcxtData(KRAKEN_CONFIG)
+            elif data_source_name.lower() == "weex":
+                from .data_sources import CcxtData
+                data_source = CcxtData(WEEX_CONFIG)
             elif data_source_name.lower() == "ib" or data_source_name.lower() == "interactivebrokers":
                 from .data_sources import InteractiveBrokersData
                 data_source = InteractiveBrokersData(INTERACTIVE_BROKERS_CONFIG)

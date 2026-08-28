@@ -1,0 +1,575 @@
+/* Trading desk dashboard.
+   Palette per the dataviz reference instance; series slots validated with
+   scripts/validate_palette.js against both surfaces below.
+     dark  surface #12161c -> ALL CHECKS PASS (4 slots)
+     light surface #fcfcfb -> PASS with contrast WARN on slots 3/4, which
+       obligates the relief rule: visible direct labels + a table view. Both ship. */
+
+:root {
+  color-scheme: dark;
+
+  --surface-1: #12161c;   /* chart surface */
+  --surface-2: #171c24;   /* card */
+  --surface-3: #1e242e;   /* raised / hover */
+  --page: #0c0f14;
+
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+
+  --grid: #222831;
+  --axis: #383f4a;
+  --border: rgba(255, 255, 255, 0.10);
+
+  --series-1: #3987e5;    /* SMA 20  / MACD line */
+  --series-2: #d95926;    /* SMA 50  / signal line */
+  --series-3: #199e70;    /* SMA 200 */
+  --series-4: #c98500;    /* VWAP 20 */
+  --series-5: #d55181;    /* support / resistance levels */
+
+  --up: #0ca30c;
+  --down: #d03b3b;
+  --warning: #fab219;
+
+  --band: rgba(57, 135, 229, 0.10);   /* Bollinger fill */
+  --band-line: rgba(57, 135, 229, 0.45);
+
+  --radius: 8px;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --surface-1: #fcfcfb;
+  --surface-2: #ffffff;
+  --surface-3: #f2f1ed;
+  --page: #f9f9f7;
+
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #6f6d68;
+
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+
+  --up: #0ca30c;
+  --down: #d03b3b;
+
+  --band: rgba(42, 120, 214, 0.10);
+  --band-line: rgba(42, 120, 214, 0.45);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---------------------------------------------------------------- header */
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+h1 {
+  font-size: 16px;
+  font-weight: 650;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.spacer { flex: 1; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.symbol-search {
+  display: flex;
+  gap: 6px;
+}
+.symbol-search input {
+  width: 150px;
+  font-family: inherit;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+}
+.symbol-search input::placeholder { color: var(--text-muted); text-transform: none; }
+.symbol-search input:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 1px;
+}
+.symbol-search button {
+  background: var(--series-1);
+  border-color: var(--series-1);
+  color: #fff;
+}
+.symbol-search button:hover { background: var(--series-1); opacity: 0.88; }
+
+button {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+button:hover { background: var(--surface-1); color: var(--text-primary); }
+button:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+
+/* Header link styled to sit alongside the buttons without impersonating one --
+   it navigates off-site, so it stays an <a> and keeps the ↗ affordance. */
+.ext-link {
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 11px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+.ext-link:hover { background: var(--surface-1); color: var(--text-primary); }
+.ext-link:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+button[aria-pressed="true"], button.active {
+  background: var(--series-1);
+  border-color: var(--series-1);
+  color: #fff;
+}
+
+main { padding: 20px; max-width: 1500px; margin: 0 auto; }
+
+/* ------------------------------------------------------------ filter row */
+/* One filter row above everything it scopes -- never inside a chart card. */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.filters .label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tabs { display: flex; gap: 4px; }
+
+/* ----------------------------------------------------------------- cards */
+.card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+
+.card h2 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 2px;
+  color: var(--text-primary);
+}
+.card .sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+}
+
+/* ------------------------------------------------------------ hero strip */
+.hero { display: flex; align-items: flex-start; gap: 28px; flex-wrap: wrap; }
+.hero .lede { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.hero .group-name { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; margin: 2px 0 0; }
+.hero .kind {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  vertical-align: 3px;
+  margin-left: 8px;
+  letter-spacing: 0.02em;
+}
+.stat { min-width: 96px; }
+.stat .k { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+/* Proportional figures on hero/stat values -- tabular-nums only in aligned columns. */
+.stat .v { font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
+
+.pos { color: var(--up); }
+.neg { color: var(--down); }
+
+/* --------------------------------------------------------- ranking chart */
+.rank-row {
+  display: grid;
+  /* Value column fits the reversal view's two figures ("76% · +4.22%"). */
+  grid-template-columns: 190px 1fr 152px;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 0;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.rank-row:hover { background: var(--surface-3); }
+.rank-row:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+.rank-row .name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rank-row.leader .name { color: var(--text-primary); font-weight: 600; }
+.rank-row .bar-track { position: relative; height: 15px; }
+.rank-row .bar {
+  position: absolute;
+  top: 2px;
+  height: 11px;
+  border-radius: 3px;
+  background: var(--axis);
+}
+.rank-row.leader .bar { background: var(--series-1); }
+.rank-row .val {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-secondary);
+}
+.rank-row.leader .val { color: var(--text-primary); font-weight: 600; }
+.zero-rule { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--axis); }
+
+/* ----------------------------------------------------------- stock cards */
+.leaders { display: grid; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); gap: 12px; }
+.stock-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px 15px;
+  cursor: pointer;
+  transition: border-color 0.12s, transform 0.12s;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+}
+.stock-card:hover { border-color: var(--series-1); transform: translateY(-1px); }
+.stock-card:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+.stock-card.selected { border-color: var(--series-1); box-shadow: inset 0 0 0 1px var(--series-1); }
+.stock-card .rankno { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.stock-card .sym { font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
+.stock-card .ret { font-size: 17px; font-weight: 600; font-family: var(--mono); }
+.stock-card .px { font-size: 12px; color: var(--text-muted); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+/* Reversal cards carry two extra facts the momentum cards don't need: how far
+   the name fell before today, and whether today's bounce came on real volume. */
+.stock-card .rev-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.stock-card .rev-meta b { font-weight: 600; }
+
+.stock-card .spark { display: block; }
+/* The headline % is the lookback return; the sparkline is a 30-day trend, so
+   the two can disagree in sign. Label it rather than let the colors argue. */
+.stock-card .spark-cap {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 9px;
+}
+
+/* --------------------------------------------------------- detail charts */
+.detail-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.detail-head .sym { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; }
+.detail-head .px { font-family: var(--mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+
+.toggles { display: flex; gap: 5px; flex-wrap: wrap; }
+.toggles button { font-size: 12px; padding: 3px 9px; display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+
+.chart-wrap { position: relative; }
+/* Container grows with content so the x-axis band is never clipped into a
+   nested scrollbar. */
+canvas { display: block; width: 100%; touch-action: none; }
+canvas:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 11px;
+  font-size: 12px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.1s;
+  white-space: nowrap;
+  max-width: 260px;
+}
+.tooltip.on { opacity: 1; }
+.tooltip .t-date { color: var(--text-primary); font-weight: 600; margin-bottom: 5px; }
+.tooltip .t-row { display: flex; justify-content: space-between; gap: 14px; }
+.tooltip .t-row .k { color: var(--text-muted); }
+.tooltip .t-row .v { color: var(--text-primary); }
+.tooltip .t-sep { height: 1px; background: var(--border); margin: 5px 0; }
+
+/* ------------------------------------------------------------ table view */
+.table-wrap { overflow-x: auto; margin-top: 4px; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th, td {
+  text-align: right;
+  padding: 5px 9px;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+th {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-family: var(--sans);
+  position: sticky;
+  top: 0;
+  background: var(--surface-2);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+th:first-child, td:first-child { text-align: left; }
+tbody tr:hover { background: var(--surface-3); }
+
+/* Ranking-table rows are pickers for the Top 5 strip, same as the bar chart. */
+/* Earnings calendar rows. A held name must be findable at a glance, and does not
+   rely on colour alone -- the HELD tag is text as well as a left rule. */
+tr.earn-row { cursor: pointer; }
+tr.earn-row:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+tr.earn-row.held td { background: var(--surface-3); }
+tr.earn-row.held td:first-child { box-shadow: inset 3px 0 0 var(--down); font-weight: 600; }
+.tag-held {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--down);
+  color: var(--down);
+  vertical-align: 1px;
+}
+
+tr.pick-row { cursor: pointer; }
+tr.pick-row:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+tr.pick-row.selected td { background: var(--surface-3); color: var(--text-primary); }
+/* A left rule marks the selection, so it does not rely on the fill alone. */
+tr.pick-row.selected td:first-child { box-shadow: inset 3px 0 0 var(--series-1); font-weight: 600; }
+
+/* ------------------------------------------------------- company detail */
+.sub-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 20px 0 8px;
+}
+.sub-head .hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+.stat-box {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+}
+.stat-box .k {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.stat-box .v { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin-top: 2px; }
+.stat-box .n { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
+.stat-box .v.na { font-size: 15px; color: var(--text-muted); font-weight: 500; }
+
+/* 52-week range track */
+.range-track {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  margin: 9px 0 5px;
+}
+.range-track .mark {
+  position: absolute;
+  top: -3px;
+  width: 3px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--series-1);
+  transform: translateX(-1.5px);
+}
+.range-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+/* news */
+.news-item {
+  display: block;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+}
+.news-item:last-child { border-bottom: none; }
+.news-item:hover .h { color: var(--series-1); }
+.news-item:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+.news-item .h { font-size: 13px; line-height: 1.4; color: var(--text-primary); }
+.news-item .m { font-size: 11px; color: var(--text-muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.news-item .m .tag {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0 6px;
+  margin-left: 6px;
+}
+
+/* research links */
+.linkrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.linkchip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  text-decoration: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  transition: border-color 0.12s;
+}
+.linkchip:hover { border-color: var(--series-1); }
+.linkchip:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+.linkchip .n { font-size: 11px; color: var(--text-muted); }
+
+/* ---------------------------------------------------------------- states */
+.notice {
+  padding: 10px 13px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.notice.warn { border-color: var(--warning); color: var(--text-secondary); }
+.notice.err { border-color: var(--down); color: var(--text-secondary); }
+.notice .ico { flex: none; }
+
+.loading { color: var(--text-muted); font-size: 13px; padding: 26px 0; text-align: center; }
+/* Hold the previous render at reduced opacity on refetch -- no skeleton flash. */
+.refetching { opacity: 0.55; transition: opacity 0.15s; }
+
+.legend { display: flex; gap: 15px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); margin: 2px 0 10px; }
+.legend .item { display: inline-flex; align-items: center; gap: 6px; }
+.legend .line { width: 15px; height: 2px; border-radius: 1px; }
+/* Match the on-chart dash pattern so the legend keys read unambiguously:
+   long dash = resistance, fine dot = support. */
+.legend .line.dash-r {
+  background: none !important;
+  height: 0;
+  border-top: 2px dashed var(--series-5);
+}
+.legend .line.dash-s {
+  background: none !important;
+  height: 0;
+  border-top: 2px dotted var(--series-5);
+}
+
+.hidden { display: none !important; }
+
+@media (max-width: 720px) {
+  .rank-row { grid-template-columns: 100px 1fr 116px; }
+  .hero { gap: 18px; }
+  main { padding: 14px; }
+}
+
+/* A print landing today is the one row that must jump out. */
+tr.earn-row.today td { background: color-mix(in srgb, var(--warning) 12%, transparent); }
+tr.earn-row.today td:first-child { box-shadow: inset 3px 0 0 var(--warning); font-weight: 600; }
+.tag-today {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  vertical-align: 1px;
+}

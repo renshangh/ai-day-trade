@@ -4,7 +4,8 @@ that can cause DynamoDB 400KB limit errors.
 """
 import unittest
 from decimal import Decimal
-from lumibot.entities import Order, Asset
+
+from lumibot.entities import Asset, Order, SmartLimitConfig, SmartLimitPreset, TradingSlippage
 
 
 class TestOrderSerialization(unittest.TestCase):
@@ -84,6 +85,35 @@ class TestOrderSerialization(unittest.TestCase):
         self.assertNotIn("X" * 100, json_str, "Large _bars data should not be in output")
         self.assertNotIn("Y" * 100, json_str, "Large _raw data should not be in output")
         self.assertNotIn("transaction", json_str, "Transactions should not be in output")
+
+    def test_smart_limit_config_roundtrip(self):
+        """SmartLimitConfig should serialize cleanly for DynamoDB payloads."""
+        config = SmartLimitConfig(
+            preset=SmartLimitPreset.FAST,
+            slippage=TradingSlippage(amount=0.1),
+            final_price_pct=1.0,
+        )
+        payload = config.to_dict()
+        rebuilt = SmartLimitConfig.from_dict(payload)
+        self.assertEqual(rebuilt.preset, SmartLimitPreset.FAST)
+        self.assertAlmostEqual(rebuilt.get_slippage_amount(), 0.1)
+
+    def test_order_serialization_includes_smart_limit(self):
+        """Order serialization should preserve smart_limit config fields."""
+        config = SmartLimitConfig(preset=SmartLimitPreset.NORMAL, slippage=0.05)
+        order = Order(
+            strategy="test_strategy",
+            asset=self.asset,
+            quantity=1,
+            side="buy",
+            order_type=Order.OrderType.SMART_LIMIT,
+            smart_limit=config,
+        )
+        payload = order.to_dict()
+        self.assertIn("smart_limit", payload)
+        self.assertEqual(payload["smart_limit"]["preset"], "normal")
+        minimal = order.to_minimal_dict()
+        self.assertEqual(minimal["smart_limit"]["preset"], "normal")
 
 
 if __name__ == '__main__':
