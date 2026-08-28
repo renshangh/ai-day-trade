@@ -66,10 +66,22 @@ No `--port` needed: the server binds the port its **branch** owns.
 | `dev` and every topic branch | **8799** | <http://localhost:8799> |
 
 The branch is read from `.git/HEAD` (one file read, no subprocess, works when
-git is not on PATH, and follows the `gitdir:` pointer used by worktrees).
-`BRANCH_PORTS` in `server.py` is the single source of truth; `.claude/launch.json`
-and `Launch Trading Desk.command` are asserted against it by
-`tests/test_ports.py`, so the three cannot drift apart.
+git is not on PATH, follows the `gitdir:` pointer used by worktrees, and degrades
+to "unknown" on a corrupted HEAD rather than refusing to start).
+
+`BRANCH_PORTS` in `server.py` is the single source of truth. The shell launcher
+does not restate it — it asks:
+
+```bash
+python3 trading_desk/server.py --print-port   # prints this branch's port, exits
+```
+
+That matters beyond tidiness: the launcher used to detect the branch with
+`git rev-parse`, a second mechanism that disagrees with the server's whenever git
+is missing from PATH — the exact case `.git/HEAD` parsing exists to handle.
+`.claude/launch.json` still names its ports (the preview needs the URL up front)
+and `tests/test_ports.py` asserts they match, including that no config
+reintroduces `autoPort` and that the launcher has not gone back to scanning.
 
 Precedence, most explicit first: `--port`, then the `PORT` env var (set by the
 preview launcher), then the branch's port.
@@ -92,6 +104,26 @@ ERROR: cannot bind 127.0.0.1:8799 (branch default) -- [Errno 48] Address already
 
 A topic branch shares dev's port on purpose. Giving each one its own would
 recreate exactly the drift this removes.
+
+### "Already running" is not the same as "running your code"
+
+Pinning the port stops a *new* server landing somewhere unexpected. It does
+nothing about an **old** server already holding the right port — and a stale
+server answers `/api/health` perfectly well, which is precisely how a build from
+before a change kept serving the URL you were refreshing.
+
+So `/api/health` reports the branch the process was started from:
+
+```json
+{ "ok": true, "branch": "dev", "port": 8799, "feed": "sip", ... }
+```
+
+and the launcher compares that against the checked-out branch. Same branch, it
+opens it. Different branch, it stops and tells you which one is running and how
+to kill it, rather than opening a dashboard that does not match your code.
+
+This does not catch a server started from the *same* branch before a commit — for
+that, restart after touching `server.py`. Python routes load once at startup.
 
 **Running `main` and `dev` at the same time** needs two working trees, since one
 checkout is on one branch at a time:
@@ -508,7 +540,7 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
 | `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
-| `tests/test_ports.py` | Per-branch port mapping, HEAD parsing, launcher agreement |
+| `tests/test_ports.py` | Per-branch port mapping, HEAD parsing, launcher agreement, stale-server detection |
 
 ## Tests
 

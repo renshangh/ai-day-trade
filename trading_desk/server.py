@@ -58,6 +58,10 @@ CACHE_PATH = HERE / "cache.json"
 # board runs on daily bars, where a 15-minute-old cutoff is worth nothing during
 # a session and nothing at all outside one, so SIP is the better trade. We probe
 # once at startup and fall back to IEX if SIP is not permitted.
+SIP_DELAY_MINUTES = 16
+FEED = "iex"
+FEED_NOTE = "not yet resolved"
+
 # --- Port assignment -------------------------------------------------------
 #
 # One fixed port per branch, so the URL is predictable and two branches' servers
@@ -72,10 +76,6 @@ CACHE_PATH = HERE / "cache.json"
 # recreate the drift this exists to remove.
 BRANCH_PORTS = {"main": 8800, "dev": 8799}
 DEV_PORT = BRANCH_PORTS["dev"]
-
-SIP_DELAY_MINUTES = 16
-FEED = "iex"
-FEED_NOTE = "not yet resolved"
 
 BOARD_TTL = 300  # seconds
 STOCK_TTL = 300
@@ -165,7 +165,7 @@ def current_branch() -> str | None:
     git_path = REPO_ROOT / ".git"
     try:
         if git_path.is_file():
-            line = git_path.read_text(encoding="utf-8").strip()
+            line = git_path.read_text(encoding="utf-8", errors="replace").strip()
             if not line.startswith("gitdir:"):
                 return None
             git_dir = Path(line.split(":", 1)[1].strip())
@@ -174,7 +174,10 @@ def current_branch() -> str | None:
         else:
             git_dir = git_path
         head = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
-    except OSError:
+    except (OSError, UnicodeDecodeError):
+        # A truncated or corrupted HEAD (an interrupted `git switch`, a
+        # filesystem fault) must degrade to "unknown branch", not take the whole
+        # dashboard down before it binds.
         return None
     if not head.startswith("ref:"):
         return None          # detached HEAD -- a bare SHA, not a branch
@@ -1295,6 +1298,12 @@ class Handler(BaseHTTPRequestHandler):
             self._json(
                 {
                     "ok": True,
+                    # The branch this process was started from. A stale server
+                    # answers /api/health perfectly well -- that is exactly how
+                    # an old build kept serving the expected URL -- so "is it
+                    # alive" is not the useful question. "Is it *this* code" is.
+                    "branch": current_branch(),
+                    "port": self.server.server_address[1],
                     "feed": FEED,
                     "feed_note": FEED_NOTE,
                     "has_credentials": bool(HEADERS["APCA-API-KEY-ID"]),
@@ -1317,17 +1326,26 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=None,
                         help="override the branch's fixed port")
     parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--print-port", action="store_true",
+                        help="print the port this branch owns and exit; lets the "
+                             "shell launcher share one source of truth")
     args = parser.parse_args()
 
     branch = current_branch()
     pinned = port_for_branch(branch)
+    if args.print_port:
+        # Deliberately before the credential check: the launcher needs the port
+        # even when .env is missing, so it can report the failure on the right URL.
+        print(pinned)
+        return
     if args.port is not None:
         port, why = args.port, "--port"
     elif os.environ.get("PORT"):
         try:
             port, why = int(os.environ["PORT"]), "PORT env"
         except ValueError:
-            port, why = pinned, f"PORT env was not a number, using branch default"
+            port, why = pinned, (f"PORT env {os.environ['PORT']!r} is not a number, "
+                                 "using the branch default")
     else:
         port, why = pinned, "branch default"
 
@@ -1337,9 +1355,7 @@ def main() -> None:
 
     resolve_feed()
     load_cache()
-    known = branch in BRANCH_PORTS
-    print(f"[info] branch={branch or 'detached'}"
-          + ("" if known else f" (not pinned; shares the dev port {DEV_PORT})"))
+    print(f"[info] branch={branch or 'detached'}")
     # An explicit port is allowed to win -- but if it is the port another branch
     # owns, say so. Otherwise `--port 8800` from a dev checkout serves dev code
     # at the URL you think is main, which is the confusion this change exists to

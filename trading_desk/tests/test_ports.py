@@ -11,8 +11,11 @@ expected. These pin the mapping and the HEAD parsing that drives it.
 
 from __future__ import annotations
 
+import atexit
 import json
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -46,9 +49,25 @@ def test_dev_port_constant_agrees_with_the_table():
     assert srv.DEV_PORT == srv.BRANCH_PORTS["dev"]
 
 
+_TEMP_ROOTS: list[Path] = []
+
+
+def _mkroot() -> Path:
+    """A temp dir registered for removal, so repeated runs do not litter /tmp."""
+    root = Path(tempfile.mkdtemp())
+    _TEMP_ROOTS.append(root)
+    return root
+
+
+@atexit.register
+def _cleanup_temp_roots() -> None:
+    for root in _TEMP_ROOTS:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def _head_fixture(contents: str, *, worktree: bool = False) -> Path:
     """A throwaway repo root whose .git/HEAD (or .git file) holds `contents`."""
-    root = Path(tempfile.mkdtemp())
+    root = _mkroot()
     if worktree:
         real = root / "actual-git-dir"
         real.mkdir()
@@ -96,11 +115,11 @@ def test_detached_head_is_reported_as_unknown_not_guessed():
 
 
 def test_missing_or_unreadable_git_metadata_is_survivable():
-    empty = Path(tempfile.mkdtemp())            # no .git at all
+    empty = _mkroot()                           # no .git at all
     assert _branch_with_root(empty) is None
     junk = _head_fixture("not a ref line\n")
     assert _branch_with_root(junk) is None
-    bad_ptr = Path(tempfile.mkdtemp())
+    bad_ptr = _mkroot()
     (bad_ptr / ".git").write_text("this is not a gitdir pointer\n", encoding="utf-8")
     assert _branch_with_root(bad_ptr) is None
 
@@ -126,13 +145,62 @@ def test_launch_json_never_reintroduces_autoport():
         assert int(args[args.index("--port") + 1]) == c["port"], c["name"]
 
 
-def test_command_launcher_uses_the_same_ports():
-    """The double-click launcher is a third port-picker; it has to agree too."""
+def test_command_launcher_asks_the_server_rather_than_restating_the_ports():
+    """The launcher must not be a second source of truth for the mapping.
+
+    It previously hardcoded a shell `case` mirroring BRANCH_PORTS, and detected
+    the branch with `git rev-parse` -- a second mechanism that could disagree
+    with the server's HEAD parsing (notably when git is not on PATH, which is the
+    stated reason the server does not shell out). Both are now delegated.
+    """
     script = (REPO_ROOT / "trading_desk" / "Launch Trading Desk.command").read_text()
-    assert f"main) PORT={srv.BRANCH_PORTS['main']}" in script
-    assert f"*)    PORT={srv.DEV_PORT}" in script
-    # And it must not have gone back to scanning a range.
+    assert "--print-port" in script, "launcher should ask the server for the port"
     assert "for candidate in" not in script, "launcher is scanning ports again"
+    for hardcoded in (f"PORT={srv.BRANCH_PORTS['main']}", f"PORT={srv.DEV_PORT}"):
+        assert hardcoded not in script, f"launcher restates the port table: {hardcoded}"
+    assert "rev-parse" not in script, "launcher should not detect the branch itself"
+
+
+def test_print_port_reports_the_branch_port_and_exits():
+    """`--print-port` is what makes one source of truth possible."""
+    src = (REPO_ROOT / "trading_desk" / "server.py").read_text()
+    assert '"--print-port"' in src
+    out = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "trading_desk" / "server.py"), "--print-port"],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert out.returncode == 0, out.stderr[-400:]
+    printed = out.stdout.strip().splitlines()[-1]
+    assert printed.isdigit(), f"expected a bare port, got {printed!r}"
+    assert int(printed) == srv.port_for_branch(srv.current_branch())
+
+
+def test_health_reports_the_branch_so_a_stale_server_is_detectable():
+    """"Is it alive" was never the useful question; "is it this code" is.
+
+    A stale server answers /api/health perfectly well -- that is exactly how an
+    old build kept serving the expected URL during development. The launcher
+    compares the reported branch against the checkout, which needs the field.
+    """
+    src = (REPO_ROOT / "trading_desk" / "server.py").read_text()
+    assert '"branch": current_branch(),' in src
+    script = (REPO_ROOT / "trading_desk" / "Launch Trading Desk.command").read_text()
+    assert 'running_branch' in script
+    assert '"$RUNNING" = "$BRANCH"' in script, "launcher must compare the branches"
+
+
+def test_head_that_is_not_utf8_degrades_instead_of_crashing():
+    """A corrupted HEAD must yield "unknown branch", not kill the server.
+
+    `read_text(encoding="utf-8")` raises UnicodeDecodeError, which is not an
+    OSError, so the original guard let it propagate out of a function documented
+    as returning None -- taking the dashboard down before it could bind.
+    """
+    root = _mkroot()
+    gd = root / ".git"
+    gd.mkdir()
+    (gd / "HEAD").write_bytes(b"ref: refs/heads/\xff\xfe-bad\n")
+    assert _branch_with_root(root) is None
 
 
 def test_server_help_documents_the_override():
