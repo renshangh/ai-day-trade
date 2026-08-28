@@ -220,7 +220,11 @@ def test_submissions_cache_expires_and_sees_new_filings(monkeypatch, tmp_path):
 
     # Company files an 8-K, and the cached copy ages past its TTL.
     state["version"] = 2
-    _backdate(_submissions_cache_path(tmp_path), sec_module.SUBMISSIONS_CACHE_MAX_AGE_SECONDS + 60)
+    # Backdated by a hardcoded 8 days rather than by the TTL constant, so this
+    # test fails *behaviorally* against the pre-fix implementation (stale filing
+    # date returned) instead of erroring on a missing attribute. The invariant
+    # this relies on is asserted by test_index_ttls_are_shorter_than_backdate.
+    _backdate(_submissions_cache_path(tmp_path), 8 * 24 * 60 * 60)
 
     second = sec.get_submissions("AAPL")
 
@@ -305,3 +309,16 @@ def test_filing_documents_are_cached_permanently(monkeypatch, tmp_path):
 
     assert sec.search_filing("AAPL", **kwargs)["match_count"] >= 1
     assert len(archive_calls) == 1
+
+
+def test_index_ttls_are_shorter_than_backdate():
+    """Index caches must expire well inside the 8-day backdate used above.
+
+    Also the substantive invariant: submissions and company facts have to refresh
+    within a day so a newly filed report becomes visible promptly, and the
+    ticker map within a week.
+    """
+    day = 24 * 60 * 60
+    assert 0 < sec_module.SUBMISSIONS_CACHE_MAX_AGE_SECONDS <= day
+    assert 0 < sec_module.COMPANY_FACTS_CACHE_MAX_AGE_SECONDS <= day
+    assert 0 < sec_module.TICKER_MAP_CACHE_MAX_AGE_SECONDS <= 7 * day
