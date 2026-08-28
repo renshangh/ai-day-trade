@@ -148,8 +148,8 @@ def test_company_facts_are_compact_by_default(monkeypatch, tmp_path):
 # docs/investigations/2026-08-28_SEC_SUBMISSIONS_CACHE_NEVER_EXPIRES.md.
 
 
-def _tickers_response():
-    return _Response(payload={"0": {"ticker": "AAPL", "cik_str": 320193, "title": "Apple Inc."}})
+def _tickers_payload():
+    return {"0": {"ticker": "AAPL", "cik_str": 320193, "title": "Apple Inc."}}
 
 
 def _submissions_payload(*, form, filing_date, accession, document):
@@ -184,7 +184,7 @@ def _sec_with_versioned_submissions(monkeypatch, tmp_path, state):
 
     def fake_get(url, **kwargs):
         if url.endswith("company_tickers.json"):
-            return _Response(payload=_tickers_response().json())
+            return _Response(payload=_tickers_payload())
         if "submissions" in url:
             state["submission_calls"] += 1
             if state["version"] == 1:
@@ -286,7 +286,7 @@ def test_filing_documents_are_cached_permanently(monkeypatch, tmp_path):
 
     def fake_get(url, **kwargs):
         if url.endswith("company_tickers.json"):
-            return _Response(payload=_tickers_response().json())
+            return _Response(payload=_tickers_payload())
         if "submissions" in url:
             return _Response(payload=_submissions_payload(
                 form="10-K", filing_date="2024-11-01",
@@ -322,3 +322,57 @@ def test_index_ttls_are_shorter_than_backdate():
     assert 0 < sec_module.SUBMISSIONS_CACHE_MAX_AGE_SECONDS <= day
     assert 0 < sec_module.COMPANY_FACTS_CACHE_MAX_AGE_SECONDS <= day
     assert 0 < sec_module.TICKER_MAP_CACHE_MAX_AGE_SECONDS <= 7 * day
+
+
+def test_future_mtime_cache_is_treated_as_stale(monkeypatch, tmp_path):
+    """A cache file dated in the future must not read as brand new.
+
+    Clock skew, a restored backup, or a mount running ahead makes the computed
+    age negative. Clamping that to zero would pin the copy as fresh until the
+    wall clock caught up, silently reinstating the permanent-cache bug.
+    """
+    state = {"version": 1, "submission_calls": 0}
+    sec = _sec_with_versioned_submissions(monkeypatch, tmp_path, state)
+    sec.get_submissions("AAPL")
+
+    state["version"] = 2
+    _backdate(_submissions_cache_path(tmp_path), -6 * 60 * 60)  # mtime 6h ahead
+
+    second = sec.get_submissions("AAPL")
+
+    assert state["submission_calls"] == 2
+    assert second["filings"]["recent"]["form"] == ["8-K"]
+
+
+def test_get_text_ttl_and_stale_fallback(monkeypatch, tmp_path):
+    """`_get_text`'s TTL and stale-fallback branches.
+
+    Exercised directly because the only production caller (archive filing
+    documents) passes no max age -- a filed document is immutable -- so these
+    branches are otherwise unreachable. They still have to be correct, since
+    `max_age_seconds` is part of the method's contract.
+    """
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append(url)
+        return _Response(text="filing text v1")
+
+    monkeypatch.setattr("lumibot.fundamentals.sec.requests.get", fake_get)
+    sec = SECFundamentals(cache_dir=tmp_path, min_request_interval_seconds=0)
+    cache_path = tmp_path / "filings" / "probe.txt"
+    url = "https://www.sec.gov/Archives/edgar/data/probe.htm"
+
+    assert sec._get_text(url, cache_path, max_age_seconds=3600) == "filing text v1"
+    assert sec._get_text(url, cache_path, max_age_seconds=3600) == "filing text v1"
+    assert len(calls) == 1  # second read was inside the TTL
+
+    _backdate(cache_path, 2 * 3600)
+
+    def failing_get(url, **kwargs):
+        raise requests.ConnectionError("SEC unreachable")
+
+    monkeypatch.setattr("lumibot.fundamentals.sec.requests.get", failing_get)
+
+    # Expired and SEC is down: serve the stale copy rather than raise.
+    assert sec._get_text(url, cache_path, max_age_seconds=3600) == "filing text v1"

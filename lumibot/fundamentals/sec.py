@@ -176,9 +176,15 @@ class SECFundamentals:
         return self.cache_dir.joinpath(*safe)
 
     def _cache_age_seconds(self, cache_path: Path) -> float | None:
-        """Age of a cached file in seconds, or None if it cannot be stat'd."""
+        """Age of a cached file in seconds, or None if it cannot be stat'd.
+
+        May be **negative** when the file's mtime is in the future (clock skew, a
+        restored backup, a mount whose clock runs ahead). Deliberately not
+        clamped to zero: that would report such a file as brand new and pin it
+        as fresh until the wall clock caught up. See `_cache_is_fresh`.
+        """
         try:
-            return max(time.time() - cache_path.stat().st_mtime, 0.0)
+            return time.time() - cache_path.stat().st_mtime
         except OSError:
             return None
 
@@ -193,11 +199,19 @@ class SECFundamentals:
         if max_age_seconds is None:
             return True
         age = self._cache_age_seconds(cache_path)
-        return age is not None and age < max_age_seconds
+        if age is None:
+            return False
+        # A future mtime makes the age untrustworthy, so re-fetch rather than
+        # trust a copy we cannot date.
+        return 0.0 <= age < max_age_seconds
 
     def _describe_age(self, cache_path: Path) -> str:
         age = self._cache_age_seconds(cache_path)
-        return "unknown age" if age is None else f"{age / 3600:.1f}h old"
+        if age is None:
+            return "unknown age"
+        if age < 0:
+            return f"mtime {abs(age) / 3600:.1f}h in the future"
+        return f"{age / 3600:.1f}h old"
 
     def _get_json(self, url: str, cache_path: Path, *, max_age_seconds: float | None = None) -> dict[str, Any]:
         if self._cache_is_fresh(cache_path, max_age_seconds):
@@ -234,7 +248,12 @@ class SECFundamentals:
 
     def _get_text(self, url: str, cache_path: Path, *, max_age_seconds: float | None = None) -> str:
         if self._cache_is_fresh(cache_path, max_age_seconds):
-            return cache_path.read_text(encoding="utf-8", errors="replace")
+            try:
+                return cache_path.read_text(encoding="utf-8", errors="replace")
+            except OSError as exc:
+                # The file can vanish between the freshness check and the read
+                # (a concurrent cache cleanup). Re-fetch rather than propagate.
+                logger.warning("Discarding unreadable SEC cache %s (%s); re-fetching.", cache_path, exc)
         try:
             self._rate_limit()
             response = requests.get(url, headers=self._archive_headers(), timeout=30)
@@ -242,11 +261,16 @@ class SECFundamentals:
             text = response.text
         except Exception as exc:  # noqa: BLE001 - any fetch failure falls back to cache
             if cache_path.exists():
+                try:
+                    cached = cache_path.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    # Do not let a filesystem error mask the real fetch failure.
+                    raise exc
                 logger.warning(
                     "SEC fetch failed for %s (%s); serving expired cached copy (%s).",
                     url, exc, self._describe_age(cache_path),
                 )
-                return cache_path.read_text(encoding="utf-8", errors="replace")
+                return cached
             raise
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(text, encoding="utf-8", errors="replace")
