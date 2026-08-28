@@ -42,6 +42,38 @@ SEC responses are cached under ``~/.lumibot/cache/sec`` by default. Override thi
 with ``LUMIBOT_SEC_CACHE_DIR``. LumiBot also rate limits SEC requests and sends a
 contact-style user agent. Override the default with ``LUMIBOT_SEC_USER_AGENT``.
 
+Cache lifetimes differ by what is being cached, because SEC objects are not all
+equally stable:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 20 40
+
+   * - Cached object
+     - Expires after
+     - Why
+   * - Filing documents (10-K, 10-Q, 8-K text)
+     - never
+     - A filed document is immutable once EDGAR has it.
+   * - Company submissions index
+     - 24 hours
+     - Grows every time the company files anything.
+   * - Company facts (XBRL)
+     - 24 hours
+     - New facts are added with each report.
+   * - Ticker-to-CIK map
+     - 7 days
+     - Listings change, but slowly.
+
+This matters if you build your own collectors on top of ``SECFundamentals``. The
+index endpoints previously cached forever, which meant a repeated run could
+silently return the same stale answer and never see a newly filed report.
+
+If a cached copy has expired and SEC cannot be reached, LumiBot serves the expired
+copy and logs a warning rather than failing, so an outage does not break a run
+that would otherwise work offline. To force a full refresh, point
+``LUMIBOT_SEC_CACHE_DIR`` at an empty directory.
+
 Agent Tools
 -----------
 

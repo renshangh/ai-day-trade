@@ -2,6 +2,10 @@
 
 ## 4.5.30 - Unreleased
 
+### Fixed
+- **SEC caches no longer hide newly filed reports.** `SECFundamentals` cached every SEC response permanently, including the `submissions` and `companyfacts` indexes that grow each time a company files. Any collector built on it would re-read its own stale input and report success, so a newly filed 8-K could stay invisible indefinitely. Those indexes now expire after 24 hours and the ticker-to-CIK map after 7 days; filing documents still cache forever because a filed document is immutable. If an expired copy cannot be refreshed, it is served with a warning instead of raising, so an SEC outage does not break runs that previously worked offline. Unparseable cache files left by an interrupted write are now discarded and re-fetched rather than failing forever. See `docs/investigations/2026-08-28_SEC_SUBMISSIONS_CACHE_NEVER_EXPIRES.md`.
+- **Documentation files are no longer silently gitignored.** The `.gitignore` `*cache*` rule matched UPPERCASE doc filenames on case-insensitive filesystems (macOS), so a doc named `*_CACHE_*.md` was untracked with no warning. Markdown under `docs/` and reStructuredText under `docsrc/` are now explicitly re-included.
+
 ## 4.5.29 - 2026-05-20
 
 Deploy marker: 4.5.29 release commit (`deploy 4.5.29`)

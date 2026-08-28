@@ -32,5 +32,19 @@ Backtest safety:
 - Filings are gated by SEC acceptance datetime when available, with filing date as fallback.
 - The default `as_of` is the current strategy datetime.
 - Responses are cached under `~/.lumibot/cache/sec` unless `LUMIBOT_SEC_CACHE_DIR` is set.
+- Cache lifetimes are **not** uniform. Filing documents never expire (immutable
+  once filed); the `submissions` and `companyfacts` indexes expire after 24h and
+  the ticker->CIK map after 7 days, because those grow as companies file. The
+  constants live at the top of `lumibot/fundamentals/sec.py`.
+- If an expired copy cannot be refreshed (SEC down or rate limiting), the expired
+  copy is served with a warning rather than raising. Unparseable cache files (from
+  an interrupted write) are discarded and re-fetched, as are files that vanish
+  between the freshness check and the read.
+- A cache file whose mtime is in the future (clock skew, a restored backup) is
+  treated as **stale**, not as brand new — clamping a negative age to zero would
+  pin such a file as fresh until the wall clock caught up.
+- To force a genuine refresh, point `LUMIBOT_SEC_CACHE_DIR` at an empty directory.
+  Do not infer freshness from a downstream artifact's mtime — see
+  `docs/investigations/2026-08-28_SEC_SUBMISSIONS_CACHE_NEVER_EXPIRES.md`.
 
 SEC does not require an API key. Lumibot sends a contact-style user agent by default and supports override with `LUMIBOT_SEC_USER_AGENT`.
