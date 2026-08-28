@@ -573,3 +573,113 @@ tr.earn-row.today td:first-child { box-shadow: inset 3px 0 0 var(--warning); fon
   color: var(--warning);
   vertical-align: 1px;
 }
+
+/* ---------------------------------------------------------------- daily review
+   Colors come from the same tokens as the rest of the desk, so light/dark and
+   the up/down palette stay consistent with the board and the charts. */
+.rev-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 12px 0 18px;
+}
+.rev-stat {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 9px 11px;
+}
+.rev-stat .k {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rev-stat .v {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 3px;
+}
+
+.rev-tbl tbody tr { cursor: pointer; }
+.rev-tbl tbody tr:hover,
+.rev-tbl tbody tr:focus-visible { background: var(--surface-3); outline: none; }
+.rev-tbl td:first-child, .rev-tbl th:first-child { text-align: left; }
+
+/* Secondary figure stacked under the primary one, so a cell can carry both the
+   price and its distance without a second column. */
+.lvl-meta {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+/* A level within half an ATR is the case the view exists to surface. Marked
+   with the same hue the chart draws its levels in, not with red/green -- being
+   near a level is neither good nor bad on its own. */
+.level-cell.at-level {
+  box-shadow: inset 2px 0 0 var(--series-5);
+  background: color-mix(in srgb, var(--series-5) 8%, transparent);
+}
+td.muted, .muted { color: var(--text-muted); }
+
+.rev-h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin: 22px 0 8px;
+}
+
+.rev-flags {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+.rev-flag-card {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.rev-flag-sym {
+  font-family: var(--mono);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.rev-flag-card ul { margin: 0; padding-left: 16px; }
+.rev-flag-card li { font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+/* Severity by hue only on the marker, so the text stays readable in both themes. */
+.rev-flag-card li.flag-warn::marker { color: var(--warning); }
+.rev-flag-card li.flag-info::marker { color: var(--text-muted); }
+
+.rev-bars { display: flex; flex-direction: column; gap: 6px; }
+.rev-bar-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) 3fr minmax(110px, auto);
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+}
+.rev-bar-lbl { color: var(--text-secondary); }
+.rev-bar-track {
+  height: 9px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.rev-bar-fill { height: 100%; background: var(--series-1); }
+.rev-bar-fill.muted-fill { background: var(--axis); }
+.rev-bar-val {
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .rev-bar-row { grid-template-columns: 1fr; gap: 3px; }
+  .rev-bar-val { text-align: left; }
+}

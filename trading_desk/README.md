@@ -60,7 +60,7 @@ Then open <http://localhost:8799>.
 
 | Section | What it shows |
 |---|---|
-| View tabs | Momentum / Reversal candidates. Scopes the hero, ranking, movers strip and table. |
+| View tabs | Momentum / Reversal candidates / Earnings timing / Daily review. The first two scope the hero, ranking, movers strip and table; the last two replace them. |
 | Lookback tabs | 1D–5D for momentum, 2D–5D for reversal. Scopes the whole board. |
 | Hottest group | Mean, median, breadth, vs SPY, and the ETF proxy return. |
 | Top reversal candidate | Prior decline, bounce, reversal breadth, vs SPY today, volume ratio. |
@@ -69,6 +69,7 @@ Then open <http://localhost:8799>.
 | Detail chart | Candlesticks + overlays, with volume, RSI and MACD panes on a shared crosshair. |
 | Company detail | Market cap, trailing P/E, 52-week range, volatility, SEC filings, news, research links. |
 | Earnings timing | Upcoming prints (including today's, before they land) with an uncertainty window, expected timing, 1-day and 1-week reaction stats, and held-position alerts. |
+| Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, and the journal's own recorded gaps. |
 | Ranking table | The same board in text form — every value readable without color. |
 
 ### Company detail
@@ -284,6 +285,85 @@ Regenerate the underlying history with:
 python3 trading_desk/research/earnings_dates.py
 ```
 
+### Daily review
+
+A per-position screen for the one question the ranking board cannot answer:
+*where does what I already own actually stand?* Positions come from
+`trading_records/trades-schwab.csv` (gitignored, optional) via the same
+`open_positions()` reader the earnings alerts use, so the review and the
+earnings flags can never disagree about what is held.
+
+It reuses `get_stock`, which means a review opened after browsing the board is
+nearly free, and the levels shown are the identical levels the chart draws —
+there is no second, subtly different calculation to reconcile.
+
+#### Reading it
+
+| Column | Meaning |
+|---|---|
+| `Last` | Latest close, with the day's change beneath it. |
+| `Avg entry` | Cost basis across all open lots in that symbol. |
+| `Unrealised` | Dollars and percent against that basis. |
+| `% book` | Share of the reviewed book **plus** excluded holdings, at market value. Cash is not included, so this is position weight, not account weight. |
+| `Resistance above` / `Support below` | Nearest level on each side, with distance in percent **and in ATR**. |
+| `To support` | Dollars between today's price and the nearest support. |
+| `Earnings` | Days to the next projected print. Red inside the 21-day swing window. |
+
+Rows sort by **distance to support in ATR**, closest first — that is the
+position whose level a stop would key off soonest. A name with no support at all
+below it sorts to the very top: having nothing to lean on is more notable than
+sitting near something.
+
+Distance is reported in ATR as well as percent because percent alone is not
+comparable across the book. AXTI at 14% ATR and POWL at 6% are not equally close
+to a level 5% away; in ATR terms the first is a third of a day's move and the
+second is nearly a full one.
+
+#### Downside to support is not risk taken
+
+`To support` is measured from **today's price**, not from entry. For an
+underwater position the difference has already been spent, so this is the risk
+that remains to that level — not the risk originally accepted. Conflating the
+two would flatter every losing position on the page.
+
+#### Flags are observations, not signals
+
+Each flag states something measurable: a lot with no recorded stop, a price
+within half an ATR of a level, a print inside the swing horizon, a close below
+all three moving averages. None of them says what to do, and
+`test_flags_never_tell_the_reader_what_to_do` asserts that no flag string
+contains an imperative. The measured pre-earnings drift documented above
+(+0.82% excess against 9x that in noise) is the standing reminder of why this
+view does not pretend to an edge: it surfaces facts and stops there.
+
+#### Held but not reviewed
+
+`REVIEW_EXCLUDE` in `server.py` lists holdings kept out of the risk math and the
+flags by instruction. They are still reported, in their own section with their
+book weight — silently dropping a position would make the concentration figures
+actively misleading, which is worse than showing something the owner has asked
+not to be advised on.
+
+It is a mapping, not a set, so the reason travels with the symbol and renders on
+the page. "Excluded" covers two different cases and a bare set would flatten
+them:
+
+| Symbol | Reason |
+|---|---|
+| `IBIT` | Bitcoin position, held by choice — not part of the swing book. Over half the book by weight, so omitting it entirely would be misleading. |
+| `SNDL` | Residual position, too small to act on. Sorted near the top on ATR distance despite being 0.0% of the book, pushing real positions down the page. |
+
+Every entry must carry a non-empty reason; `test_excluded_symbols_are_reported_but_carry_no_risk_math`
+asserts it, because an unexplained exclusion is indistinguishable from a bug.
+
+#### Theme exposure
+
+Reviewed positions summed by the `universe.py` groups they belong to. A symbol in
+two groups counts in both (POWL is in Industrials *and* AI Power / Datacenter
+Buildout), so the percentages deliberately do not sum to 100%. The excluded
+holdings are left out entirely rather than filed under `(ungrouped)`, since
+inventing a theme for them would be worse than omitting them.
+
 ### Indicators
 
 Overlays: SMA 20 / 50 / 200, VWAP 20 (rolling), Bollinger Bands (20, 2σ),
@@ -328,9 +408,11 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/stock?symbol=X` | ~2 years of daily bars plus every indicator series. |
 | `GET /api/detail?symbol=X` | Fundamentals, price stats, news, and research links. |
 | `GET /api/earnings?horizon=N` | Projected prints within N days (1-400, default 30), nearest first, with held-position flags. |
+| `GET /api/review` | Per-holding review: levels, downside to support, theme exposure, journal gaps. `?force=1` rebuilds. |
 | `GET /api/health` | Credential and cache status. |
 
-Both routes cache for 5 minutes. Only the board is persisted to `cache.json`
+Board and per-symbol routes cache for 5 minutes; the review caches for 2 (it reuses
+the per-symbol cache, so a rebuild is cheap and prices stay live). Only the board is persisted to `cache.json`
 (~60 KB); per-symbol payloads stay in memory behind a 60-entry LRU. Persisting
 them meant re-serializing tens of megabytes under the global lock on every
 cache-miss, and they are cheap to refetch after a restart.
@@ -375,11 +457,13 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
+| `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
 
 ## Tests
 
 ```bash
 python3 trading_desk/tests/test_reversal.py       # no pytest needed
+python3 trading_desk/tests/test_review.py         # daily review
 python3 -m pytest trading_desk/tests/             # or under pytest
 ```
 
