@@ -9,7 +9,9 @@ what a reader of the review will actually trust.
 
 from __future__ import annotations
 
+import csv
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -48,6 +50,19 @@ def review_one(stock: dict, held: dict, lots: list[dict] | None = None) -> dict:
         return srv._review_one("TEST", held, lots or [], {})
     finally:
         srv.get_stock = original
+
+
+def _one_lot_journal() -> Path:
+    """A throwaway journal with a single open POWL lot."""
+    header = ["trade_id", "status", "setup", "group", "symbol", "side", "qty",
+              "entry_date", "entry_price", "stop", "thesis"]
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=header)
+        w.writeheader()
+        w.writerow({"trade_id": "1", "status": "open", "symbol": "POWL", "side": "long",
+                    "qty": "45", "entry_date": "2026-08-03", "entry_price": "216.32",
+                    "stop": "", "setup": "", "group": "", "thesis": ""})
+        return Path(fh.name)
 
 
 HELD = {"qty": 10.0, "cost": 1000.0, "avg_entry": 100.0, "lots": 1, "entry_date": "2026-01-01"}
@@ -219,8 +234,6 @@ def test_lot_counts_are_reported_at_both_scopes():
     read as a contradiction -- but the journal-wide count is the one the README's
     "trades with no stop should trend to zero" rule is about. Both are returned.
     """
-    import csv as _csv
-    import tempfile
     rows = [
         # symbol, status, qty, entry_price, stop
         ("POWL", "open", "45", "216.32", ""),
@@ -230,7 +243,7 @@ def test_lot_counts_are_reported_at_both_scopes():
     header = ["trade_id", "status", "setup", "group", "symbol", "side", "qty",
               "entry_date", "entry_price", "stop", "thesis"]
     with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, newline="") as fh:
-        w = _csv.DictWriter(fh, fieldnames=header)
+        w = csv.DictWriter(fh, fieldnames=header)
         w.writeheader()
         for i, (sym, status, qty, px, stop) in enumerate(rows, 1):
             w.writerow({"trade_id": str(i), "status": status, "symbol": sym, "side": "long",
@@ -256,6 +269,100 @@ def test_lot_counts_are_reported_at_both_scopes():
     # Reviewed-only: 2 lots, 1 without a stop (POWL). SNDL's gap is not counted here.
     assert out["reviewed_open_lots"] == 2
     assert out["reviewed_lots_without_stop"] == 1
+
+
+def test_force_reaches_get_stock_so_refresh_actually_refreshes():
+    """A forced review must re-fetch bars, not rebuild over the stock cache.
+
+    Regression: `force` stopped at `get_position_review` and never reached
+    `get_stock`, so Refresh stamped a fresh "built at" time on prices up to
+    STOCK_TTL old -- the page overstated its own freshness.
+    """
+    seen: list[bool] = []
+
+    def fake_get_stock(sym, force=False):
+        seen.append(force)
+        return stub_stock([90.0, 95.0], [{"level": 90.0}])
+
+    original_journal, original_stock = srv.JOURNAL_PATH, srv.get_stock
+    path = _one_lot_journal()
+    srv.JOURNAL_PATH, srv.get_stock = path, fake_get_stock
+    try:
+        srv.build_position_review(force=True)
+        assert seen == [True], f"force did not reach get_stock: {seen}"
+        seen.clear()
+        srv.build_position_review()
+        assert seen == [False], f"default should not force a re-fetch: {seen}"
+    finally:
+        srv.JOURNAL_PATH, srv.get_stock = original_journal, original_stock
+        path.unlink(missing_ok=True)
+
+
+def test_review_ttl_never_outpaces_bar_freshness():
+    """Rebuilding faster than bars can change would misrepresent the timestamp."""
+    assert srv.REVIEW_TTL >= srv.STOCK_TTL, (
+        "a review rebuilt more often than STOCK_TTL stamps a fresh build time on "
+        "stale prices")
+
+
+def test_totals_treat_zero_as_a_value_not_as_missing():
+    """`if (mv and cost)` blanked a legitimate zero; presence is the right test."""
+    def fail_stock(sym, force=False):
+        raise RuntimeError("feed down")
+
+    original_journal, original_stock = srv.JOURNAL_PATH, srv.get_stock
+    path = _one_lot_journal()
+    srv.JOURNAL_PATH, srv.get_stock = path, fail_stock
+    try:
+        out = srv.build_position_review()
+    finally:
+        srv.JOURNAL_PATH, srv.get_stock = original_journal, original_stock
+        path.unlink(missing_ok=True)
+    # Every position errored, so market value is 0 but cost is still known --
+    # the totals must be computable rather than showing "$0" beside a dash.
+    assert out["totals"]["cost"] > 0
+    assert out["totals"]["pnl"] is not None
+    assert out["totals"]["pnl_pct"] is not None
+
+
+def test_partial_moving_average_flag_is_pluralised():
+    e = review_one(stub_stock([90.0, 95.0], []), HELD)
+    e["vs_sma200_pct"] = 4.0          # above the 200 only, so two remain below
+    texts = [f["text"] for f in srv._review_flags(e, None)]
+    assert any(t == "Below the 20, 50-day averages" for t in texts), texts
+    e["vs_sma50_pct"] = 4.0           # now only one below
+    texts = [f["text"] for f in srv._review_flags(e, None)]
+    assert any(t == "Below the 20-day average" for t in texts), texts
+
+
+def test_open_positions_can_aggregate_rows_without_touching_the_file():
+    """The review needs the aggregate and the lots from ONE read.
+
+    Regression: `build_position_review` called `open_positions()` (which opened
+    the CSV) and `journal_open_rows()` (which opened it again). If the file
+    changed between them the two disagreed, surfacing as flag text like
+    "No stop recorded on 3 of 2 open lot(s)". `open_positions` now accepts
+    already-read rows, proven here by pointing JOURNAL_PATH at a path that does
+    not exist -- if it still touched the filesystem, the result would be empty.
+    """
+    rows = [
+        {"status": "open", "symbol": "FN", "qty": "11", "entry_price": "426.50",
+         "entry_date": "2026-08-25", "stop": ""},
+        {"status": "open", "symbol": "FN", "qty": "11", "entry_price": "437.00",
+         "entry_date": "2026-08-27", "stop": ""},
+    ]
+    original = srv.JOURNAL_PATH
+    srv.JOURNAL_PATH = Path("/nonexistent/never-opened.csv")
+    try:
+        held = srv.open_positions(rows)
+    finally:
+        srv.JOURNAL_PATH = original
+
+    assert set(held) == {"FN"}
+    assert held["FN"]["lots"] == 2
+    assert held["FN"]["qty"] == 22.0
+    assert abs(held["FN"]["cost"] - (11 * 426.50 + 11 * 437.00)) < 1e-9
+    assert held["FN"]["entry_date"] == "2026-08-25"   # earliest across the lots
 
 
 def _main() -> int:

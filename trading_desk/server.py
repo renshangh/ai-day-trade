@@ -83,9 +83,11 @@ STOCK_CACHE_MAX = 60
 # Filings change quarterly and headlines hourly; 15 minutes is plenty.
 DETAIL_TTL = 900
 DETAIL_CACHE_MAX = 60
-# The daily review is read at most a few times a session and each build reuses
-# the per-symbol stock cache, so a short TTL costs little and keeps prices live.
-REVIEW_TTL = 120
+# Tied to STOCK_TTL on purpose. The review reuses the per-symbol stock cache, so
+# rebuilding more often than the bars can change would stamp a fresh "built at"
+# time on prices up to STOCK_TTL old -- the page would overstate its own
+# freshness. Equal means a rebuild and a bar refresh come due together.
+REVIEW_TTL = STOCK_TTL
 # Holdings deliberately left out of the review's risk math and flags, at the
 # desk owner's instruction. They are still reported, in a separate section:
 # silently dropping a real position would make the review actively misleading
@@ -602,45 +604,52 @@ EARNINGS_CACHE_MAX = 8
 JOURNAL_PATH = REPO_ROOT / "trading_records" / "trades-schwab.csv"
 
 
-def open_positions() -> dict[str, dict]:
-    """Symbols currently held, read from the local trade journal.
+def open_positions(rows: list[dict] | None = None) -> dict[str, dict]:
+    """Symbols currently held, aggregated from the local trade journal.
+
+    Pass `rows` (from `journal_open_rows()`) to aggregate an already-read
+    snapshot instead of opening the file again. The review needs both the
+    aggregate and the individual lots, and reading the CSV twice let the two
+    disagree if the file changed in between -- which surfaced as flag text like
+    "No stop recorded on 3 of 2 open lot(s)".
 
     The journal is gitignored and optional -- this is a convenience so a print
     landing inside a live holding period is impossible to miss, which is the
     single most useful thing this feature can do. A missing or malformed file is
     not an error; the calendar just loses the "you hold this" flag.
     """
-    if not JOURNAL_PATH.exists():
-        return {}
     held: dict[str, dict] = {}
+    if rows is None:
+        if not JOURNAL_PATH.exists():
+            return {}
+        rows = journal_open_rows()
     try:
-        with JOURNAL_PATH.open() as f:
-            for row in csv.DictReader(f):
-                if (row.get("status") or "").strip().lower() != "open":
-                    continue
-                sym = (row.get("symbol") or "").strip().upper()
-                if not sym:
-                    continue
-                # Aggregate, never overwrite. A symbol legitimately has several
-                # open lots (two FN buys on the same day at different prices);
-                # keying by symbol and assigning would report the last lot only
-                # and halve the stated exposure on the one alert that exists to
-                # stop an earnings event going unnoticed.
-                try:
-                    qty = float(row.get("qty") or 0)
-                    price = float(row.get("entry_price") or 0)
-                except ValueError:
-                    continue
-                if qty <= 0:
-                    continue
-                acc = held.setdefault(sym, {"qty": 0.0, "cost": 0.0, "lots": 0,
-                                            "entry_date": row.get("entry_date", "")})
-                acc["qty"] += qty
-                acc["cost"] += qty * price
-                acc["lots"] += 1
-                d = row.get("entry_date", "")
-                if d and (not acc["entry_date"] or d < acc["entry_date"]):
-                    acc["entry_date"] = d   # earliest entry across the lots
+        for row in rows:
+            if (row.get("status") or "").strip().lower() != "open":
+                continue
+            sym = (row.get("symbol") or "").strip().upper()
+            if not sym:
+                continue
+            # Aggregate, never overwrite. A symbol legitimately has several
+            # open lots (two FN buys on the same day at different prices);
+            # keying by symbol and assigning would report the last lot only
+            # and halve the stated exposure on the one alert that exists to
+            # stop an earnings event going unnoticed.
+            try:
+                qty = float(row.get("qty") or 0)
+                price = float(row.get("entry_price") or 0)
+            except ValueError:
+                continue
+            if qty <= 0:
+                continue
+            acc = held.setdefault(sym, {"qty": 0.0, "cost": 0.0, "lots": 0,
+                                        "entry_date": row.get("entry_date", "")})
+            acc["qty"] += qty
+            acc["cost"] += qty * price
+            acc["lots"] += 1
+            d = row.get("entry_date", "")
+            if d and (not acc["entry_date"] or d < acc["entry_date"]):
+                acc["entry_date"] = d   # earliest entry across the lots
     except Exception as e:  # noqa: BLE001 - journal is best-effort context
         print(f"[warn] could not read journal: {e}", file=sys.stderr)
     for acc in held.values():
@@ -687,7 +696,8 @@ def _last_of(series: list) -> float | None:
     return None
 
 
-def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, list[str]]) -> dict:
+def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, list[str]],
+                *, force: bool = False) -> dict:
     """Everything the review reports for one holding.
 
     Raises nothing: a symbol whose bars fail to load comes back with `error`
@@ -710,7 +720,7 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
         "lots_without_setup": sum(1 for r in lots if not (r.get("setup") or "").strip()),
     }
     try:
-        stock = get_stock(symbol)
+        stock = get_stock(symbol, force=force)
     except Exception as e:  # noqa: BLE001 - one dead symbol must not kill the review
         entry["error"] = str(e)
         return entry
@@ -813,7 +823,8 @@ def _review_flags(e: dict, earn: dict | None) -> list[dict]:
                       "text": "Below the 20, 50 and 200-day averages"})
     elif below:
         flags.append({"key": "below_ma", "level": "info",
-                      "text": "Below the " + ", ".join(k.replace("sma", "") for k in below) + "-day average"})
+                      "text": "Below the " + ", ".join(k.replace("sma", "") for k in below)
+                              + "-day average" + ("s" if len(below) > 1 else "")})
 
     rsi = e.get("rsi14")
     if rsi is not None and rsi < 30:
@@ -833,13 +844,14 @@ def _review_flags(e: dict, earn: dict | None) -> list[dict]:
     return flags
 
 
-def build_position_review() -> dict:
+def build_position_review(force: bool = False) -> dict:
     """Per-holding state, levels, risk-to-support and journal gaps.
 
     Deliberately reuses `get_stock`, so a review right after browsing the board
     is nearly free and the numbers cannot disagree with the chart.
     """
-    held = open_positions()
+    rows = journal_open_rows()
+    held = open_positions(rows)
     if not held:
         return {
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -848,7 +860,6 @@ def build_position_review() -> dict:
                      "Record entries there and the review fills in.",
         }
 
-    rows = journal_open_rows()
     lots_by_symbol: dict[str, list[dict]] = {}
     for r in rows:
         lots_by_symbol.setdefault((r.get("symbol") or "").strip().upper(), []).append(r)
@@ -859,7 +870,8 @@ def build_position_review() -> dict:
 
     reviewed, excluded = [], []
     for symbol in sorted(held):
-        e = _review_one(symbol, held[symbol], lots_by_symbol.get(symbol, []), groups)
+        e = _review_one(symbol, held[symbol], lots_by_symbol.get(symbol, []), groups,
+                        force=force)
         earn = None
         if symbol in events:
             try:
@@ -894,12 +906,14 @@ def build_position_review() -> dict:
         cost = sum(i["cost"] for i in items if i.get("cost"))
         return {
             "market_value": mv, "cost": cost,
-            "pnl": mv - cost if (mv and cost) else None,
+            # Presence, not truthiness: a legitimate 0.0 must not read as missing.
+            "pnl": (mv - cost) if cost else None,
             "pnl_pct": ((mv / cost - 1.0) * 100.0) if cost else None,
         }
 
-    t_rev, t_exc = totals(reviewed), totals(excluded)
-    book_mv = (t_rev["market_value"] or 0.0) + (t_exc["market_value"] or 0.0)
+    t_rev = totals(reviewed)
+    excluded_mv = sum(i["market_value"] for i in excluded if i.get("market_value"))
+    book_mv = (t_rev["market_value"] or 0.0) + excluded_mv
     for e in reviewed + excluded:
         e["book_weight_pct"] = (e["market_value"] / book_mv * 100.0) if (book_mv and e.get("market_value")) else None
 
@@ -923,7 +937,6 @@ def build_position_review() -> dict:
         "excluded_note": "Left out of the risk math and flags by instruction. "
                          "Reported here so the weights above still add up.",
         "totals": t_rev,
-        "excluded_totals": t_exc,
         "book_market_value": book_mv,
         "risk_to_support": risk,
         "risk_to_support_pct_of_book": (risk / book_mv * 100.0) if book_mv else None,
@@ -954,7 +967,7 @@ def get_position_review(force: bool = False) -> dict:
             cached = _cache.get("review")
             if cached and not force and time.time() - _cache.get("review_ts", 0.0) < REVIEW_TTL:
                 return cached
-        data = build_position_review()
+        data = build_position_review(force=force)
         # A review with no positions is a legitimate answer, but an errored one
         # is not worth caching -- the fix is usually to edit the journal.
         if not data.get("error"):
