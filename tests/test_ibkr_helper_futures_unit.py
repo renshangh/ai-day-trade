@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+import time
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -15,6 +16,51 @@ def _mnq_june_2026_chain():
             {"symbol": "MNQ", "conid": 815824267, "expirationDate": 20261218, "ltd": 20261218},
         ]
     }
+
+
+
+def _third_friday(year: int, month: int) -> date:
+    first = date(year, month, 1)
+    first_friday = first + timedelta(days=(4 - first.weekday()) % 7)
+    return first_friday + timedelta(days=14)
+
+
+def _month_offset(year: int, month: int, months: int) -> tuple[int, int]:
+    index = month - 1 + months
+    return year + index // 12, index % 12 + 1
+
+
+def _holiday_mismatch_contract(months_ahead: int = 4) -> tuple[date, date]:
+    """`(synthetic_anchor, ibkr_listing)` for a contract comfortably in the future.
+
+    Mirrors the MNQM26 case this regression came from: the synthetic anchor lands
+    on the third Friday, IBKR lists the day before because of a holiday.
+
+    Derived from today rather than pinned to a literal date. The original test
+    hardcoded June 2026, which was four months out when it was written and is in
+    the past now -- and the behaviour under test only exists for a *future-dated*
+    contract, so the test stopped exercising it on 2026-06-19 and failed from
+    then on. See `_lookup_conid_future`: a negative-cache entry is retried only
+    when `_is_future_or_current_expiration(expiration)`, which is correct, since
+    re-querying IBKR for an expired contract cannot help.
+    """
+    today = date.today()
+    year, month = _month_offset(today.year, today.month, months_ahead)
+    synthetic = _third_friday(year, month)
+    return synthetic, synthetic - timedelta(days=1)
+
+
+def _mnq_chain_from(listing: date, conid: int) -> dict:
+    """A three-contract MNQ chain whose front month is `listing`."""
+    rows = [{"symbol": "MNQ", "conid": conid,
+             "expirationDate": int(listing.strftime("%Y%m%d")),
+             "ltd": int(listing.strftime("%Y%m%d"))}]
+    for offset, later_conid in ((3, conid + 1), (6, conid + 2)):
+        nxt = _third_friday(*_month_offset(listing.year, listing.month, offset)) - timedelta(days=1)
+        rows.append({"symbol": "MNQ", "conid": later_conid,
+                     "expirationDate": int(nxt.strftime("%Y%m%d")),
+                     "ltd": int(nxt.strftime("%Y%m%d"))})
+    return {"MNQ": rows}
 
 
 def _stub_cache():
@@ -182,21 +228,56 @@ def test_ibkr_helper_cont_future_segments_resolve_crypto_futures_expirations(mon
     assert contract_asset.expiration == date(2024, 12, 27)
 
 
+def test_holiday_mismatch_contract_is_always_future_dated():
+    """The scenario above only exists for an unexpired contract.
+
+    Pinning a literal expiration is what made the original test rot: it was four
+    months out when written, and once it passed the test silently stopped
+    exercising the retry path and just failed. This asserts the property the
+    scenario depends on, so a future edit cannot quietly reintroduce a fixed date.
+    """
+    synthetic, listing = _holiday_mismatch_contract()
+    today = date.today()
+    assert synthetic > today, f"synthetic anchor {synthetic} is not in the future"
+    assert listing > today, f"IBKR listing {listing} is not in the future"
+    # The mismatch this regression is about: IBKR lists the day before the
+    # synthetic third-Friday anchor, and both sit in the same month.
+    assert listing == synthetic - timedelta(days=1)
+    assert (listing.year, listing.month) == (synthetic.year, synthetic.month)
+    assert synthetic.weekday() == 4, "synthetic anchor should be a Friday"
+
+
 def test_ibkr_helper_future_conid_uses_same_month_ibkr_listing_for_holiday_mismatch(monkeypatch, tmp_path):
-    """Regression: MNQM26 is listed by IBKR as 20260618 while the old synthetic anchor computed 20260619."""
+    """Regression: IBKR lists the contract a day earlier than the synthetic anchor.
+
+    MNQM26 was listed by IBKR as 20260618 while the old synthetic anchor computed
+    20260619. A negative-cache entry recorded against the synthetic date must not
+    stop the same-month listing being found.
+
+    The contract dates are computed from today rather than hardcoded: the
+    behaviour only applies to a contract that has not expired, so pinning a
+    literal date makes the test stop exercising it the moment that date passes.
+    """
     import lumibot.tools.ibkr_helper as ibkr_helper
+
+    synthetic, listing = _holiday_mismatch_contract()
+    synthetic_key = synthetic.strftime("%Y%m%d")
+    listing_key = listing.strftime("%Y%m%d")
+    conid = 770561201
 
     monkeypatch.setattr(ibkr_helper, "LUMIBOT_CACHE_FOLDER", tmp_path.as_posix())
     monkeypatch.setattr(ibkr_helper, "get_backtest_cache", _stub_cache)
     monkeypatch.setattr(ibkr_helper, "_RUNTIME_CONID_CACHE", {})
     monkeypatch.setattr(ibkr_helper, "_NEGATIVE_CONID_CACHE_LOADED", True)
-    negative_key = ibkr_helper.IbkrConidKey("future", "MNQ", "", "CME", "20260619").to_key()
+    negative_key = ibkr_helper.IbkrConidKey("future", "MNQ", "", "CME", synthetic_key).to_key()
     monkeypatch.setattr(
         ibkr_helper,
         "_NEGATIVE_CONID_CACHE",
         {
             negative_key: {
-                "ts": 1777509385.2244134,
+                # Recorded just now, so the entry is inside its TTL and would be
+                # honoured if the future-dated retry did not override it.
+                "ts": time.time(),
                 "reason": "no_conid",
                 "message": "stale exact-date miss",
             }
@@ -209,25 +290,24 @@ def test_ibkr_helper_future_conid_uses_same_month_ibkr_listing_for_holiday_misma
         calls.append(dict(querystring))
         assert querystring["symbols"] == "MNQ"
         assert querystring["exchange"] == "CME"
-        return _mnq_june_2026_chain()
+        return _mnq_chain_from(listing, conid)
 
     monkeypatch.setattr(ibkr_helper, "queue_request", fake_queue_request)
 
-    asset = Asset("MNQ", asset_type=Asset.AssetType.FUTURE, expiration=date(2026, 6, 19))
+    asset = Asset("MNQ", asset_type=Asset.AssetType.FUTURE, expiration=synthetic)
     mapping = {}
     keys_added = set()
 
-    conid = ibkr_helper._lookup_conid_future(asset=asset, exchange="CME", mapping=mapping, keys_added=keys_added)
+    resolved = ibkr_helper._lookup_conid_future(asset=asset, exchange="CME", mapping=mapping, keys_added=keys_added)
 
-    assert conid == 770561201
+    assert resolved == conid
     assert calls, "A future-dated stale negative cache entry must not block a fresh IBKR lookup"
-    assert getattr(asset, "_ibkr_resolved_expiration") == date(2026, 6, 18)
-    assert mapping["future|MNQ||CME|20260618"] == 770561201
-    assert mapping["future|MNQ|USD|CME|20260618"] == 770561201
-    assert mapping["future|MNQ||CME|20260619"] == 770561201
-    assert mapping["future|MNQ|USD|CME|20260619"] == 770561201
+    assert getattr(asset, "_ibkr_resolved_expiration") == listing
+    assert mapping[f"future|MNQ||CME|{listing_key}"] == conid
+    assert mapping[f"future|MNQ|USD|CME|{listing_key}"] == conid
+    assert mapping[f"future|MNQ||CME|{synthetic_key}"] == conid
+    assert mapping[f"future|MNQ|USD|CME|{synthetic_key}"] == conid
     assert negative_key not in ibkr_helper._NEGATIVE_CONID_CACHE
-
 
 def test_ibkr_helper_cont_future_segments_use_ibkr_listed_mnq_expiration(monkeypatch, tmp_path):
     """The cont_future segment should fetch history using the IBKR-listed contract date, not the stale anchor."""
