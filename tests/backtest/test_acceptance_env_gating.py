@@ -35,7 +35,7 @@ ACCEPTANCE_ENV = [
 def _clear_all(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in ACCEPTANCE_ENV:
         monkeypatch.delenv(key, raising=False)
-    for key in ("CI", "GITHUB_ACTIONS", "GITHUB_WORKFLOW"):
+    for key in ("CI", "GITHUB_ACTIONS", "GITHUB_WORKFLOW", "GITHUB_REPOSITORY"):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -104,9 +104,69 @@ def test_release_workflow_skips_even_when_partially_configured(monkeypatch):
         acc._require_env(["THETADATA_USERNAME", "THETADATA_PASSWORD"])
 
 
-def test_fully_configured_env_does_not_skip_or_fail(monkeypatch):
+def test_canonical_repository_fails_even_with_no_secrets_at_all(monkeypatch):
+    """Wholesale secret loss upstream must not go quietly green.
+
+    A renamed `environment:` key or a protection rule blocking the job leaves all
+    nine secrets empty. Presence alone cannot tell that from a fork that never
+    had them, so the canonical repository is a second, independent reason to
+    shout -- otherwise the acceptance suite reports "9 skipped" and nobody learns
+    it stopped running.
+    """
     _clear_all(monkeypatch)
     monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_REPOSITORY", acc._CANONICAL_REPOSITORY)
+    with pytest.raises(pytest.fail.Exception):
+        acc._require_env(["THETADATA_USERNAME", "THETADATA_PASSWORD"])
+
+
+def test_a_fork_with_no_secrets_still_skips(monkeypatch):
+    """The same absence, in a repository that never owned the secrets."""
+    _clear_all(monkeypatch)
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "someone/their-fork")
+    with pytest.raises(pytest.skip.Exception):
+        acc._require_env(["THETADATA_USERNAME", "THETADATA_PASSWORD"])
+
+
+def test_placeholder_values_read_as_unconfigured(monkeypatch):
+    """A copied example env must not look like a configured environment.
+
+    Otherwise `username`/`password` placeholders make the fork look configured,
+    the partial-configuration rule fires, and CI is hard-red again for an
+    environment that plainly has no credentials.
+    """
+    _clear_all(monkeypatch)
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "someone/their-fork")
+    monkeypatch.setenv("THETADATA_USERNAME", "username")
+    monkeypatch.setenv("THETADATA_PASSWORD", "password")
+    assert acc._acceptance_env_never_configured() is True
+    with pytest.raises(pytest.skip.Exception):
+        acc._require_env(["THETADATA_USERNAME", "THETADATA_PASSWORD"])
+
+
+def test_empty_string_secrets_read_as_unconfigured(monkeypatch):
+    """Actions injects a missing secret as an empty string, not as unset."""
+    _clear_all(monkeypatch)
     for key in ACCEPTANCE_ENV:
-        monkeypatch.setenv(key, "value")
+        monkeypatch.setenv(key, "")
+    assert acc._acceptance_env_never_configured() is True
+
+
+def test_required_key_groups_are_immutable(monkeypatch):
+    """Tuples, so a conditional append in one branch cannot extend the constant
+    for every later case in the same process."""
+    for group in (acc._REQUIRED_S3, acc._REQUIRED_DOWNLOADER, acc._REQUIRED_THETADATA):
+        assert isinstance(group, tuple), f"{group!r} should be a tuple"
+
+
+def test_fully_configured_env_does_not_skip_or_fail(monkeypatch):
+    """Nothing missing returns early, before any CI or repository check."""
+    _clear_all(monkeypatch)
+    for key in ACCEPTANCE_ENV:
+        monkeypatch.setenv(key, "real-value")
     assert acc._require_env(list(ACCEPTANCE_ENV)) is None

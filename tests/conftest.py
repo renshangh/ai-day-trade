@@ -287,27 +287,11 @@ def _restore_alpaca_trading_stream():
         _AlpacaTradingStream._run_forever = _ALPACA_TRADING_STREAM_ORIGINAL_RUN_FOREVER
 
 
-# Centralized credential validation and skipping for API-dependent tests
-def _is_placeholder(value: str) -> bool:
-    if value is None:
-        return True
-    v = str(value).strip().lower()
-    if not v:
-        return True
-    placeholders = {
-        "<your key here>",
-        "<your api key>",
-        "<api key>",
-        "uname",
-        "username",
-        "password",
-        "<username>",
-        "<password>",
-        "none",
-        "null",
-        "changeme",
-    }
-    return v in placeholders
+# Centralized credential validation and skipping for API-dependent tests.
+# The "is this actually set" rule lives in tests/_credentials.py so the acceptance
+# backtests apply the identical rule -- two definitions meant an environment could
+# be skipped by one gate and hard-failed by the other.
+from tests._credentials import is_placeholder as _is_placeholder  # noqa: E402
 
 
 @pytest.hookimpl(tryfirst=True)
