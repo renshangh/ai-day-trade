@@ -62,6 +62,21 @@ SIP_DELAY_MINUTES = 16
 FEED = "iex"
 FEED_NOTE = "not yet resolved"
 
+# --- Port assignment -------------------------------------------------------
+#
+# One fixed port per branch, so the URL is predictable and two branches' servers
+# can never be mistaken for one another. Before this, three separate things
+# picked a port independently -- the preview launcher's autoPort, the .command
+# launcher scanning 8799-8803, and the PORT env var -- so the dashboard turned up
+# on a different port most times it started, and a stale server on the old port
+# kept serving old code while looking current.
+#
+# A branch not listed here maps to the DEV port: anything that is not `main` is
+# work headed for dev, and giving every topic branch its own port would just
+# recreate the drift this exists to remove.
+BRANCH_PORTS = {"main": 8800, "dev": 8799}
+DEV_PORT = BRANCH_PORTS["dev"]
+
 BOARD_TTL = 300  # seconds
 STOCK_TTL = 300
 LOOKBACKS = [1, 2, 3, 4, 5]
@@ -136,6 +151,44 @@ def load_env() -> dict[str, str]:
         if os.environ.get(key):
             env[key] = os.environ[key]
     return env
+
+
+def current_branch() -> str | None:
+    """Checked-out branch name, or None if it cannot be determined.
+
+    Reads `.git/HEAD` directly rather than shelling out to git: it is one file
+    read with no subprocess, and it works when git is not on PATH. Handles the
+    worktree form, where `.git` is a *file* containing `gitdir: <path>` -- which
+    matters because running the main and dev dashboards at the same time needs a
+    second worktree.
+    """
+    git_path = REPO_ROOT / ".git"
+    try:
+        if git_path.is_file():
+            line = git_path.read_text(encoding="utf-8", errors="replace").strip()
+            if not line.startswith("gitdir:"):
+                return None
+            git_dir = Path(line.split(":", 1)[1].strip())
+            if not git_dir.is_absolute():
+                git_dir = (REPO_ROOT / git_dir).resolve()
+        else:
+            git_dir = git_path
+        head = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        # A truncated or corrupted HEAD (an interrupted `git switch`, a
+        # filesystem fault) must degrade to "unknown branch", not take the whole
+        # dashboard down before it binds.
+        return None
+    if not head.startswith("ref:"):
+        return None          # detached HEAD -- a bare SHA, not a branch
+    ref = head.split(":", 1)[1].strip()
+    prefix = "refs/heads/"
+    return ref[len(prefix):] if ref.startswith(prefix) else None
+
+
+def port_for_branch(branch: str | None) -> int:
+    """The fixed port this branch owns. Unlisted branches share the dev port."""
+    return BRANCH_PORTS.get(branch or "", DEV_PORT)
 
 
 ENV = load_env()
@@ -1245,6 +1298,12 @@ class Handler(BaseHTTPRequestHandler):
             self._json(
                 {
                     "ok": True,
+                    # The branch this process was started from. A stale server
+                    # answers /api/health perfectly well -- that is exactly how
+                    # an old build kept serving the expected URL -- so "is it
+                    # alive" is not the useful question. "Is it *this* code" is.
+                    "branch": current_branch(),
+                    "port": self.server.server_address[1],
                     "feed": FEED,
                     "feed_note": FEED_NOTE,
                     "has_credentials": bool(HEADERS["APCA-API-KEY-ID"]),
@@ -1259,12 +1318,36 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Trading desk dashboard server")
-    # PORT (set by the preview launcher) wins over the default; an explicit
-    # --port still overrides both. The dashboard fetches its API on relative
-    # URLs, so it works on whatever port it lands on.
-    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8799)))
+    # Precedence, most explicit first: --port, then PORT (set by the preview
+    # launcher), then the port this branch owns. The dashboard fetches its API on
+    # relative URLs, so it works on whatever port it lands on -- the point of
+    # pinning is that a *human* can predict the URL, and that a server left over
+    # from another branch cannot quietly answer on the one you expect.
+    parser.add_argument("--port", type=int, default=None,
+                        help="override the branch's fixed port")
     parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--print-port", action="store_true",
+                        help="print the port this branch owns and exit; lets the "
+                             "shell launcher share one source of truth")
     args = parser.parse_args()
+
+    branch = current_branch()
+    pinned = port_for_branch(branch)
+    if args.print_port:
+        # Deliberately before the credential check: the launcher needs the port
+        # even when .env is missing, so it can report the failure on the right URL.
+        print(pinned)
+        return
+    if args.port is not None:
+        port, why = args.port, "--port"
+    elif os.environ.get("PORT"):
+        try:
+            port, why = int(os.environ["PORT"]), "PORT env"
+        except ValueError:
+            port, why = pinned, (f"PORT env {os.environ['PORT']!r} is not a number, "
+                                 "using the branch default")
+    else:
+        port, why = pinned, "branch default"
 
     if not HEADERS["APCA-API-KEY-ID"] or not HEADERS["APCA-API-SECRET-KEY"]:
         print("ERROR: ALPACA_API_KEY / ALPACA_API_SECRET not found in .env", file=sys.stderr)
@@ -1272,8 +1355,31 @@ def main() -> None:
 
     resolve_feed()
     load_cache()
-    server = ThreadingHTTPServer((args.host, args.port), Handler)
-    print(f"[info] trading desk on http://{args.host}:{args.port}")
+    print(f"[info] branch={branch or 'detached'}")
+    # An explicit port is allowed to win -- but if it is the port another branch
+    # owns, say so. Otherwise `--port 8800` from a dev checkout serves dev code
+    # at the URL you think is main, which is the confusion this change exists to
+    # end, just relocated.
+    # Condition is "not the port this branch would have chosen", NOT "some other
+    # branch owns it". A topic branch shares dev's port by design, so comparing
+    # against ownership alone would warn on every ordinary dev-work run.
+    if port != pinned:
+        owner = next((b for b, prt in BRANCH_PORTS.items() if prt == port), None)
+        where = f"the '{owner}' URL" if owner else f"port {port}"
+        print(f"[warn] '{branch or 'detached'}' normally serves on {pinned}; you are "
+              f"serving its code at {where} instead ({why}).", file=sys.stderr)
+    try:
+        server = ThreadingHTTPServer((args.host, port), Handler)
+    except OSError as e:
+        # Fail loudly rather than drifting to another port. A silent fallback is
+        # what let a stale server keep answering on the expected URL.
+        print(f"ERROR: cannot bind {args.host}:{port} ({why}) -- {e}", file=sys.stderr)
+        print(f"       Something is already using it. Find it with:\n"
+              f"         lsof -nP -iTCP:{port} -sTCP:LISTEN\n"
+              f"       then stop that process, or pass --port to use another.",
+              file=sys.stderr)
+        raise SystemExit(1) from e
+    print(f"[info] trading desk on http://{args.host}:{port}  ({why})")
     print(f"[info] universe: {len(universe.all_symbols())} symbols")
     try:
         server.serve_forever()
