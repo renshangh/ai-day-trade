@@ -97,12 +97,53 @@ def _is_release_workflow() -> bool:
     return os.environ.get("GITHUB_WORKFLOW", "") == "Release (PyPI + GitHub)"
 
 
+_REQUIRED_S3 = [
+    "LUMIBOT_CACHE_S3_BUCKET",
+    "LUMIBOT_CACHE_S3_PREFIX",
+    "LUMIBOT_CACHE_S3_REGION",
+    "LUMIBOT_CACHE_S3_ACCESS_KEY_ID",
+    "LUMIBOT_CACHE_S3_SECRET_ACCESS_KEY",
+]
+_REQUIRED_DOWNLOADER = [
+    "DATADOWNLOADER_BASE_URL",
+    "DATADOWNLOADER_API_KEY",
+]
+_REQUIRED_THETADATA = [
+    "THETADATA_USERNAME",
+    "THETADATA_PASSWORD",
+]
+# Every var any acceptance case can require. Checked as a whole to tell an
+# environment that was never set up for acceptance backtests from one that was
+# set up and has since lost a key -- see _require_env.
+_ALL_ACCEPTANCE_ENV = _REQUIRED_S3 + _REQUIRED_DOWNLOADER + _REQUIRED_THETADATA
+
+
+def _acceptance_env_never_configured() -> bool:
+    """True when not one acceptance secret is present anywhere in the env."""
+    return not any(os.environ.get(key) for key in _ALL_ACCEPTANCE_ENV)
+
+
 def _require_env(keys: list[str]) -> None:
     missing = [k for k in keys if not os.environ.get(k)]
     if not missing:
         return
     message = f"Missing required env vars for acceptance backtests: {missing}"
-    if _is_ci() and not _is_release_workflow():
+    # Changed 2026-08-28: skip, rather than fail, when the environment holds none
+    # of the acceptance secrets at all.
+    #
+    # Failing hard in CI exists so a CI that is *supposed* to have these secrets
+    # says so loudly instead of going quietly green, and that is worth keeping.
+    # But a fork -- or any checkout never configured for acceptance backtests --
+    # has none of them. There is nothing there to be misconfigured, and failing
+    # makes every shard permanently red for a reason a contributor cannot fix,
+    # which drowns out the real failures sitting beside it.
+    #
+    # So the signal for "someone broke the configuration" is *partial*
+    # configuration, not absence: some keys set and others missing means a key
+    # was dropped and CI should shout. None set means this environment simply
+    # does not run acceptance backtests, and the honest outcome is a skip with
+    # the reason attached.
+    if _is_ci() and not _is_release_workflow() and not _acceptance_env_never_configured():
         pytest.fail(message)
     pytest.skip(message)
 
@@ -278,21 +319,9 @@ def _assert_settings_match_window(case: _BaselineCase, payload: dict[str, object
 
 
 def _require_acceptance_env(case: _BaselineCase) -> None:
-    required_s3 = [
-        "LUMIBOT_CACHE_S3_BUCKET",
-        "LUMIBOT_CACHE_S3_PREFIX",
-        "LUMIBOT_CACHE_S3_REGION",
-        "LUMIBOT_CACHE_S3_ACCESS_KEY_ID",
-        "LUMIBOT_CACHE_S3_SECRET_ACCESS_KEY",
-    ]
-    required_downloader = [
-        "DATADOWNLOADER_BASE_URL",
-        "DATADOWNLOADER_API_KEY",
-    ]
-    required_thetadata_creds = [
-        "THETADATA_USERNAME",
-        "THETADATA_PASSWORD",
-    ]
+    required_s3 = _REQUIRED_S3
+    required_downloader = _REQUIRED_DOWNLOADER
+    required_thetadata_creds = _REQUIRED_THETADATA
 
     if case.data_source == "thetadata":
         _require_env(required_thetadata_creds + required_downloader + required_s3)
