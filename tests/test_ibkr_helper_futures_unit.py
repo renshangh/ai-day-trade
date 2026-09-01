@@ -18,7 +18,6 @@ def _mnq_june_2026_chain():
     }
 
 
-
 def _third_friday(year: int, month: int) -> date:
     first = date(year, month, 1)
     first_friday = first + timedelta(days=(4 - first.weekday()) % 7)
@@ -50,16 +49,23 @@ def _holiday_mismatch_contract(months_ahead: int = 4) -> tuple[date, date]:
     return synthetic, synthetic - timedelta(days=1)
 
 
-def _mnq_chain_from(listing: date, conid: int) -> dict:
+# Real back-month conids from the MNQ chain this regression came from. Literals
+# rather than `conid + 1`, `conid + 2`: IBKR conids for adjacent expiries are not
+# adjacent integers, and a fixture implying they are invites a later test to
+# assert an ordering that does not exist in IBKR's data.
+_BACK_MONTH_CONIDS = (793356225, 815824267)
+
+
+def _mnq_chain_from(listing: date, front_conid: int) -> dict:
     """A three-contract MNQ chain whose front month is `listing`."""
-    rows = [{"symbol": "MNQ", "conid": conid,
-             "expirationDate": int(listing.strftime("%Y%m%d")),
-             "ltd": int(listing.strftime("%Y%m%d"))}]
-    for offset, later_conid in ((3, conid + 1), (6, conid + 2)):
+    def row(expiry: date, conid: int) -> dict:
+        stamp = int(expiry.strftime("%Y%m%d"))
+        return {"symbol": "MNQ", "conid": conid, "expirationDate": stamp, "ltd": stamp}
+
+    rows = [row(listing, front_conid)]
+    for offset, conid in zip((3, 6), _BACK_MONTH_CONIDS):
         nxt = _third_friday(*_month_offset(listing.year, listing.month, offset)) - timedelta(days=1)
-        rows.append({"symbol": "MNQ", "conid": later_conid,
-                     "expirationDate": int(nxt.strftime("%Y%m%d")),
-                     "ltd": int(nxt.strftime("%Y%m%d"))})
+        rows.append(row(nxt, conid))
     return {"MNQ": rows}
 
 
@@ -229,22 +235,27 @@ def test_ibkr_helper_cont_future_segments_resolve_crypto_futures_expirations(mon
 
 
 def test_holiday_mismatch_contract_is_always_future_dated():
-    """The scenario above only exists for an unexpired contract.
+    """The holiday-mismatch scenario below only exists for an unexpired contract.
 
     Pinning a literal expiration is what made the original test rot: it was four
-    months out when written, and once it passed the test silently stopped
+    months out when written, and once that date passed the test silently stopped
     exercising the retry path and just failed. This asserts the property the
     scenario depends on, so a future edit cannot quietly reintroduce a fixed date.
+
+    Checked at several offsets rather than only the default, so the helper is
+    verified as a function of `months_ahead` instead of at one lucky point in the
+    calendar.
     """
-    synthetic, listing = _holiday_mismatch_contract()
     today = date.today()
-    assert synthetic > today, f"synthetic anchor {synthetic} is not in the future"
-    assert listing > today, f"IBKR listing {listing} is not in the future"
-    # The mismatch this regression is about: IBKR lists the day before the
-    # synthetic third-Friday anchor, and both sit in the same month.
-    assert listing == synthetic - timedelta(days=1)
-    assert (listing.year, listing.month) == (synthetic.year, synthetic.month)
-    assert synthetic.weekday() == 4, "synthetic anchor should be a Friday"
+    for months_ahead in (1, 4, 7, 13):
+        synthetic, listing = _holiday_mismatch_contract(months_ahead)
+        assert synthetic > today, f"+{months_ahead}mo: anchor {synthetic} is not in the future"
+        assert listing > today, f"+{months_ahead}mo: listing {listing} is not in the future"
+        # The mismatch this regression is about: IBKR lists the day before the
+        # synthetic third-Friday anchor, and both sit in the same month.
+        assert listing == synthetic - timedelta(days=1)
+        assert (listing.year, listing.month) == (synthetic.year, synthetic.month)
+        assert synthetic.weekday() == 4, f"+{months_ahead}mo: anchor should be a Friday"
 
 
 def test_ibkr_helper_future_conid_uses_same_month_ibkr_listing_for_holiday_mismatch(monkeypatch, tmp_path):
