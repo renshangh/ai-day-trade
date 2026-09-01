@@ -326,3 +326,89 @@ def test_stdio_transport_keeps_child_stderr_when_not_quiet(monkeypatch):
     runtime_module.list_mcp_tools(server)
 
     assert captured["errlog"] is sys.stderr
+
+
+# --- mcp API contract -------------------------------------------------------
+#
+# `mcp` was pinned `>=1.26.0` with no upper bound, so mcp 2.0 was installed
+# automatically and broke the agent runtime three ways at once:
+#
+#   1. `streamablehttp_client` was renamed `streamable_http_client`
+#   2. `headers` / `timeout` / `sse_read_timeout` were replaced by an injected
+#      `http_client`
+#   3. the yielded `TransportStreams` went from a 3-tuple to a 2-tuple, dropping
+#      the get-session-id callable that `_stream_http_session` unpacks
+#
+# The symptom was an ImportError surfacing from inside a strategy's agent
+# runtime, which says nothing about a dependency having moved. These assert the
+# shape `runtime.py` actually depends on, so the next incompatible release fails
+# here with a message naming the problem instead.
+
+
+_RENAME_HINT = (
+    "mcp renamed streamablehttp_client (2.0 calls it streamable_http_client). "
+    "lumibot/components/agents/runtime.py imports the old name; either adapt "
+    "the runtime to the new API or keep the mcp<2 pin."
+)
+
+
+def _client_factory():
+    """The factory `runtime.py` imports, or a named failure if it is gone.
+
+    Resolved with getattr on the module rather than `from ... import <name>`:
+    a direct import of a removed symbol raises a bare ImportError, which is
+    precisely the uninformative failure these tests exist to replace.
+    """
+    from mcp.client import streamable_http
+
+    factory = getattr(streamable_http, "streamablehttp_client", None)
+    assert factory is not None, _RENAME_HINT
+    return factory
+
+
+def test_streamable_http_client_exists_under_the_name_runtime_imports():
+    assert _client_factory() is not None
+
+
+def test_streamable_http_client_accepts_the_arguments_runtime_passes():
+    """runtime.py passes headers/timeout/sse_read_timeout/terminate_on_close.
+
+    mcp 2.0 removed the first three in favour of a pre-built httpx client, so a
+    rename-only shim would still fail at the call.
+    """
+    import inspect
+
+    params = inspect.signature(_client_factory()).parameters
+    for name in ("headers", "timeout", "sse_read_timeout", "terminate_on_close"):
+        assert name in params, (
+            f"mcp's streamablehttp_client no longer accepts {name!r}; "
+            "runtime._stream_http_session passes it"
+        )
+
+
+def test_streamable_http_client_still_yields_three_values():
+    """`async with streamablehttp_client(...) as (read, write, get_session_id)`.
+
+    mcp 2.0's TransportStreams is a 2-tuple, so this unpacking raises a
+    ValueError at runtime rather than anything that names the cause.
+    """
+    import typing
+
+    factory = _client_factory()
+    # Read from the annotation, and treat *failing to read it* as a reportable
+    # outcome rather than letting a NameError or KeyError surface raw. mcp already
+    # has TYPE_CHECKING-only names in this signature (`httpx2.AsyncClient` in
+    # 2.x), so get_type_hints is not guaranteed to resolve.
+    try:
+        yielded = typing.get_args(typing.get_type_hints(factory)["return"])[0]
+        arity = len(typing.get_args(yielded))
+    except (KeyError, NameError, IndexError, TypeError) as exc:
+        pytest.fail(
+            f"Could not read the yield type of mcp's streamablehttp_client ({exc!r}). "
+            "runtime._stream_http_session unpacks (read, write, get_session_id); "
+            "verify that shape by hand before lifting the mcp<2 pin."
+        )
+    assert arity == 3, (
+        "mcp's streamablehttp_client no longer yields (read, write, get_session_id); "
+        "runtime._stream_http_session unpacks three values"
+    )
