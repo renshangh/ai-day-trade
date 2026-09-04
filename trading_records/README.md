@@ -83,6 +83,18 @@ sloppy entries in large size can look better than disciplined ones in small size
 An `r_multiple` is only meaningful if `stop` was set at entry. If you didn't set
 one, leave both blank rather than back-filling a plausible number.
 
+Direction matters: for a long the stop sits below and the **highest** of a
+symbol's lot stops is the tightest; for a short it sits above and the **lowest**
+is. The `side` column drives that, and `risk_to_stop` is signed so "through the
+stop" is negative either way. A cell that will not parse (`n/a`, `$94.00`) is
+collected in `stop_current_unparsed` rather than raising — that parsing runs past
+the review's market-data guard, so an uncaught error would blank the entire
+review over one typo.
+
+`stop_current_set` is reported only when every open lot of the symbol agrees on
+it. Different dates describe different decisions, and showing one as though it
+covered the whole position asserts a provenance that is wrong for part of it.
+
 ### Why `stop_current` is a separate column
 
 A stop decided today is a real risk decision, but it is **not** the entry stop,
