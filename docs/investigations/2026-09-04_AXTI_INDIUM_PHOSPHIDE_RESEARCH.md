@@ -6,7 +6,18 @@ Why indium phosphide is irreplaceable in optical interconnects, where AXT actual
 **Status:** Active
 **Audience:** Both
 
-Rendered report (charts, tables): https://claude.ai/code/artifact/df8ef9cd-beff-4524-8b19-a5ad1e7035c1
+Rendered companion, with the fiber-attenuation chart and revenue chart this file cannot
+carry: [`data/2026-09-04_AXTI_INDIUM_PHOSPHIDE_RESEARCH.html`](data/2026-09-04_AXTI_INDIUM_PHOSPHIDE_RESEARCH.html)
+— open it from disk. There is also a published copy at
+https://claude.ai/code/artifact/df8ef9cd-beff-4524-8b19-a5ad1e7035c1, which is private to the
+author's account and will not open for other readers.
+
+> **On the committed HTML.** `AGENTS.md` says to avoid committing generated HTML; that rule
+> targets `docsrc/` build output, which is reproducible from source in CI. This page is not —
+> it is the primary artifact of the research and holds the two charts. It is committed
+> deliberately as a hand-authored document, not as build output, and it is not a precedent for
+> checking in generated docs. It and this file are a **pair**: correct a figure in one, correct
+> it in the other.
 
 ---
 
@@ -150,12 +161,16 @@ to eliminate.
 
 | Quarter | InP | GaAs | Ge | Raw mat. | Total | GM (non-GAAP) | EPS |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Q2 2025 | 3.6 | 6.2 | 1.5 | 6.7 | 18.0 | 8.2% | (0.15) |
+| Q2 2025 | 3.6 | 6.2 | 1.5 | 6.7* | 18.0 | 8.2% | (0.15) |
 | Q3 2025 | 13.1 | 7.5 | 0.6 | 6.7 | 28.0 | 22.4% | (0.03) |
 | Q4 2025 | 8.0 | 7.0 | 0.2 | 7.6 | 23.0 | 21.5% | (0.05) |
 | Q1 2026 | 13.6 | 5.4 | 0.3 | 7.6 | 26.9 | 29.9% | (0.01) |
 | Q2 2026 | **30.7** | 6.6 | 0.3 | 10.0 | **47.6** | **45.0%** | **0.19** |
 | Q3 2026 guide | — | — | — | — | >= 66 | rising | 0.30–0.32 |
+
+\* AXT did not separately report Q2/25 raw materials. $6.7M is derived from the Q3/25 report's
+statement that the segment was flat sequentially, and checks out against the reported $18.0M total.
+Every other cell is as reported.
 
 Two things matter more than the growth rate:
 
@@ -169,7 +184,8 @@ Two things matter more than the growth rate:
 ### 3.2 Capacity ramp
 
 April 2026: ~$632.5M gross secondary offering — more than five years of revenue — lifting cash
-from ~$123M to ~$749M at closing. Stated use: InP capacity at Beijing Tongmei plus 6-inch R&D.
+from ~$123M to ~$749M at closing in April; cash plus short- and long-term investments stood at
+$715.8M at 30 June. Stated use: InP capacity at Beijing Tongmei plus 6-inch R&D.
 Management then raised its own targets on the Q2 call:
 
 | Milestone | InP quarterly revenue capacity | Prior target |
@@ -382,7 +398,7 @@ Trade press and analysis:
 - [AXT–Lumentum long-term InP agreement](https://www.semiconductor-today.com/news_items/2026/jul/axt-lumentum-300726.shtml) — 2026-07-30
 - [InP shortage as AI optical interconnect bottleneck](https://www.trendforce.com/news/2026/08/06/news-inp-shortage-emerges-as-ai-optical-interconnect-bottleneck/) — TrendForce, 2026-08-06
 - [Sumitomo Electric JPY 18B InP expansion](https://www.trendforce.com/news/2026/07/13/news-sumitomo-electric-to-raise-inp-substrate-expansion-scale-with-jpy-18-billion/) — TrendForce, 2026-07-13
-- [China's control over InP exports threatens AI data centre rollout](https://www.mining.com/web/chinas-control-over-indium-phosphide-exports-threatens-ai-data-centre-rollout/) — Reuters via Mining.com (prices, market shares, Chinese producers)
+- China's control over InP exports threatens AI data centre rollout — Reuters; read via the [Yahoo Finance mirror](https://finance.yahoo.com/sectors/technology/articles/chinas-control-over-indium-phosphide-010212293.html) because the [Mining.com copy](https://www.mining.com/web/chinas-control-over-indium-phosphide-exports-threatens-ai-data-centre-rollout/) returns 403. Source of the 70% refined-indium share, the ~250% price move to ~$5,000, the 80%/10% share split, and the Yunnan Germanium capacity figures.
 - [Lumentum's "worse than memory" warning](https://xenospectrum.com/en/lumentum-inp-ai-optics-shortage/) — RAISE Summit, 2026-07-08
 - [Coherent moves 6-inch InP wafers into full production](https://convergedigest.com/coherent-moves-6-inch-indium-phosphide-wafers-into-full-production/)
 - [Coherent and NVIDIA break ground on Texas InP fab](https://blogs.nvidia.com/blog/coherent-texas-ai-optical/)
@@ -402,7 +418,7 @@ Market data:
 
 Material properties (bandgaps, lattice-matched alloy ranges, fiber attenuation, etch-pit and
 resistivity specifications) are standard published values for the material systems, not
-measurements of a specific vendor's product. Financial figures are as reported by AXT and were
-cross-checked for internal consistency: each quarter's product-line figures sum to the reported
-total within rounding. Where sources conflict — market share above all — the conflict is stated
+measurements of a specific vendor's product. Financial figures are as reported by AXT — with the
+single exception marked in section 3.1 — and were cross-checked for internal consistency: each
+quarter's product-line figures sum to the reported total within rounding. Where sources conflict — market share above all — the conflict is stated
 rather than resolved.
