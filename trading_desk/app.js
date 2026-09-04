@@ -24,6 +24,12 @@ const DEFAULT_HORIZON = 30;
 // The user's stated swing horizon. A print inside this window is the case the
 // whole view exists to catch, so it is named rather than inlined as `<= 21`.
 const SWING_WINDOW_DAYS = 21;
+// Must match the server's LEVEL_PROXIMITY_ATR so the amber "close to your stop"
+// highlight and the near_stop flag cannot disagree -- they did: the table
+// highlighted at 1.0 ATR while the flag fired at 0.5, so a position at 0.8 read
+// as both close to its stop and unremarkable. Asserted by
+// test_level_proximity_matches_the_client_constant.
+const LEVEL_PROXIMITY_ATR = 0.5;
 const RANGES = [
   { key: '3M', bars: 63 },
   { key: '6M', bars: 126 },
@@ -400,7 +406,8 @@ function revStopCell(e) {
   // which reports a negative risk figure and drops it from the book total.
   if (e.stop_current == null) return `<td class="lvl-none">—</td>`;
   const atr = e.stop_distance_atr;
-  const cls = e.through_stop ? 'neg' : (atr != null && atr <= 1 ? 'warn-txt' : '');
+  const cls = e.through_stop ? 'neg'
+    : (atr != null && atr <= LEVEL_PROXIMITY_ATR ? 'warn-txt' : '');
   const sub = e.through_stop
     ? 'through'
     : (atr == null ? '' : `${atr.toFixed(1)} ATR`);
@@ -444,7 +451,7 @@ function renderReview() {
     // the journal-wide figure — the one the README's "trend to zero" rule is
     // about — rides underneath rather than replacing it.
     ['Risk to stops',
-      d.risk_to_stop == null ? '—' : fmtMoney0(d.risk_to_stop),
+      fmtMoney0(d.risk_to_stop),
       d.risk_to_stop ? -1 : null,
       d.risk_to_stop_pct_of_book == null ? null
         : `${d.risk_to_stop_pct_of_book.toFixed(2)}% of book \u00b7 ${d.lots_with_stop_current ?? 0} lot(s)`],

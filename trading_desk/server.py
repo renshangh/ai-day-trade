@@ -774,6 +774,7 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
         "lots_without_stop": sum(1 for r in lots if not (r.get("stop") or "").strip()),
         "lots_without_thesis": sum(1 for r in lots if not (r.get("thesis") or "").strip()),
         "lots_without_setup": sum(1 for r in lots if not (r.get("setup") or "").strip()),
+        "lots_with_stop_current": sum(1 for r in lots if (r.get("stop_current") or "").strip()),
     }
     try:
         stock = get_stock(symbol, force=force)
@@ -838,24 +839,44 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
 
     # `stop_current` is the level being managed from now, separate from the entry
     # stop. Lots of one symbol normally share it; if they disagree, take the
-    # highest (tightest) and say so rather than averaging into a number nobody set.
-    stops = sorted({float(r["stop_current"]) for r in lots
-                    if (r.get("stop_current") or "").strip()}, reverse=True)
+    # tightest and say so rather than averaging into a number nobody set.
+    stops = set()
+    for r in lots:
+        raw = (r.get("stop_current") or "").strip()
+        if not raw:
+            continue
+        try:
+            stops.add(float(raw))
+        except ValueError:
+            # A hand-edited cell ("n/a", "$94.00") must not take the whole review
+            # down -- this runs past the get_stock guard above, so an uncaught
+            # raise here escapes _review_one's "raises nothing" contract. Same
+            # treatment open_positions gives a malformed qty/price.
+            entry.setdefault("stop_current_unparsed", []).append(raw)
     if stops:
-        stop = stops[0]
+        # Tightest depends on direction: for a long the stop sits below and the
+        # highest is tightest; for a short it sits above and the lowest is.
+        is_short = any((r.get("side") or "").strip().lower() == "short" for r in lots)
+        stop = min(stops) if is_short else max(stops)
         entry["stop_current"] = stop
         entry["stop_current_disagrees"] = len(stops) > 1
-        entry["stop_current_set"] = next(
-            (r.get("stop_current_set") for r in lots if (r.get("stop_current_set") or "").strip()), None)
+        # Only meaningful when every lot agrees; otherwise the dates describe
+        # different decisions and reporting one as if it covered all would assert
+        # a provenance that is wrong for part of the position.
+        set_dates = {(r.get("stop_current_set") or "").strip() for r in lots
+                     if (r.get("stop_current_set") or "").strip()}
+        entry["stop_current_set"] = set_dates.pop() if len(set_dates) == 1 else None
+        # Signed so "through the stop" is always negative, both directions: a long
+        # is through when price falls below, a short when price rises above. There
+        # is no risk left *to* a level already passed, and a positive number there
+        # would read as room that does not exist.
+        per_share = (stop - last) if is_short else (last - stop)
         if entry["qty"]:
-            # Negative once price is through the stop: the position is past the
-            # level, so there is no risk left *to* it, and reporting a positive
-            # number there would read as room that does not exist.
-            entry["risk_to_stop"] = (last - stop) * entry["qty"]
+            entry["risk_to_stop"] = per_share * entry["qty"]
         entry["stop_distance_pct"] = (stop / last - 1.0) * 100.0 if last else None
         if atr:
-            entry["stop_distance_atr"] = (last - stop) / atr
-        entry["through_stop"] = last < stop
+            entry["stop_distance_atr"] = per_share / atr
+        entry["through_stop"] = per_share < 0
     return entry
 
 
@@ -971,6 +992,7 @@ def build_position_review(force: bool = False) -> dict:
         if e["excluded"]:
             # No flags and no risk math: excluded by instruction, still reported.
             e.pop("risk_to_support", None)
+            e.pop("risk_to_stop", None)
             e["flags"] = []
             excluded.append(e)
         else:
@@ -1021,7 +1043,9 @@ def build_position_review(force: bool = False) -> dict:
     # stop would understate what the remaining stops are protecting.
     stop_risk = sum(e["risk_to_stop"] for e in reviewed
                     if e.get("risk_to_stop") and e["risk_to_stop"] > 0)
-    lots_with_stop_current = sum(e.get("lots") or 0 for e in reviewed if e.get("stop_current"))
+    # Per-lot, not per-symbol: a symbol with 3 lots and 2 stops protects 2, and the
+    # figure sits beside a dollar risk that only covers those.
+    lots_with_stop_current = sum(e.get("lots_with_stop_current") or 0 for e in reviewed)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "feed": FEED,
@@ -1354,6 +1378,9 @@ class Handler(BaseHTTPRequestHandler):
                     "has_credentials": bool(HEADERS["APCA-API-KEY-ID"]),
                     "cached_board": _cache.get("board") is not None,
                     "cached_symbols": len(_cache.get("stocks", {})),
+                    # Published so app.js can key its highlight off the same
+                    # number the near_stop / at_support flags use.
+                    "level_proximity_atr": LEVEL_PROXIMITY_ATR,
                 }
             )
             return
