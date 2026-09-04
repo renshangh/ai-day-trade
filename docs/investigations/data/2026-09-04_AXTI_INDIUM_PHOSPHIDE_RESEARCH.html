@@ -1,0 +1,1009 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>The Indium Phosphide Floor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --bg:        #EFF1ED;
+    --surface:   #FAFBF8;
+    --surface-2: #E5E8E1;
+    --ink:       #171A18;
+    --ink-2:     #5A615B;
+    --ink-3:     #838B83;
+    --rule:      #D2D7CE;
+    --rule-soft: #E1E5DC;
+    --accent:    #A23E28;
+    --accent-2:  #1E5B60;
+    --accent-3:  #8A6512;
+    --good:      #2C6B3F;
+    --crit:      #A23E28;
+    --warn:      #8A6512;
+    --band:      rgba(162, 62, 40, 0.10);
+
+    --measure: 68ch;
+    --step--1: 0.8125rem;
+    --step-0:  1.0625rem;
+    --step-1:  1.25rem;
+    --step-2:  1.5rem;
+    --step-3:  2rem;
+    --step-4:  2.75rem;
+    --step-5:  3.75rem;
+
+    --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #131614;
+      --surface:   #1B1F1D;
+      --surface-2: #232825;
+      --ink:       #E6E9E3;
+      --ink-2:     #9BA39B;
+      --ink-3:     #757D76;
+      --rule:      #2D332F;
+      --rule-soft: #232825;
+      --accent:    #E07A57;
+      --accent-2:  #63B2B6;
+      --accent-3:  #D0A34A;
+      --good:      #6FB584;
+      --crit:      #E07A57;
+      --warn:      #D0A34A;
+      --band:      rgba(224, 122, 87, 0.14);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #131614;
+    --surface:   #1B1F1D;
+    --surface-2: #232825;
+    --ink:       #E6E9E3;
+    --ink-2:     #9BA39B;
+    --ink-3:     #757D76;
+    --rule:      #2D332F;
+    --rule-soft: #232825;
+    --accent:    #E07A57;
+    --accent-2:  #63B2B6;
+    --accent-3:  #D0A34A;
+    --good:      #6FB584;
+    --crit:      #E07A57;
+    --warn:      #D0A34A;
+    --band:      rgba(224, 122, 87, 0.14);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: var(--step-0);
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 clamp(1.25rem, 4vw, 3.5rem) 6rem;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    padding: clamp(2.5rem, 6vw, 4.5rem) 0 2rem;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .eyebrow span:not(:first-child) { color: var(--ink-3); }
+
+  h1 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: clamp(2.5rem, 7vw, var(--step-5));
+    line-height: 0.98;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+    margin: 0 0 1.25rem;
+  }
+
+  .standfirst {
+    font-size: clamp(1.125rem, 2.2vw, var(--step-1));
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 56ch;
+    margin: 0;
+    font-weight: 300;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 500; }
+
+  /* ---------- quote strip ---------- */
+
+  .quote-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    border-bottom: 1px solid var(--rule);
+  }
+  .qs-item {
+    padding: 1.125rem 1.25rem 1.125rem 0;
+    border-right: 1px solid var(--rule-soft);
+  }
+  .qs-item:last-child { border-right: 0; }
+  .qs-k {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  .qs-v {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: var(--step-1);
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .qs-sub { font-family: var(--mono); font-size: 0.6875rem; color: var(--ink-3); display: block; }
+
+  /* ---------- structure ---------- */
+
+  section { padding-top: 3.5rem; }
+
+  .part-label {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 1.75rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .part-label em { font-style: normal; color: var(--ink-3); }
+
+  h2 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3.4vw, var(--step-3));
+    line-height: 1.12;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+    max-width: 38ch;
+  }
+
+  h3 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: var(--step-1);
+    letter-spacing: -0.012em;
+    line-height: 1.25;
+    text-wrap: balance;
+    margin: 2.5rem 0 0.75rem;
+  }
+
+  h4 {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0 0 0.75rem;
+  }
+
+  p { max-width: var(--measure); margin: 0 0 1.1em; }
+  p.wide { max-width: 78ch; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent-2);
+    outline-offset: 2px;
+  }
+
+  strong { font-weight: 500; color: var(--ink); }
+  em.term { font-style: italic; color: var(--ink); }
+
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.94em; }
+
+  ul.plain { max-width: var(--measure); padding-left: 1.1rem; margin: 0 0 1.1em; }
+  ul.plain li { margin-bottom: 0.5em; }
+
+  /* ---------- callout ---------- */
+
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    padding: 1.5rem 1.75rem;
+    margin: 2rem 0;
+    max-width: 78ch;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout h4 { color: var(--accent); }
+
+  .aside {
+    background: var(--surface-2);
+    padding: 1.25rem 1.5rem;
+    margin: 1.75rem 0;
+    max-width: 78ch;
+    font-size: 0.9375rem;
+    color: var(--ink-2);
+  }
+  .aside p:last-child { margin-bottom: 0; }
+  .aside strong { color: var(--ink); }
+
+  /* ---------- tables ---------- */
+
+  .table-scroll { overflow-x: auto; margin: 1.5rem 0 2rem; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--sans);
+    font-size: 0.875rem;
+    font-weight: 500;
+    min-width: 560px;
+  }
+  caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding-bottom: 0.6rem;
+  }
+  th {
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.6875rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    padding: 0 0.9rem 0.5rem 0;
+    border-bottom: 1px solid var(--ink);
+    vertical-align: bottom;
+  }
+  td {
+    padding: 0.7rem 0.9rem 0.7rem 0;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  td:last-child, th:last-child { padding-right: 0; }
+  .n { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  th.n { text-align: right; }
+  tr.total td { border-bottom: 0; border-top: 1px solid var(--ink); font-weight: 600; }
+  td .sub { display: block; font-family: var(--mono); font-size: 0.6875rem; color: var(--ink-3); font-weight: 400; }
+  .hi { color: var(--accent); }
+
+  /* ---------- figure ---------- */
+
+  figure {
+    margin: 2rem 0 2.5rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 1.5rem;
+  }
+  figcaption {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    line-height: 1.6;
+    color: var(--ink-3);
+    margin-top: 1rem;
+    max-width: 80ch;
+  }
+  figcaption b { color: var(--ink-2); font-weight: 500; }
+
+  svg { display: block; width: 100%; height: auto; }
+  .ax-line { stroke: var(--ink); stroke-width: 1; fill: none; }
+  .grid-line { stroke: var(--rule); stroke-width: 1; fill: none; }
+  .curve { stroke: var(--accent-2); stroke-width: 2.25; fill: none; stroke-linejoin: round; }
+  .tick-t { font-family: var(--mono); font-size: 10px; fill: var(--ink-3); }
+  .pt-t { font-family: var(--mono); font-size: 10.5px; fill: var(--ink); }
+  .cov-t { font-family: var(--mono); font-size: 10.5px; fill: var(--ink-2); }
+  .dot { fill: var(--accent); }
+  .cov-a { fill: var(--accent-3); }
+  .cov-b { fill: var(--accent); }
+
+  /* ---------- bar chart (CSS) ---------- */
+
+  .bars {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: clamp(0.5rem, 2vw, 1.25rem);
+    align-items: end;
+    height: 300px;
+  }
+  .bar-col { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; gap: 0.4rem; }
+  .bar-stack { display: flex; flex-direction: column; justify-content: flex-end; }
+  .seg { width: 100%; }
+  .seg-inp { background: var(--accent); }
+  .seg-gaas { background: var(--accent-2); }
+  .seg-ge { background: var(--accent-3); }
+  .seg-raw { background: var(--ink-3); }
+  .seg-guide {
+    background: repeating-linear-gradient(135deg, var(--rule) 0 4px, transparent 4px 8px);
+    border: 1px dashed var(--accent);
+  }
+  .bar-total {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    color: var(--ink);
+  }
+  .bar-x {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: clamp(0.5rem, 2vw, 1.25rem);
+    margin-top: 0.6rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--ink);
+  }
+  .bar-x span {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    text-align: center;
+    color: var(--ink-2);
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+    margin-top: 1rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--ink-2);
+  }
+  .legend i {
+    display: inline-block;
+    width: 10px; height: 10px;
+    margin-right: 0.4rem;
+    vertical-align: baseline;
+  }
+
+  /* ---------- horizontal capacity bars ---------- */
+
+  .hbars { display: flex; flex-direction: column; gap: 0.9rem; margin: 1.5rem 0 0; }
+  .hbar { display: grid; grid-template-columns: minmax(96px, 132px) 1fr auto; gap: 0.9rem; align-items: center; }
+  .hbar-k { font-family: var(--mono); font-size: 0.75rem; color: var(--ink-2); }
+  .hbar-track { background: var(--surface-2); height: 20px; position: relative; }
+  .hbar-fill { height: 100%; background: var(--accent); }
+  .hbar-fill.prev { background: var(--ink-3); }
+  .hbar-v { font-family: var(--mono); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+
+  /* ---------- stack diagram ---------- */
+
+  .stack { display: flex; flex-direction: column; gap: 2px; margin: 1.5rem 0 0; }
+  .layer {
+    display: grid;
+    grid-template-columns: 2.25rem 1fr minmax(0, 1.6fr);
+    gap: 1rem;
+    align-items: baseline;
+    padding: 0.85rem 1rem;
+    background: var(--surface-2);
+  }
+  .layer.axt { background: var(--band); border-left: 3px solid var(--accent); padding-left: calc(1rem - 3px); }
+  .layer-n { font-family: var(--mono); font-size: 0.75rem; color: var(--ink-3); }
+  .layer.axt .layer-n { color: var(--accent); }
+  .layer-t { font-family: var(--sans); font-weight: 600; font-size: 0.9375rem; letter-spacing: -0.01em; }
+  .layer-d { font-size: 0.875rem; color: var(--ink-2); line-height: 1.45; }
+  .layer-d b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- risk register ---------- */
+
+  .risks { display: flex; flex-direction: column; gap: 0; margin: 1.5rem 0 0; }
+  .risk {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.4rem;
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .risk:first-child { border-top: 1px solid var(--ink); }
+  .risk-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+  .risk-t { font-family: var(--sans); font-weight: 600; font-size: 1rem; letter-spacing: -0.012em; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid currentColor;
+  }
+  .chip.c1 { color: var(--crit); }
+  .chip.c2 { color: var(--warn); }
+  .chip.c3 { color: var(--ink-3); }
+  .risk p { margin: 0; max-width: 82ch; font-size: 0.9375rem; color: var(--ink-2); }
+  .risk p strong { color: var(--ink); }
+
+  /* ---------- watchlist ---------- */
+
+  .watch { border-top: 1px solid var(--ink); margin-top: 1.5rem; }
+  .watch-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 168px) 1fr;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .watch-when { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); }
+  .watch-what { font-size: 0.9375rem; max-width: 74ch; }
+  .watch-what b { font-family: var(--sans); font-weight: 600; font-size: 0.9375rem; }
+
+  /* ---------- sources ---------- */
+
+  .sources { columns: 2 260px; column-gap: 2.5rem; font-size: 0.8125rem; line-height: 1.55; color: var(--ink-2); }
+  .sources li { margin-bottom: 0.7rem; break-inside: avoid; }
+  .sources a { color: var(--ink); }
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--ink);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    line-height: 1.7;
+    color: var(--ink-3);
+    max-width: 84ch;
+  }
+
+  @media (max-width: 620px) {
+    .layer { grid-template-columns: 1.75rem 1fr; }
+    .layer-d { grid-column: 1 / -1; }
+    .bars { height: 220px; }
+    .sources { columns: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Deep research</span>
+      <span>4 September 2026</span>
+      <span>NASDAQ: AXTI</span>
+      <span>Compound semiconductor substrates</span>
+    </div>
+    <h1>The Indium&nbsp;Phosphide Floor</h1>
+    <p class="standfirst">Every optical link in an AI data center begins with a photon that silicon cannot emit. That photon is born in a crystal grown from indium and phosphorus — and <strong>AXT is one of three companies on earth that grows it at scale.</strong> What that does and does not make the company worth.</p>
+  </header>
+
+  <div class="quote-strip">
+    <div class="qs-item">
+      <span class="qs-k">Share price</span>
+      <span class="qs-v">$60.86</span>
+      <span class="qs-sub">52-wk $2.91 – $143.16</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-k">Market cap</span>
+      <span class="qs-v">$3.91B</span>
+      <span class="qs-sub">64.2M shares</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-k">Q2/26 revenue</span>
+      <span class="qs-v">$47.6M</span>
+      <span class="qs-sub">+164% y/y · record</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-k">InP share of rev.</span>
+      <span class="qs-v">64.5%</span>
+      <span class="qs-sub">$30.7M, from $3.6M</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-k">Gross margin</span>
+      <span class="qs-v">45.0%</span>
+      <span class="qs-sub">was 8.2% in Q2/25</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-k">Cash &amp; investments</span>
+      <span class="qs-v">$715.8M</span>
+      <span class="qs-sub">at 30 Jun; $749M at Apr close</span>
+    </div>
+  </div>
+
+  <!-- ============ THE SHORT ANSWER ============ -->
+  <section>
+    <div class="part-label"><span>The short answer</span><em>Where the premise holds and where it breaks</em></div>
+    <h2>AXT is not the foundation of photonics. It is one of three floors under it — and the floor is currently the constraint.</h2>
+
+    <p class="wide">The physics half of your premise is solid and under-appreciated. Silicon has an indirect bandgap: it computes beautifully and emits light terribly. Germanium is the same. Gallium arsenide emits, but only in the near infrared, where glass fiber is roughly ten times lossier than at the wavelengths carriers actually use. The <strong>only</strong> commercially proven material system that emits coherent light at 1310 nm and 1550 nm — the two low-loss windows of silica fiber — is the family of alloys lattice-matched to <em class="term">indium phosphide</em>. Every 800G and 1.6T transceiver, every co-packaged optics engine, every coherent long-haul line card and every erbium-amplifier pump laser in the world starts as an epitaxial stack grown on an InP wafer. Silicon photonics does not remove that dependency; it relocates it, because a silicon photonic die still needs an InP laser bonded or coupled to it.</p>
+
+    <p class="wide">The company half of your premise needs three corrections. First, AXT is <strong>number two, not number one</strong>: Sumitomo Electric is generally credited with the largest share, and AXT plus Sumitomo together are put at roughly 80% of global InP substrate output, with JX Advanced Metals around 10%. Second, AXT sells the <strong>wafer, not the chip</strong> — it sits two layers below the transceiver and captures a small slice of the value of the systems it enables. Third, and most importantly, AXT's substrates are all manufactured in China, and China put InP substrates on its export control list on 4 February 2025. Every overseas shipment now requires a permit from Beijing's Ministry of Commerce. Management has called those permits "the most significant challenge we currently face."</p>
+
+    <div class="callout">
+      <h4>The thesis in one line</h4>
+      <p>The scarcity is real, physical, and durable through at least 2027. AXT's leverage to it is real and now visible in the numbers. What is <em>not</em> settled is whether a company whose entire production base sits inside an export-control regime it does not control can convert a genuine bottleneck into durable per-share value before Sumitomo, JX and a state-backed Chinese cohort widen the bottleneck.</p>
+    </div>
+  </section>
+
+  <!-- ============ PART I: PHYSICS ============ -->
+  <section>
+    <div class="part-label"><span>Part I — The physics</span><em>Why the photon must be born on InP</em></div>
+    <h2>Three material constraints stack up, and only one crystal satisfies all three.</h2>
+
+    <h3>Constraint 1 — The emitter must have a direct bandgap</h3>
+    <p>In an indirect-bandgap semiconductor, an electron and hole cannot recombine into a photon without also involving a lattice vibration. The process is orders of magnitude less probable than the competing non-radiative paths, which is why nobody has ever shipped a practical silicon laser. Direct-bandgap III–V compounds recombine radiatively as a matter of course. This single fact is the reason a $50 billion optics industry depends on a handful of crystal growers.</p>
+
+    <h3>Constraint 2 — The emission wavelength must land in the fiber's low-loss windows</h3>
+    <p>Silica fiber has two useful transmission windows: the O-band around 1310 nm, where chromatic dispersion is near zero, and the C/L-bands around 1550 nm, where attenuation bottoms out near 0.19 dB/km. At 850 nm — where GaAs-based VCSELs emit — loss is over ten times higher, which is why 850 nm links are confined to a few hundred meters of multimode fiber inside a rack row. Scale-out links between racks and across a data center hall need the 1310/1550 windows.</p>
+
+    <figure>
+      <svg viewBox="0 0 720 356" role="img" aria-label="Attenuation of standard single-mode silica fiber against wavelength, showing minima at 1310 and 1550 nanometres, with coverage bars indicating that gallium arsenide based emitters reach only 780 to 1100 nanometres while indium phosphide based emitters cover 1200 to 1650 nanometres.">
+        <!-- gridlines -->
+        <line class="grid-line" x1="60" y1="33.4" x2="696" y2="33.4"></line>
+        <line class="grid-line" x1="60" y1="80.3" x2="696" y2="80.3"></line>
+        <line class="grid-line" x1="60" y1="127.2" x2="696" y2="127.2"></line>
+        <line class="grid-line" x1="60" y1="174.2" x2="696" y2="174.2"></line>
+        <line class="grid-line" x1="60" y1="221.1" x2="696" y2="221.1"></line>
+        <!-- y labels -->
+        <text class="tick-t" x="52" y="37" text-anchor="end">2.5</text>
+        <text class="tick-t" x="52" y="84" text-anchor="end">2.0</text>
+        <text class="tick-t" x="52" y="131" text-anchor="end">1.5</text>
+        <text class="tick-t" x="52" y="178" text-anchor="end">1.0</text>
+        <text class="tick-t" x="52" y="225" text-anchor="end">0.5</text>
+        <text class="tick-t" x="52" y="272" text-anchor="end">0</text>
+        <text class="tick-t" x="60" y="16">dB / km</text>
+        <!-- axes -->
+        <line class="ax-line" x1="60" y1="24" x2="60" y2="268"></line>
+        <line class="ax-line" x1="60" y1="268" x2="696" y2="268"></line>
+        <!-- curve -->
+        <polyline class="curve" points="60,33.4 95.3,61.5 130.7,99.1 201.3,174.2 272,202.3 342.7,225.8 385.1,232.3 420.4,237 455.7,228.6 471.9,216.4 491,228.6 519.3,241.7 554.7,247.4 590,250.2 625.3,249.2 643,247.4 678.3,238 696,230.5"></polyline>
+        <!-- annotated points -->
+        <circle class="dot" cx="95.3" cy="61.5" r="3.5"></circle>
+        <text class="pt-t" x="104" y="58">850 nm · 2.2 dB/km · multimode only</text>
+        <circle class="dot" cx="420.4" cy="237" r="3.5"></circle>
+        <text class="pt-t" x="420.4" y="259" text-anchor="middle">1310 nm · 0.33</text>
+        <circle class="dot" cx="590" cy="250.2" r="3.5"></circle>
+        <text class="pt-t" x="590" y="238" text-anchor="middle">1550 nm · 0.19</text>
+        <text class="tick-t" x="471.9" y="209" text-anchor="middle">OH⁻ peak</text>
+        <!-- x labels -->
+        <text class="tick-t" x="60" y="284" text-anchor="middle">800</text>
+        <text class="tick-t" x="201.3" y="284" text-anchor="middle">1000</text>
+        <text class="tick-t" x="342.7" y="284" text-anchor="middle">1200</text>
+        <text class="tick-t" x="484" y="284" text-anchor="middle">1400</text>
+        <text class="tick-t" x="625.3" y="284" text-anchor="middle">1600</text>
+        <!-- coverage bars -->
+        <rect class="cov-a" x="60" y="300" width="212" height="12"></rect>
+        <text class="cov-t" x="280" y="310">GaAs-based emitters · 780–1100 nm</text>
+        <rect class="cov-b" x="342.7" y="326" width="318" height="12"></rect>
+        <text class="cov-t" x="336" y="336" text-anchor="end">InP-based emitters · 1200–1650 nm</text>
+      </svg>
+      <figcaption><b>Fig. 1 — The reason InP exists as an industry.</b> Attenuation of standard single-mode silica fiber (ITU-T G.652 class), wavelength in nanometres. The two minima at 1310 nm and 1550 nm are where every long-reach optical link in a data center or carrier network operates. GaAs-based emitters physically cannot reach them; InP-lattice-matched alloys cover them entirely. Curve plotted from typical published fiber specifications, not from a specific vendor datasheet.</figcaption>
+    </figure>
+
+    <h3>Constraint 3 — The emitting alloy must be lattice-matched to an available substrate</h3>
+    <p>You cannot simply grow the alloy you want on whatever wafer is cheap. A mismatch of even a fraction of a percent between the crystal lattice of the epitaxial film and the substrate beneath it generates threading dislocations, and dislocations are exactly what kills laser lifetime. So the substrate choice determines the alloy palette, and the alloy palette determines the wavelength. This is the crux of the whole argument:</p>
+
+    <div class="table-scroll">
+      <table>
+        <caption>Table 1 — Why the substrate choice fixes the wavelength</caption>
+        <thead>
+          <tr>
+            <th>Substrate</th>
+            <th class="n">Bandgap</th>
+            <th>Transition</th>
+            <th>Lattice-matched emitter alloys</th>
+            <th>Accessible wavelengths</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Silicon<span class="sub">Si</span></td>
+            <td class="n">1.12 eV</td>
+            <td>Indirect</td>
+            <td>— none that emit efficiently</td>
+            <td>No practical laser</td>
+          </tr>
+          <tr>
+            <td>Germanium<span class="sub">Ge</span></td>
+            <td class="n">0.66 eV</td>
+            <td>Indirect</td>
+            <td>Used as a <em>detector</em> and as a solar-cell base</td>
+            <td>No practical laser</td>
+          </tr>
+          <tr>
+            <td>Gallium arsenide<span class="sub">GaAs</span></td>
+            <td class="n">1.42 eV</td>
+            <td>Direct</td>
+            <td>AlGaAs, InGaAs (strained)</td>
+            <td>780 – 1100 nm<span class="sub">short-reach VCSEL, sensing, pumps</span></td>
+          </tr>
+          <tr class="total">
+            <td class="hi">Indium phosphide<span class="sub">InP</span></td>
+            <td class="n">1.34 eV</td>
+            <td>Direct</td>
+            <td>InGaAsP, InGaAlAs, InGaAs</td>
+            <td class="hi">1200 – 1650 nm<span class="sub">O, E, S, C and L telecom bands</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="wide">The bottom row is the whole story. Because In<sub>0.53</sub>Ga<sub>0.47</sub>As is lattice-matched to InP at a bandgap of about 0.75 eV, and quaternary InGaAsP/InGaAlAs can be tuned continuously between that and InP's own 1.34 eV, a single substrate platform covers the entire telecom spectrum with defect-free epitaxy. No other commercially available substrate does. Attempts to reach 1310 nm from GaAs (InGaAsN, GaAsSb) have been researched for twenty-five years and have never displaced InP in volume.</p>
+
+    <h3>The fourth, quieter constraint: electron velocity</h3>
+    <p>InP's electron mobility is roughly an order of magnitude higher than silicon's, and its peak electron velocity is higher than GaAs's. That is why InP is not only the light source but also the platform for the <em class="term">electro-absorption modulator</em> integrated alongside the laser in an EML, for InP HBT and HEMT circuits running above 100 GHz, and for the high-speed PIN and avalanche photodiodes at the receive end. As per-lane rates move from 100G to 200G PAM4 and beyond, the modulator bandwidth requirement pushes further into territory where InP is the only proven answer for the highest-performance parts.</p>
+
+    <h3>What is actually built on the wafer</h3>
+    <div class="table-scroll">
+      <table>
+        <caption>Table 2 — The InP device portfolio behind an AI cluster</caption>
+        <thead>
+          <tr><th>Device</th><th>Function</th><th>Where it ships</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>EML<span class="sub">DFB laser + EAM, monolithic</span></td><td>Directly modulated 1310 nm transmit channel at 100–200G per lane</td><td>800G / 1.6T pluggables; the single largest InP consumer today</td></tr>
+          <tr><td>CW-DFB laser</td><td>Continuous-wave light source fed into an external modulator</td><td>Silicon-photonics transceivers; external laser sources for CPO</td></tr>
+          <tr><td>Tunable laser<span class="sub">DBR / external cavity</span></td><td>Wavelength-agile narrow-linewidth source</td><td>Coherent 400ZR/800ZR, DWDM line systems</td></tr>
+          <tr><td>SOA</td><td>Optical gain without conversion to electrical</td><td>Loss budget recovery in CPO and PON</td></tr>
+          <tr><td>Pump laser<span class="sub">980 / 1480 nm</span></td><td>Energizes erbium-doped fiber amplifiers</td><td>Every long-haul and metro amplifier site</td></tr>
+          <tr><td>PIN / APD photodiode</td><td>Converts 1310/1550 nm light back to current</td><td>Receive side of essentially every long-reach module</td></tr>
+          <tr><td>InP PIC</td><td>Laser, modulator, splitter and detector monolithically integrated</td><td>Coherent transponders, emerging high-density optics</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <h4>Silicon photonics and CPO make the dependency worse, not better</h4>
+      <p>The common misreading is that silicon photonics displaces III–V. It does not. A silicon photonic die can guide, split, modulate and detect light; it cannot generate it. So every silicon photonics platform pairs the silicon die with an InP gain chip — flip-chip attached, micro-transfer-printed, or coupled from a separately packaged external laser source. Co-packaged optics goes further: it moves the optical engine onto the switch package, multiplies the number of independent laser sources per package, and tightens the reliability and low-defect requirements on the substrate because a failed laser inside a switch package is far more expensive than a failed pluggable. TSMC's COUPE platform, Broadcom's and NVIDIA's CPO products all still need an InP light source per package. More integration, more lasers, more wafers.</p>
+    </div>
+
+    <h3>Why the substrate itself is not a commodity</h3>
+    <p class="wide">A wafer is not just a disc of the right compound. Laser-grade InP has to hit dislocation etch-pit densities in the hundreds to low thousands per cm², surface roughness below about 0.3 nm Ra, and crystal-plane orientation tolerances around ±0.01°. It comes in two electrically distinct flavours that are not interchangeable: sulphur-doped n-type for laser and detector epitaxy, and iron-doped semi-insulating (resistivity of order 10⁷ Ω·cm) for high-frequency devices where substrate conductivity would destroy the circuit. AXT grows its crystals by <em class="term">vertical gradient freeze</em> — a slow, low-thermal-gradient technique that yields lower dislocation density than pulling from a melt, at the cost of long growth cycles. Reported single-crystal yields across the industry sit at roughly 15–25%; from 100 kg of high-purity indium feedstock, on the order of 10 kg emerges as saleable wafer. That yield curve, plus the multi-quarter customer qualification cycle for a new substrate source, is the moat. It is also why capacity cannot be conjured in two quarters no matter how much capital arrives.</p>
+  </section>
+
+  <!-- ============ PART II: WHERE AXT SITS ============ -->
+  <section>
+    <div class="part-label"><span>Part II — Position</span><em>Six layers from crystal to cluster</em></div>
+    <h2>AXT owns the bottom two layers, and only the bottom two.</h2>
+    <p>This is the discipline the premise most needs. "Foundational" and "valuable" are different claims, and the distance between them is measured in layers of the stack. Reading bottom-up, in the order material actually moves:</p>
+
+    <div class="stack">
+      <div class="layer axt">
+        <span class="layer-n">01</span>
+        <span class="layer-t">Raw materials</span>
+        <span class="layer-d"><b>AXT is here.</b> High-purity gallium and germanium, InP polycrystalline base material, and pyrolytic boron nitride crucibles, via the JinMei and BoYu subsidiaries. Indium itself is bought in — it is a zinc-refining by-product, and China produced ~69–70% of the world's refined indium.</span>
+      </div>
+      <div class="layer axt">
+        <span class="layer-n">02</span>
+        <span class="layer-t">Substrate</span>
+        <span class="layer-d"><b>AXT is here.</b> VGF crystal growth, slicing, lapping, polishing into 2″/3″/4″ and now 6″ InP wafers, plus GaAs and Ge. Three suppliers worldwide at scale. Q2/26 InP revenue: $30.7M.</span>
+      </div>
+      <div class="layer">
+        <span class="layer-n">03</span>
+        <span class="layer-t">Epitaxy</span>
+        <span class="layer-d">MOCVD growth of the quantum-well laser structure on the substrate. Merchant epi houses (LandMark, VPEC) plus in-house lines at the integrated laser makers.</span>
+      </div>
+      <div class="layer">
+        <span class="layer-n">04</span>
+        <span class="layer-t">Laser and detector die</span>
+        <span class="layer-d">Fabrication, facet coating, burn-in and screening. Coherent, Lumentum, Sumitomo, Mitsubishi, Broadcom, Source Photonics, Accelink, and the Chinese laser cohort.</span>
+      </div>
+      <div class="layer">
+        <span class="layer-n">05</span>
+        <span class="layer-t">Optical module / engine</span>
+        <span class="layer-d">800G and 1.6T pluggables, and co-packaged optical engines. Innolight, Eoptolink, Coherent, Marvell DSP-paired designs, TSMC COUPE.</span>
+      </div>
+      <div class="layer">
+        <span class="layer-n">06</span>
+        <span class="layer-t">Switch and cluster</span>
+        <span class="layer-d">NVIDIA, Broadcom, Arista, and the hyperscalers who ultimately create the demand signal and who have begun reaching down five layers with prepayments.</span>
+      </div>
+    </div>
+
+    <div class="aside">
+      <p><strong>The value-capture asymmetry.</strong> A 1.6T module sells for four figures. The InP substrate content underneath it is a small fraction of that. AXT's entire trailing-twelve-month revenue is ~$126M against an optical module market measured in tens of billions. The company's leverage is not share of wallet; it is <em>pricing power in a shortage</em>. That is a real but conditional source of value: it works while the bottleneck holds, and it is exactly what everyone above layer 02 is now spending capital to eliminate.</p>
+    </div>
+  </section>
+
+  <!-- ============ PART III: THE COMPANY ============ -->
+  <section>
+    <div class="part-label"><span>Part III — The company</span><em>What the numbers now show</em></div>
+    <h2>Five quarters ago InP was 20% of revenue. Last quarter it was 65%, and the gross margin nearly tripled.</h2>
+
+    <p>AXT is not a pure InP company on paper — it runs three substrate lines plus a raw-materials arm — but it has become one in practice. The mix shift is the single clearest fact in the financials.</p>
+
+    <figure>
+      <div class="bars">
+        <div class="bar-col">
+          <div class="bar-total">$18.0</div>
+          <div class="bar-stack" style="height: 24.0%">
+            <div class="seg seg-inp" style="height:20.0%"></div>
+            <div class="seg seg-gaas" style="height:34.4%"></div>
+            <div class="seg seg-ge" style="height:8.3%"></div>
+            <div class="seg seg-raw" style="height:37.3%"></div>
+          </div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-total">$28.0</div>
+          <div class="bar-stack" style="height: 37.3%">
+            <div class="seg seg-inp" style="height:46.8%"></div>
+            <div class="seg seg-gaas" style="height:26.8%"></div>
+            <div class="seg seg-ge" style="height:2.3%"></div>
+            <div class="seg seg-raw" style="height:24.1%"></div>
+          </div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-total">$23.0</div>
+          <div class="bar-stack" style="height: 30.6%">
+            <div class="seg seg-inp" style="height:34.8%"></div>
+            <div class="seg seg-gaas" style="height:30.4%"></div>
+            <div class="seg seg-ge" style="height:1.0%"></div>
+            <div class="seg seg-raw" style="height:33.8%"></div>
+          </div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-total">$26.9</div>
+          <div class="bar-stack" style="height: 35.9%">
+            <div class="seg seg-inp" style="height:50.6%"></div>
+            <div class="seg seg-gaas" style="height:20.1%"></div>
+            <div class="seg seg-ge" style="height:1.1%"></div>
+            <div class="seg seg-raw" style="height:28.2%"></div>
+          </div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-total">$47.6</div>
+          <div class="bar-stack" style="height: 63.4%">
+            <div class="seg seg-inp" style="height:64.5%"></div>
+            <div class="seg seg-gaas" style="height:13.9%"></div>
+            <div class="seg seg-ge" style="height:0.6%"></div>
+            <div class="seg seg-raw" style="height:21.0%"></div>
+          </div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-total">≥$66</div>
+          <div class="bar-stack" style="height: 88%">
+            <div class="seg seg-guide" style="height:100%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="bar-x">
+        <span>Q2 / 25</span><span>Q3 / 25</span><span>Q4 / 25</span><span>Q1 / 26</span><span>Q2 / 26</span><span>Q3 / 26 <br>guide</span>
+      </div>
+      <div class="legend">
+        <span><i class="seg-inp"></i>Indium phosphide</span>
+        <span><i class="seg-gaas"></i>Gallium arsenide</span>
+        <span><i class="seg-ge"></i>Germanium</span>
+        <span><i class="seg-raw"></i>Raw materials (JinMei, BoYu)</span>
+        <span><i class="seg-guide" style="border:1px dashed var(--accent)"></i>Company guidance</span>
+      </div>
+      <figcaption><b>Fig. 2 — Revenue by product line, $ millions.</b> Compiled from AXT quarterly results as reported. The Q3/26 bar is the company's guidance floor of $66M given on the Q2 call, alongside EPS guidance of $0.30–0.32; management said there could be "upside, even significant upside" depending on export permits. Product-line split for Q3/26 is not yet known and is shown undifferentiated.</figcaption>
+    </figure>
+
+    <div class="table-scroll">
+      <table>
+        <caption>Table 3 — Quarterly detail, $ millions. All figures as reported except Q2/25 raw materials, derived — see note below</caption>
+        <thead>
+          <tr><th>Quarter</th><th class="n">InP</th><th class="n">GaAs</th><th class="n">Ge</th><th class="n">Raw mat.</th><th class="n">Total</th><th class="n">GM (non-GAAP)</th><th class="n">EPS</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Q2 2025</td><td class="n">3.6</td><td class="n">6.2</td><td class="n">1.5</td><td class="n">6.7</td><td class="n">18.0</td><td class="n">8.2%</td><td class="n">(0.15)</td></tr>
+          <tr><td>Q3 2025</td><td class="n">13.1</td><td class="n">7.5</td><td class="n">0.6</td><td class="n">6.7</td><td class="n">28.0</td><td class="n">22.4%</td><td class="n">(0.03)</td></tr>
+          <tr><td>Q4 2025</td><td class="n">8.0</td><td class="n">7.0</td><td class="n">0.2</td><td class="n">7.6</td><td class="n">23.0</td><td class="n">21.5%</td><td class="n">(0.05)</td></tr>
+          <tr><td>Q1 2026</td><td class="n">13.6</td><td class="n">5.4</td><td class="n">0.3</td><td class="n">7.6</td><td class="n">26.9</td><td class="n">29.9%</td><td class="n">(0.01)</td></tr>
+          <tr class="total"><td>Q2 2026</td><td class="n hi">30.7</td><td class="n">6.6</td><td class="n">0.3</td><td class="n">10.0</td><td class="n">47.6</td><td class="n">45.0%</td><td class="n">0.19</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="wide" style="font-family:var(--mono); font-size:0.6875rem; color:var(--ink-3);">AXT did not separately report a Q2/25 raw-materials figure; $6.7M is derived from the Q3/25 report's statement that the segment was flat sequentially, and checks out against the reported $18.0M total.</p>
+
+    <p class="wide">Two things in that table matter more than the headline growth. The <strong>operating leverage is severe in both directions</strong>: gross margin ran from 8.2% to 45.0% in four quarters on a revenue base that merely went from $18M to $48M, because crystal growth is a high-fixed-cost process where utilisation is everything. And the <strong>non-InP business is flat to shrinking</strong>. GaAs, which serves 850 nm VCSELs, micro-LED, high-brightness LED and RF power amplifiers, has hovered around $5–7.5M for years. Germanium — substrates for multi-junction space solar cells — has effectively rolled off, from $1.5M to $0.3M a quarter. There is no second engine here. The thesis is InP or nothing.</p>
+
+    <h3>The capacity ramp, and who is paying for it</h3>
+    <p>In April 2026 AXT raised roughly <span class="num">$632.5M</span> gross in a secondary offering — an amount larger than five years of revenue — lifting cash from about $123M to $749M at the time of closing in April, and standing at $715.8M of cash plus short- and long-term investments at 30 June. The stated use is InP capacity at Beijing Tongmei plus R&D on 6-inch wafers. Management then raised its own capacity targets sharply on the Q2 call:</p>
+
+    <div class="hbars">
+      <div class="hbar"><span class="hbar-k">Q4 2025 actual</span><div class="hbar-track"><div class="hbar-fill prev" style="width:6.2%"></div></div><span class="hbar-v">$8M</span></div>
+      <div class="hbar"><span class="hbar-k">Q3 2026 target</span><div class="hbar-track"><div class="hbar-fill" style="width:30.8%"></div></div><span class="hbar-v">$35–40M</span></div>
+      <div class="hbar"><span class="hbar-k">Exit 2026 target</span><div class="hbar-track"><div class="hbar-fill" style="width:46.2%"></div></div><span class="hbar-v">$60M</span></div>
+      <div class="hbar"><span class="hbar-k">Exit 2027 target</span><div class="hbar-track"><div class="hbar-fill" style="width:100%"></div></div><span class="hbar-v">$130M</span></div>
+    </div>
+    <p class="wide" style="font-family:var(--mono); font-size:0.6875rem; color:var(--ink-3); margin-top:0.9rem;">InP quarterly revenue capacity. The exit-2027 target of $130M/quarter was raised from a prior $70M; the Q3/26 target of $35–40M was raised from $20M. These are management capacity targets, not orders.</p>
+
+    <p class="wide">Notably, AXT is not funding this alone. Three customers have now put cash on the table ahead of delivery — the clearest possible signal that supply security, not price, is the binding concern downstream:</p>
+
+    <div class="table-scroll">
+      <table>
+        <caption>Table 4 — Customer prepayments and long-term agreements signed in 2026</caption>
+        <thead><tr><th>Counterparty</th><th>Structure</th><th class="n">Cash committed</th><th>Term</th></tr></thead>
+        <tbody>
+          <tr><td>Lumentum<span class="sub">US laser maker</span></td><td>Capacity-reservation and supply agreement with minimum annual commitment; deposits applied as shipment credits</td><td class="n">$87.0M<span class="sub">2 × $43.5M</span></td><td>to 31 Dec 2031</td></tr>
+          <tr><td>Coherent<span class="sub">US laser maker</span></td><td>Master Development &amp; Supply Agreement for 6″ InP; AXT commits to capacity expansion 2026–28</td><td class="n">$22.3M</td><td>to Jun 2029</td></tr>
+          <tr><td>Nanjing Casela<span class="sub">China laser maker</span></td><td>Long-term supply agreement</td><td class="n">$22.3M</td><td>from 2027</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="wide">Order backlog exceeds <span class="num">$100M</span> — more than two quarters of guided revenue — and extends into 2027. Lumentum, for context, is the supplier behind a large NVIDIA optics commitment, so the chain from GPU cluster to AXT crystal furnace is now contractually visible end to end.</p>
+
+    <div class="aside">
+      <p><strong>Vertical integration is a genuine, underrated edge.</strong> Through JinMei, AXT purifies its own 6N/7N gallium and produces InP polycrystalline base material; through BoYu it makes the pyrolytic boron nitride crucibles that the crystal growth itself happens inside — a consumable that constrains competitors and that AXT also sells to them. In a market where the raw-material chain (indium, gallium, germanium, pBN) is itself concentrated in China and subject to export controls, owning those steps is a cost and a continuity advantage. It is also why the raw-materials segment grew to $10M last quarter: the whole compound-semiconductor industry is bidding for the same inputs.</p>
+    </div>
+  </section>
+
+  <!-- ============ PART IV: THE MARKET ============ -->
+  <section>
+    <div class="part-label"><span>Part IV — The market</span><em>A 70% shortfall and a 250% price move</em></div>
+    <h2>Lumentum's CEO said the InP shortage is worse than DRAM or NAND. The capacity numbers support him.</h2>
+
+    <p class="wide">At the RAISE Summit in Paris on 8 July 2026, Lumentum CEO Michael Hurlston said the InP supply–demand imbalance had surpassed that of DRAM and NAND, that his shipments were running more than 30% short of customer demand for EMLs and pump lasers, and that customer order sizes had moved from "hundreds of units typical of traditional telecom customers to hundreds of millions." Lumentum is reported sold out through 2028 despite quadrupling output. Third-party industry estimates put 2025 global InP demand near 1.5–2.0 million wafer-equivalents against 600,000–700,000 of capacity — a gap of roughly 70%. Following China's February 2025 export controls, the average price of a 6-inch InP wafer is reported to have risen about 250%, to roughly $5,000.</p>
+
+    <div class="aside">
+      <p><strong>Treat the volume figures with care.</strong> The 2M-versus-600k comparison circulates widely but the underlying unit ("pieces", "devices", "wafer-equivalents") is inconsistent across sources, and the diameter mix is unstated — a 6-inch wafer yields roughly 400 laser die against about 250 for a 3-inch, so wafer counts and die counts tell different stories. The <em>direction</em> is corroborated by independent evidence: prepayments, sold-out positions, permit-gated backlog, and simultaneous multi-year expansions by every incumbent. The precise multiple is not reliable.</p>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <caption>Table 5 — InP substrate supply landscape, as of Q3 2026</caption>
+        <thead><tr><th>Supplier</th><th>Position</th><th>Method / status</th><th>Announced expansion</th></tr></thead>
+        <tbody>
+          <tr><td>Sumitomo Electric<span class="sub">Japan</span></td><td>Market leader; often cited near 60%</td><td>Vertical Bridgman; 4″ Fe-doped strength</td><td>~¥18B to take capacity to 3.1× FY2024 by FY2028</td></tr>
+          <tr><td class="hi">AXT / Beijing Tongmei<span class="sub">US-listed, China-manufactured</span></td><td>Number two. AXT + Sumitomo ≈ 80% combined</td><td>VGF; 2–4″ in volume, 6″ in pilot</td><td>$632M raised; capacity doubling in 2026 and again in 2027</td></tr>
+          <tr><td>JX Advanced Metals<span class="sub">Japan</span></td><td>~10%</td><td>Established supplier</td><td>Multi-year program announced; reported figures vary widely by source</td></tr>
+          <tr><td>Yunnan Germanium, Guangdong Xiandao, Zhuhai Dingtai Xinyuan, San'an<span class="sub">China</span></td><td>&lt;10% combined today</td><td>4″ in volume; 6″ qualifying</td><td>Yunnan Germanium: RMB 189M toward 450k wafers/yr; shipments +74% in 2025. San'an: RMB 6.5B, Wuhan 6″ line</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="aside">
+      <p><strong>Coherent is a customer, not a substrate rival — a distinction the trade press routinely blurs.</strong> Coherent grows its own SiC and GaAs crystals, but it does <em>not</em> grow InP: it buys InP substrates externally under three-to-five-year supply agreements — the AXT agreement in Table 4 is one of them — and performs epitaxy and device fabrication in-house. Its widely reported "6-inch InP" milestones and the $650M Sherman, Texas expansion with NVIDIA are <em>device</em> wafer capacity, quadrupling wafer output at the layer above. That expansion therefore <em>increases</em> substrate demand rather than adding competing supply. The same applies to IQE, which appears on many InP vendor lists but is an epitaxy house.</p>
+    </div>
+
+    <p class="wide"><strong>Market-share figures disagree across sources and should be held loosely.</strong> Reuters-sourced reporting puts AXT and Sumitomo together near 80% with JX around 10%, and separately credits Sumitomo with roughly 60% — implying AXT near 20%. Chinese industry sources put AXT as high as 35%. The consistent, decision-relevant fact is the structure, not the split: three incumbents hold 80–90%, and the barrier is yield and qualification rather than capital, since roughly $60M reportedly buys 400,000 wafer-equivalents of nameplate capacity but not the yield to run it.</p>
+
+    <h3>The listed universe is almost empty</h3>
+    <p class="wide">An unusual consequence of this market's structure: the bottleneck is one of the most discussed in AI infrastructure, and there is essentially one liquid listed way to own it directly. Of the companies that actually grow InP crystals, one is a US small-cap, two are Japanese conglomerates where InP is immaterial to the P&amp;L, and the rest are Chinese A-shares or private.</p>
+
+    <div class="table-scroll">
+      <table>
+        <caption>Table 6 — Every known InP substrate grower, by listing status</caption>
+        <thead><tr><th>Company</th><th>Listing</th><th>Access</th><th>Purity of exposure</th></tr></thead>
+        <tbody>
+          <tr><td class="hi">AXT<span class="sub">Beijing Tongmei</span></td><td class="n">AXTI<span class="sub">Nasdaq</span></td><td>Direct, liquid</td><td class="hi">High — InP was 64.5% of Q2/26 revenue and all of the growth</td></tr>
+          <tr><td>Sumitomo Electric</td><td class="n">5802<span class="sub">Tokyo</span></td><td>Tokyo session; US ADR <strong>SMTOY</strong> is an unsponsored OTC line and thin</td><td>Very low — InP sits inside a ~¥4tn conglomerate led by auto wiring harnesses and power cable</td></tr>
+          <tr><td>JX Advanced Metals</td><td class="n">5016<span class="sub">Tokyo</span></td><td>Tokyo session; no meaningful US line</td><td>Very low — sputtering targets and rolled copper foil dominate; compound-semi crystals are not broken out</td></tr>
+          <tr><td>Yunnan Germanium<span class="sub">via Yunnan Xinyao / Xinyao Semi.</span></td><td class="n">002428<span class="sub">Shenzhen</span></td><td>China A-share — Stock Connect or QFII only</td><td>Moderate — germanium mining plus GaAs/InP wafers; 150k wafers/yr, expanding to 450k</td></tr>
+          <tr><td>San'an Optoelectronics</td><td class="n">600703<span class="sub">Shanghai</span></td><td>China A-share</td><td>Low — predominantly LED epitaxy and chips</td></tr>
+          <tr><td>Guangdong Xiandao<span class="sub">via Guangdong Xianrui</span></td><td>—</td><td>Not identified as separately listed</td><td>—</td></tr>
+          <tr><td>Zhuhai Dingtai Xinyuan</td><td>—</td><td>Private</td><td>—</td></tr>
+          <tr><td>Freiberger Compound Materials<span class="sub">Germany</span></td><td>—</td><td>Private</td><td>Primarily GaAs</td></tr>
+          <tr><td>Xiamen Powerway, Vital Materials</td><td>—</td><td>Private</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="wide">Two names commonly mistaken for members of this list are not: <strong>Coherent (COHR)</strong> buys its InP substrates and fabricates devices, and <strong>IQE (LSE: IQE)</strong> is an epitaxy house that also buys substrates. Both are exposure to the layer <em>above</em>. The genuine adjacent vehicles — Lumentum, Coherent, Fabrinet, and the MOCVD toolmakers Veeco and Aixtron — express the same optical-bottleneck thesis, but they are on the demand side of the substrate, not the supply side.</p>
+
+    <h3>The 4-inch to 6-inch transition is the real competitive battleground</h3>
+    <p class="wide">A 6-inch wafer yields on the order of 400 usable laser die against roughly 250 for a 3-inch, and reported cost per die falls to about 60–70% of the 3-inch level. Whoever qualifies 6-inch at production yield first gets a structural cost advantage and relieves the shortage fastest. AXT's 6-inch program is explicitly in "development / pilot production" — that is the company's own characterisation in the Coherent agreement filing, alongside named risks of lower-than-expected yields and difficulty scaling crystal growth. Coherent already runs a 6-inch device line in Texas and will consume 6-inch substrates from whoever can qualify them; on the substrate side, Sumitomo's expansion is a 6-inch line upgrade with mass production reported for 2028. This is the single most important execution variable in the story.</p>
+  </section>
+
+  <!-- ============ PART V: RISKS ============ -->
+  <section>
+    <div class="part-label"><span>Part V — Risk register</span><em>Ranked by how much of the thesis each one breaks</em></div>
+    <h2>The largest risk is not competition. It is that a US-listed company's entire output is gated by permits from Beijing.</h2>
+
+    <div class="risks">
+      <div class="risk">
+        <div class="risk-head"><span class="risk-t">China export permits</span><span class="chip c1">Structural</span><span class="chip c1">Highest</span></div>
+        <p>China added InP substrates to its export control list on <strong>4 February 2025</strong>. GaAs and germanium went on in <strong>August 2023</strong>. Every overseas customer order requires a separate MOFCOM permit; processing has run around 60 business days, and there were effectively no InP permits for months before the first was granted in late June 2025. This is the mechanism behind AXT's own revenue volatility — Q3/25 InP hit $13.1M, then Q4/25 fell to $8.0M purely on permit timing, and Q4/25 guidance was missed for the same reason. Management calls permits "the most significant challenge we currently face." It has also hit customers directly: Taiwanese epi houses VPEC and LandMark reported disruption from AXT permit delays. North American revenue fell from 8% to 2% of sales during the worst of it. <strong>AXT does not control this variable and cannot forecast it.</strong></p>
+      </div>
+      <div class="risk">
+        <div class="risk-head"><span class="risk-t">Geographic and listing structure</span><span class="chip c1">Structural</span></div>
+        <p>All substrate and raw-material production is in the PRC. Tongmei <strong>withdrew its Shanghai STAR Market IPO application on 26 June 2026</strong> and pivoted to a Hong Kong listing, which triggered redemption rights on roughly <strong>RMB 324.4M</strong> raised from eleven Chinese private equity funds; AXT says it can repay while negotiating their participation in the new listing. Noncontrolling and redeemable noncontrolling interests in Tongmei stood at about 14.5%. A US-listed holding company whose value is a Chinese operating subsidiary being separately listed in Hong Kong is a structure that can compress the parent's multiple regardless of operating performance — and it sits on the wrong side of both governments' escalation options.</p>
+      </div>
+      <div class="risk">
+        <div class="risk-head"><span class="risk-t">The bottleneck attracts the capital that ends it</span><span class="chip c2">Cyclical</span></div>
+        <p>Every incumbent is expanding simultaneously — Sumitomo to 3.1× FY2024 capacity, JX on a multi-year program — while $5,000 wafers and Beijing's permit regime give hyperscalers, governments and customers overwhelming incentive to finance non-China supply. Chinese domestic producers, meanwhile, are being pulled forward by the same export controls that constrain AXT's exports: Yunnan Germanium's shipments rose 74% in 2025 and China is targeting 30% global share by 2030. Shortage economics are not a permanent state; the question is whether 2028 capacity overshoots 2028 demand.</p>
+      </div>
+      <div class="risk">
+        <div class="risk-head"><span class="risk-t">Customer concentration, now contractual</span><span class="chip c2">Elevated</span></div>
+        <p>The prepayment agreements that de-risk capacity also concentrate the customer base. Lumentum, Coherent and Casela now have contractual claims on reserved capacity, and all three are laser makers exposed to the same end demand — so their orders correlate rather than diversify. If any one of them qualifies an alternative source or slows, the reserved capacity does not simply resell at the same price.</p>
+      </div>
+      <div class="risk">
+        <div class="risk-head"><span class="risk-t">Execution: 6-inch yield and the ramp</span><span class="chip c2">Elevated</span></div>
+        <p>AXT is attempting to triple InP output in 2026 and roughly double again in 2027, in a process where industry single-crystal yields are 15–25% and where new capacity requires customer requalification. The 6-inch program is pilot-stage by the company's own filing. Missing the ramp does not just cost revenue — at 45% gross margin driven by utilisation, it costs margin non-linearly, in the same direction that produced the 8.2% trough in Q2/25.</p>
+      </div>
+      <div class="risk">
+        <div class="risk-head"><span class="risk-t">Technology substitution</span><span class="chip c3">Low near-term</span></div>
+        <p>Nothing on the horizon removes the need for a III–V gain material at 1310/1550 nm. The credible long-run threats are cost-structure attacks rather than replacements: InP-on-GaAs engineered substrates (claimed large cost savings and easier 6-inch scaling), quantum-dot lasers grown directly on silicon, and thin-film lithium niobate modulators — the last of which still needs an InP laser in front of it. Treat this as a 2030s risk to <em>substrate volume per link</em>, not a near-term threat to the platform.</p>
+      </div>
+      <div class="risk">
+        <div class="risk-head"><span class="risk-t">Valuation and dilution</span><span class="chip c2">Elevated</span></div>
+        <p>The stock went from under $3 to $143.16 in May 2026 and trades near $60.86 — roughly 58% below the high, still up many multiples year on year. Trailing revenue is $126M against a $3.91B market capitalisation; the forward P/E of ~38 depends entirely on the ramp landing. The April equity raise added shares at the top of the move, insiders including the CEO sold into strength in early June, and the stock has repeatedly fallen on <em>good</em> news, which is what a crowded momentum position looks like. Price discovery here has run several quarters ahead of the financial statements.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PART VI: WATCHLIST ============ -->
+  <section>
+    <div class="part-label"><span>Part VI — Falsifiers</span><em>What would settle the open questions</em></div>
+    <h2>Four checkpoints, each of which moves the thesis rather than decorating it.</h2>
+
+    <div class="watch">
+      <div class="watch-row">
+        <span class="watch-when">Q3 2026 results<br>~late Oct 2026</span>
+        <span class="watch-what"><b>Did the ramp land, and did permits allow it?</b> Guidance is ≥$66M with EPS $0.30–0.32 and an InP capacity target of $35–40M. The tell is not the revenue number but the gap between capacity and shipments: if InP capacity hits $40M and InP revenue lands well short, the constraint is permits, not demand — and that gap is the thesis's core vulnerability quantified.</span>
+      </div>
+      <div class="watch-row">
+        <span class="watch-when">Ongoing</span>
+        <span class="watch-what"><b>Non-China revenue mix.</b> Management guided toward a 40/60 non-China/China split, with China above 50% in Q2/26 on laser-sector demand. Rising non-China share is direct evidence permits are flowing; falling share means the export regime is quietly re-routing AXT into the domestic Chinese market, where prices and competition are worse.</span>
+      </div>
+      <div class="watch-row">
+        <span class="watch-when">2026 – 2027</span>
+        <span class="watch-what"><b>6-inch qualification at a named customer.</b> The Coherent agreement runs to June 2029 and is explicitly a development program. Confirmation of production-yield 6-inch shipments would validate both the cost structure and the exit-2027 $130M/quarter target. Continued silence, or a yield disclosure, is the bear signal.</span>
+      </div>
+      <div class="watch-row">
+        <span class="watch-when">2027 – 2028</span>
+        <span class="watch-what"><b>Whether the shortage survives the expansions.</b> Sumitomo at 3.1× FY2024, JX's program, China's domestic cohort and AXT's own tripling all arrive in roughly the same window. Watch the 6-inch spot price: if $5,000 holds through 2028 the bottleneck is structural; if it reverts toward pre-control levels, 45% gross margins were a cycle, not a moat.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section>
+    <div class="part-label"><span>Sources</span><em>Primary filings first</em></div>
+    <ul class="sources">
+      <li><a href="https://www.sec.gov/Archives/edgar/data/0001051627/000143774926025061/ex_974537.htm">AXT Q2 2026 results</a> — 8-K exhibit, SEC EDGAR</li>
+      <li><a href="https://www.sec.gov/Archives/edgar/data/1051627/000143774926014204/ex_906119.htm">AXT Q1 2026 results</a> — 8-K exhibit, SEC EDGAR</li>
+      <li><a href="https://www.sec.gov/Archives/edgar/data/1051627/000143774926027677/axti20260630_10q.htm">AXT Form 10-Q, quarter ended 30 June 2026</a> — SEC EDGAR</li>
+      <li><a href="https://www.sec.gov/Archives/edgar/data/1051627/000155837025003004/axti-20241231x10k.htm">AXT Form 10-K, FY2024</a> — product lines, applications, raw-material subsidiaries, PRC manufacturing</li>
+      <li><a href="https://www.sec.gov/Archives/edgar/data/1051627/000143774926022984/axti20260629_8k.htm">AXT 8-K, 29 June 2026</a> — Tongmei STAR Market withdrawal, Hong Kong pivot, RMB 324.4M redemption rights</li>
+      <li><a href="https://www.stocktitan.net/sec-filings/AXTI/8-k-axt-inc-reports-material-event-a5cebc00919f.html">AXT–Coherent Master Development &amp; Supply Agreement</a> — 6″ InP, $22.29M prepayment</li>
+      <li><a href="https://www.semiconductor-today.com/news_items/2026/aug/axt-040826.shtml">AXT returns to profit on record InP revenue</a> — Semiconductor Today, 4 Aug 2026 (product-line split, capacity targets, guidance)</li>
+      <li><a href="https://www.semiconductor-today.com/news_items/2026/may/axt-050526.shtml">AXT Q1/26 revenue grows 17%</a> — Semiconductor Today, 5 May 2026</li>
+      <li><a href="https://www.semiconductor-today.com/news_items/2026/mar/axt-090326.shtml">AXT Q4/25 constrained by permit delay</a> — Semiconductor Today, 9 Mar 2026</li>
+      <li><a href="https://www.semiconductor-today.com/news_items/2025/nov/axt-101125.shtml">AXT Q3/25 exceeds guidance after licences granted</a> — Semiconductor Today, 10 Nov 2025</li>
+      <li><a href="https://www.semiconductor-today.com/news_items/2026/jul/axt-lumentum-300726.shtml">AXT–Lumentum long-term InP agreement</a> — Semiconductor Today, 30 Jul 2026</li>
+      <li><a href="https://www.trendforce.com/news/2026/08/06/news-inp-shortage-emerges-as-ai-optical-interconnect-bottleneck/">InP shortage as AI optical interconnect bottleneck</a> — TrendForce, 6 Aug 2026</li>
+      <li><a href="https://www.trendforce.com/news/2026/07/13/news-sumitomo-electric-to-raise-inp-substrate-expansion-scale-with-jpy-18-billion/">Sumitomo Electric ¥18B InP expansion</a> — TrendForce, 13 Jul 2026</li>
+      <li>China's control over InP exports threatens AI data centre rollout — Reuters, read via the <a href="https://finance.yahoo.com/sectors/technology/articles/chinas-control-over-indium-phosphide-010212293.html">Yahoo Finance</a> mirror (prices, market shares, Chinese producers). The <a href="https://www.mining.com/web/chinas-control-over-indium-phosphide-exports-threatens-ai-data-centre-rollout/">Mining.com</a> copy returns 403.</li>
+      <li><a href="https://xenospectrum.com/en/lumentum-inp-ai-optics-shortage/">Lumentum's "worse than memory" warning</a> — RAISE Summit, 8 Jul 2026</li>
+      <li><a href="https://eu.36kr.com/en/p/3651344579993989">Indium Phosphide Takes the Spotlight</a> — 36Kr (Chinese supply chain, 4″→6″ die economics, supplier capacity)</li>
+      <li><a href="https://www.exponentialindustry.com/blog/2026-07-13-indium-phosphide-inp-substrate-ai-datacenter-lasers/">InP substrates for AI data center lasers</a> — Exponential Industry, 13 Jul 2026</li>
+      <li><a href="https://valueinvestus.com/articles/axti-ai-optical-bottleneck-indium-phosphide-analysis">Can AXT capture the value?</a> — VIUS Investing (bear case framing)</li>
+      <li><a href="https://stockanalysis.com/stocks/axti/">AXTI quote and fundamentals</a> — StockAnalysis, retrieved 4 Sep 2026</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>Compiled 4 September 2026 for the trading desk. Market data retrieved during compilation and stale the moment it was written — AXTI has moved more than 50% in a quarter more than once this year, so re-check the quote before it informs anything.</p>
+    <p>Material properties (bandgaps, lattice-matched alloy ranges, fiber attenuation, etch-pit and resistivity specifications) are standard published values for the material systems, not measurements of a specific vendor's product. Financial figures are as reported by AXT; the fiber attenuation curve is drawn from typical G.652-class specifications. Where sources conflict — market share above all — the conflict is stated rather than resolved.</p>
+    <p>This is technology and industry research, not investment advice, and I am not a licensed financial adviser. Nothing here is a recommendation to buy or sell any security.</p>
+  </footer>
+
+</div>
+</body>
+</html>
