@@ -365,6 +365,97 @@ def test_open_positions_can_aggregate_rows_without_touching_the_file():
     assert held["FN"]["entry_date"] == "2026-08-25"   # earliest across the lots
 
 
+def test_managed_stop_is_reported_separately_from_the_entry_stop():
+    """`stop_current` must not silence the entry-stop flag.
+
+    trading_records/README.md keys "trades with no stop" on the stop set **at
+    entry**, because that is what r_multiple divides by. A stop decided today is
+    a real risk decision but a different fact, so both are reported.
+    """
+    lots = [{"symbol": "FN", "status": "open", "qty": "11", "entry_price": "488.00",
+             "stop": "", "stop_current": "376.77", "stop_current_set": "2026-09-04",
+             "thesis": "t", "setup": "s"}]
+    held = {"qty": 11.0, "cost": 5368.0, "lots": 1, "avg_entry": 488.0, "entry_date": "2026-08-18"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([400.0, 405.72], [{"level": 404.32}])
+    try:
+        e = srv._review_one("FN", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["stop_current"] == 376.77
+    assert e["stop_current_set"] == "2026-09-04"
+    # The entry-stop gap is still counted -- filling stop_current does not fix it.
+    assert e["lots_without_stop"] == 1
+    # Risk to the managed stop, from today's price.
+    assert abs(e["risk_to_stop"] - (405.72 - 376.77) * 11) < 1e-6
+    assert e["through_stop"] is False
+
+
+def test_price_through_the_managed_stop_is_flagged_not_reported_as_room():
+    """Past the stop there is no risk *to* it; a positive number would mislead."""
+    lots = [{"symbol": "POWL", "status": "open", "qty": "45", "entry_price": "216.32",
+             "stop": "", "stop_current": "200.00", "stop_current_set": "2026-09-04",
+             "thesis": "t", "setup": "s"}]
+    held = {"qty": 45.0, "cost": 9734.4, "lots": 1, "avg_entry": 216.32, "entry_date": "2026-08-03"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([195.0, 180.14], [{"level": 122.13}])
+    try:
+        e = srv._review_one("POWL", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["through_stop"] is True
+    assert e["risk_to_stop"] < 0, "through the stop, the figure must be negative"
+    flags = {f["key"] for f in srv._review_flags(e, None)}
+    assert "through_stop" in flags
+    assert "near_stop" not in flags, "through and near are mutually exclusive"
+
+
+def test_disagreeing_lot_stops_take_the_tightest_and_say_so():
+    """Averaging into a level nobody set would be inventing a decision."""
+    lots = [
+        {"symbol": "COHR", "status": "open", "qty": "50", "entry_price": "302.00",
+         "stop": "", "stop_current": "256.41", "stop_current_set": "2026-09-04",
+         "thesis": "t", "setup": "s"},
+        {"symbol": "COHR", "status": "open", "qty": "48", "entry_price": "265.25",
+         "stop": "", "stop_current": "250.00", "stop_current_set": "2026-09-04",
+         "thesis": "t", "setup": "s"},
+    ]
+    held = {"qty": 98.0, "cost": 27832.0, "lots": 2, "avg_entry": 284.0, "entry_date": "2026-08-27"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([270.0, 279.50], [{"level": 254.97}])
+    try:
+        e = srv._review_one("COHR", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["stop_current"] == 256.41, "tightest of the two"
+    assert e["stop_current_disagrees"] is True
+    assert "stop_disagrees" in {f["key"] for f in srv._review_flags(e, None)}
+
+
+def test_positions_without_a_managed_stop_report_none_not_zero():
+    """A missing stop is an absence, and 0.0 would be a price."""
+    lots = [{"symbol": "IBIT", "status": "open", "qty": "300", "entry_price": "59.53",
+             "stop": "", "stop_current": "", "thesis": "", "setup": ""}]
+    held = {"qty": 300.0, "cost": 17859.0, "lots": 1, "avg_entry": 59.53, "entry_date": "2025-01-23"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([44.0, 44.88], [{"level": 40.0}])
+    try:
+        e = srv._review_one("IBIT", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert "stop_current" not in e
+    assert "risk_to_stop" not in e
+    assert "through_stop" not in e
+
+
 def _main() -> int:
     failures = 0
     for name, fn in sorted(globals().items()):

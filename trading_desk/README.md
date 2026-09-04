@@ -367,6 +367,55 @@ Regenerate the underlying history with:
 python3 trading_desk/research/earnings_dates.py
 ```
 
+### Split events (research only)
+
+Nothing on the page uses this yet; it is a measurement kept next to the drift
+study so the next person does not redo it. `research/split_study.py` pulls two
+years of forward and reverse splits from Alpaca's corporate-actions feed, tags
+each as listed stock / ETF / OTC, and measures the close-to-close change over
+the 1, 2, 3 and 5 sessions ending on the last pre-split close, plus the 1, 2, 3,
+5 and 10 sessions starting on the first post-split close (raw bars throughout,
+so neither window is ever contaminated by the split itself; mis-dated vendor
+bars are skipped, never patched).
+
+Headline from the 2024-09 to 2026-09 run: listed **stocks** see about **37
+forward splits a year** and **470-620 reverse splits a year**; ETFs add another
+30-60 forward and 70-180 reverse; OTC names are counted but have no Alpaca bars.
+
+Forward splits (2:1 or larger, n=57) show **no pre-split drift** and no
+post-split drift either -- every median from 1 to 10 sessions out sits within
+about 1% of flat, roughly half positive either direction.
+
+Reverse splits (n=1074 stock events) fall hard into the event and **keep
+falling after it**:
+
+| | median | % positive |
+|---|---|---|
+| T-2 to T-1 (last 2 pre-split sessions) | -12% | 19% |
+| ex-date session alone | -1% | 46% |
+| ex-date to +2 sessions | -6% | 30% |
+| ex-date to +5 sessions | -9% | 31% |
+| ex-date to +10 sessions | -11% | 32% |
+
+So the announcement drop (T-2) is not a one-day event that then stabilizes;
+roughly 70% of these names are still lower ten sessions after the split than
+they closed on the split's first day. The mean is much noisier than the median
+here -- occasional 100%+ bounces pull the post-10-day mean to only -3% against
+a -11% median -- so read the median and hit rate, not the mean. This is a raw
+continuation number, not baselined against the population's own normal
+volatility: these are sub-$1 names (median pre-split close $0.30) that were
+already declining before the split, so "down after the split" and "this
+population is generally down" are not separated here. Nasdaq requires public
+notice at least two business days before a reverse split takes effect, which
+is why the T-2 session (not T-1) carries most of the announcement reaction.
+
+```bash
+python3 trading_desk/research/split_study.py
+```
+
+Writes `research/split_events.csv` (one row per event) and
+`research/split_study.json` (counts and return tables).
+
 ### Daily review
 
 A per-position screen for the one question the ranking board cannot answer:
@@ -538,6 +587,7 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `indicators.py` | Indicator math (pure stdlib) |
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
+| `research/split_study.py` | Split-event counts and pre-split return study (see Split events) |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
 | `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
 | `tests/test_ports.py` | Per-branch port mapping, HEAD parsing, launcher agreement, stale-server detection |

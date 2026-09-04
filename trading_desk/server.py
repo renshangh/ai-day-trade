@@ -768,6 +768,9 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
         "exclusion_reason": REVIEW_EXCLUDE.get(symbol),
         # Journal hygiene is a fact about the record, available even when the
         # market data fetch fails, so it is filled in before anything else.
+        # Keyed off `stop` (the entry stop), not `stop_current`. This tracks entry
+        # discipline -- the number trading_records/README.md says should trend to
+        # zero -- so a stop decided today must not silence it.
         "lots_without_stop": sum(1 for r in lots if not (r.get("stop") or "").strip()),
         "lots_without_thesis": sum(1 for r in lots if not (r.get("thesis") or "").strip()),
         "lots_without_setup": sum(1 for r in lots if not (r.get("setup") or "").strip()),
@@ -832,6 +835,27 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
     # underwater position has already spent the difference.
     if sup and entry["qty"]:
         entry["risk_to_support"] = (last - sup["level"]) * entry["qty"]
+
+    # `stop_current` is the level being managed from now, separate from the entry
+    # stop. Lots of one symbol normally share it; if they disagree, take the
+    # highest (tightest) and say so rather than averaging into a number nobody set.
+    stops = sorted({float(r["stop_current"]) for r in lots
+                    if (r.get("stop_current") or "").strip()}, reverse=True)
+    if stops:
+        stop = stops[0]
+        entry["stop_current"] = stop
+        entry["stop_current_disagrees"] = len(stops) > 1
+        entry["stop_current_set"] = next(
+            (r.get("stop_current_set") for r in lots if (r.get("stop_current_set") or "").strip()), None)
+        if entry["qty"]:
+            # Negative once price is through the stop: the position is past the
+            # level, so there is no risk left *to* it, and reporting a positive
+            # number there would read as room that does not exist.
+            entry["risk_to_stop"] = (last - stop) * entry["qty"]
+        entry["stop_distance_pct"] = (stop / last - 1.0) * 100.0 if last else None
+        if atr:
+            entry["stop_distance_atr"] = (last - stop) / atr
+        entry["through_stop"] = last < stop
     return entry
 
 
@@ -853,6 +877,18 @@ def _review_flags(e: dict, earn: dict | None) -> list[dict]:
     if e.get("lots_without_thesis"):
         flags.append({"key": "no_thesis", "level": "info",
                       "text": f"No thesis recorded on {e['lots_without_thesis']} lot(s)"})
+
+    if e.get("through_stop"):
+        flags.append({"key": "through_stop", "level": "warn",
+                      "text": f"Price {e['last']:.2f} is below the managed stop "
+                              f"{e['stop_current']:.2f} (set {e.get('stop_current_set') or 'n/a'})"})
+    elif e.get("stop_distance_atr") is not None and e["stop_distance_atr"] <= LEVEL_PROXIMITY_ATR:
+        flags.append({"key": "near_stop", "level": "warn",
+                      "text": f"Within {e['stop_distance_atr']:.1f} ATR of the managed stop "
+                              f"{e['stop_current']:.2f}"})
+    if e.get("stop_current_disagrees"):
+        flags.append({"key": "stop_disagrees", "level": "info",
+                      "text": "Open lots carry different stop_current values; showing the tightest"})
 
     sup, res = e.get("nearest_support"), e.get("nearest_resistance")
     if sup and sup.get("distance_atr") is not None and sup["distance_atr"] <= LEVEL_PROXIMITY_ATR:
@@ -980,6 +1016,12 @@ def build_position_review(force: bool = False) -> dict:
             by_group[g] = by_group.get(g, 0.0) + e["market_value"]
 
     risk = sum(e["risk_to_support"] for e in reviewed if e.get("risk_to_support"))
+    # Only positions that actually have a stop contribute, and only the ones
+    # still above it -- summing a negative from a position already through its
+    # stop would understate what the remaining stops are protecting.
+    stop_risk = sum(e["risk_to_stop"] for e in reviewed
+                    if e.get("risk_to_stop") and e["risk_to_stop"] > 0)
+    lots_with_stop_current = sum(e.get("lots") or 0 for e in reviewed if e.get("stop_current"))
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "feed": FEED,
@@ -992,6 +1034,9 @@ def build_position_review(force: bool = False) -> dict:
         "totals": t_rev,
         "book_market_value": book_mv,
         "risk_to_support": risk,
+        "risk_to_stop": stop_risk,
+        "risk_to_stop_pct_of_book": (stop_risk / book_mv * 100.0) if book_mv else None,
+        "lots_with_stop_current": lots_with_stop_current,
         "risk_to_support_pct_of_book": (risk / book_mv * 100.0) if book_mv else None,
         "group_exposure": [
             {"group": g, "market_value": v,

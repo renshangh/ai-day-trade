@@ -57,6 +57,9 @@ the part worth reviewing.
 | `symbol` / `side` / `qty` | Instrument and position. `long` or `short`. |
 | `entry_date` / `entry_price` | Fill date and average fill price. |
 | `stop` / `target` | Levels set **at entry**. Recording them after the fact defeats the purpose. |
+| `stop_current` | A stop for managing the position **from now**, not the entry stop. Separate column on purpose — see below. |
+| `stop_current_set` | Date `stop_current` was decided. |
+| `stop_current_basis` | How it was derived, e.g. `1 ATR14 (7.91) below 60.74`, so the number is auditable later. |
 | `exit_date` / `exit_price` | Blank while open. |
 | `gross_pnl` / `fees` / `net_pnl` | Keep fees separate; they matter at swing-trade size. |
 | `pnl_pct` | Net P&L as a percent of cost basis. |
@@ -79,6 +82,26 @@ sloppy entries in large size can look better than disciplined ones in small size
 
 An `r_multiple` is only meaningful if `stop` was set at entry. If you didn't set
 one, leave both blank rather than back-filling a plausible number.
+
+### Why `stop_current` is a separate column
+
+A stop decided today is a real risk decision, but it is **not** the entry stop,
+and the two must not share a column.
+
+`r_multiple` divides by `|entry_price - stop|`. Back-filling `stop` with a level
+chosen after the fact measures risk from a price the trade never actually risked
+— and because a stop picked once a position is already underwater sits closer to
+the current price than an honest entry stop would have, the resulting R is
+*flattering*. A losing trade can be made to look like it only cost 0.4R.
+
+So `stop` stays blank when none was set at entry, `r_multiple` stays blank with
+it, and that history is simply lost. `stop_current` records what to manage from
+here without rewriting what the decision actually was.
+
+The daily review's `no_stop` flag deliberately keys off `stop`, not
+`stop_current`, because it is tracking entry discipline — the number the section
+above says should trend to zero. Filling `stop_current` will not silence it, and
+should not.
 
 ## Filling it in
 

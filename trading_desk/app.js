@@ -394,6 +394,22 @@ async function fetchReview(force) {
 const fmtMoney0 = v => (v == null ? '—'
   : `${v < 0 ? '−' : ''}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
 
+function revStopCell(e) {
+  // An absent stop is an absence, not a price -- em dash, never 0.00. Through the
+  // stop reads as a warning rather than as remaining room, matching the API,
+  // which reports a negative risk figure and drops it from the book total.
+  if (e.stop_current == null) return `<td class="lvl-none">—</td>`;
+  const atr = e.stop_distance_atr;
+  const cls = e.through_stop ? 'neg' : (atr != null && atr <= 1 ? 'warn-txt' : '');
+  const sub = e.through_stop
+    ? 'through'
+    : (atr == null ? '' : `${atr.toFixed(1)} ATR`);
+  const dis = e.stop_current_disagrees ? ' \u2260' : '';
+  return `<td class="${cls}">${fmtPx(e.stop_current)}${dis}`
+       + `<span class="lvl-meta">${fmtPct(e.stop_distance_pct)}${sub ? ' \u00b7 ' + sub : ''}</span></td>`;
+}
+
+
 function revLevelCell(l) {
   if (!l) return '<td class="muted">none</td>';
   const atr = l.distance_atr == null ? '' : ` · ${l.distance_atr.toFixed(1)} ATR`;
@@ -427,6 +443,11 @@ function renderReview() {
     // Scoped to the reviewed rows so the tile agrees with the table beneath it;
     // the journal-wide figure — the one the README's "trend to zero" rule is
     // about — rides underneath rather than replacing it.
+    ['Risk to stops',
+      d.risk_to_stop == null ? '—' : fmtMoney0(d.risk_to_stop),
+      d.risk_to_stop ? -1 : null,
+      d.risk_to_stop_pct_of_book == null ? null
+        : `${d.risk_to_stop_pct_of_book.toFixed(2)}% of book \u00b7 ${d.lots_with_stop_current ?? 0} lot(s)`],
     ['Lots without a stop',
       `${d.reviewed_lots_without_stop ?? '—'} of ${d.reviewed_open_lots ?? '—'}`,
       d.reviewed_lots_without_stop ? -1 : 1,
@@ -444,7 +465,7 @@ function renderReview() {
     const rows = d.positions.map(e => {
       if (e.error) {
         return `<tr class="rev-row" data-sym="${e.symbol}"><td><b>${e.symbol}</b></td>`
-             + `<td colspan="10" class="neg">${e.error}</td></tr>`;
+             + `<td colspan="12" class="neg">${e.error}</td></tr>`;
       }
       const w = e.book_weight_pct;
       const earn = e.earnings && e.earnings.days_until != null
@@ -460,6 +481,8 @@ function renderReview() {
         ${revLevelCell(e.nearest_resistance)}
         ${revLevelCell(e.nearest_support)}
         <td>${fmtMoney0(e.risk_to_support)}</td>
+        ${revStopCell(e)}
+        <td>${e.risk_to_stop == null ? '—' : fmtMoney0(e.risk_to_stop)}</td>
         <td>${e.rsi14 == null ? '—' : e.rsi14.toFixed(0)}</td>
         <td>${e.atr_pct == null ? '—' : e.atr_pct.toFixed(1) + '%'}</td>
         <td class="${earnCls}">${earn}</td>
@@ -469,6 +492,7 @@ function renderReview() {
       <thead><tr>
         <th>Symbol</th><th>Last</th><th>Avg entry</th><th>Unrealised</th><th>% book</th>
         <th>Resistance above</th><th>Support below</th><th>To support</th>
+        <th>Stop</th><th>To stop</th>
         <th>RSI</th><th>ATR%</th><th>Earnings</th>
       </tr></thead><tbody>${rows}</tbody></table>`;
     // Clicking a row charts that symbol, same affordance as the calendar rows.
