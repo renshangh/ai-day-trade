@@ -57,6 +57,9 @@ the part worth reviewing.
 | `symbol` / `side` / `qty` | Instrument and position. `long` or `short`. |
 | `entry_date` / `entry_price` | Fill date and average fill price. |
 | `stop` / `target` | Levels set **at entry**. Recording them after the fact defeats the purpose. |
+| `stop_current` | A stop for managing the position **from now**, not the entry stop. Separate column on purpose — see below. |
+| `stop_current_set` | Date `stop_current` was decided. |
+| `stop_current_basis` | How it was derived, e.g. `1 ATR14 (7.91) below 60.74`, so the number is auditable later. |
 | `exit_date` / `exit_price` | Blank while open. |
 | `gross_pnl` / `fees` / `net_pnl` | Keep fees separate; they matter at swing-trade size. |
 | `pnl_pct` | Net P&L as a percent of cost basis. |
@@ -79,6 +82,38 @@ sloppy entries in large size can look better than disciplined ones in small size
 
 An `r_multiple` is only meaningful if `stop` was set at entry. If you didn't set
 one, leave both blank rather than back-filling a plausible number.
+
+Direction matters: for a long the stop sits below and the **highest** of a
+symbol's lot stops is the tightest; for a short it sits above and the **lowest**
+is. The `side` column drives that, and `risk_to_stop` is signed so "through the
+stop" is negative either way. A cell that will not parse (`n/a`, `$94.00`) is
+collected in `stop_current_unparsed` rather than raising — that parsing runs past
+the review's market-data guard, so an uncaught error would blank the entire
+review over one typo.
+
+`stop_current_set` is reported only when every open lot of the symbol agrees on
+it. Different dates describe different decisions, and showing one as though it
+covered the whole position asserts a provenance that is wrong for part of it.
+
+### Why `stop_current` is a separate column
+
+A stop decided today is a real risk decision, but it is **not** the entry stop,
+and the two must not share a column.
+
+`r_multiple` divides by `|entry_price - stop|`. Back-filling `stop` with a level
+chosen after the fact measures risk from a price the trade never actually risked
+— and because a stop picked once a position is already underwater sits closer to
+the current price than an honest entry stop would have, the resulting R is
+*flattering*. A losing trade can be made to look like it only cost 0.4R.
+
+So `stop` stays blank when none was set at entry, `r_multiple` stays blank with
+it, and that history is simply lost. `stop_current` records what to manage from
+here without rewriting what the decision actually was.
+
+The daily review's `no_stop` flag deliberately keys off `stop`, not
+`stop_current`, because it is tracking entry discipline — the number the section
+above says should trend to zero. Filling `stop_current` will not silence it, and
+should not.
 
 ## Filling it in
 

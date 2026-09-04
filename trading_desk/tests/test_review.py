@@ -365,6 +365,193 @@ def test_open_positions_can_aggregate_rows_without_touching_the_file():
     assert held["FN"]["entry_date"] == "2026-08-25"   # earliest across the lots
 
 
+def test_managed_stop_is_reported_separately_from_the_entry_stop():
+    """`stop_current` must not silence the entry-stop flag.
+
+    trading_records/README.md keys "trades with no stop" on the stop set **at
+    entry**, because that is what r_multiple divides by. A stop decided today is
+    a real risk decision but a different fact, so both are reported.
+    """
+    lots = [{"symbol": "FN", "status": "open", "qty": "11", "entry_price": "488.00",
+             "stop": "", "stop_current": "376.77", "stop_current_set": "2026-09-04",
+             "thesis": "t", "setup": "s"}]
+    held = {"qty": 11.0, "cost": 5368.0, "lots": 1, "avg_entry": 488.0, "entry_date": "2026-08-18"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([400.0, 405.72], [{"level": 404.32}])
+    try:
+        e = srv._review_one("FN", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["stop_current"] == 376.77
+    assert e["stop_current_set"] == "2026-09-04"
+    # The entry-stop gap is still counted -- filling stop_current does not fix it.
+    assert e["lots_without_stop"] == 1
+    # Risk to the managed stop, from today's price.
+    assert abs(e["risk_to_stop"] - (405.72 - 376.77) * 11) < 1e-6
+    assert e["through_stop"] is False
+
+
+def test_price_through_the_managed_stop_is_flagged_not_reported_as_room():
+    """Past the stop there is no risk *to* it; a positive number would mislead."""
+    lots = [{"symbol": "POWL", "status": "open", "qty": "45", "entry_price": "216.32",
+             "stop": "", "stop_current": "200.00", "stop_current_set": "2026-09-04",
+             "thesis": "t", "setup": "s"}]
+    held = {"qty": 45.0, "cost": 9734.4, "lots": 1, "avg_entry": 216.32, "entry_date": "2026-08-03"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([195.0, 180.14], [{"level": 122.13}])
+    try:
+        e = srv._review_one("POWL", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["through_stop"] is True
+    assert e["risk_to_stop"] < 0, "through the stop, the figure must be negative"
+    flags = {f["key"] for f in srv._review_flags(e, None)}
+    assert "through_stop" in flags
+    assert "near_stop" not in flags, "through and near are mutually exclusive"
+
+
+def test_disagreeing_lot_stops_take_the_tightest_and_say_so():
+    """Averaging into a level nobody set would be inventing a decision."""
+    lots = [
+        {"symbol": "COHR", "status": "open", "qty": "50", "entry_price": "302.00",
+         "stop": "", "stop_current": "256.41", "stop_current_set": "2026-09-04",
+         "thesis": "t", "setup": "s"},
+        {"symbol": "COHR", "status": "open", "qty": "48", "entry_price": "265.25",
+         "stop": "", "stop_current": "250.00", "stop_current_set": "2026-09-04",
+         "thesis": "t", "setup": "s"},
+    ]
+    held = {"qty": 98.0, "cost": 27832.0, "lots": 2, "avg_entry": 284.0, "entry_date": "2026-08-27"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([270.0, 279.50], [{"level": 254.97}])
+    try:
+        e = srv._review_one("COHR", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["stop_current"] == 256.41, "tightest of the two"
+    assert e["stop_current_disagrees"] is True
+    assert "stop_disagrees" in {f["key"] for f in srv._review_flags(e, None)}
+
+
+def test_positions_without_a_managed_stop_report_none_not_zero():
+    """A missing stop is an absence, and 0.0 would be a price."""
+    lots = [{"symbol": "IBIT", "status": "open", "qty": "300", "entry_price": "59.53",
+             "stop": "", "stop_current": "", "thesis": "", "setup": ""}]
+    held = {"qty": 300.0, "cost": 17859.0, "lots": 1, "avg_entry": 59.53, "entry_date": "2025-01-23"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([44.0, 44.88], [{"level": 40.0}])
+    try:
+        e = srv._review_one("IBIT", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert "stop_current" not in e
+    assert "risk_to_stop" not in e
+    assert "through_stop" not in e
+
+
+def test_unparseable_stop_current_does_not_take_down_the_review():
+    """A hand-edited cell must not blank every position.
+
+    This parsing runs past the get_stock guard, so an uncaught ValueError escapes
+    _review_one's documented "raises nothing" contract and /api/review returns
+    502 for one bad character in one cell.
+    """
+    lots = [{"symbol": "FN", "status": "open", "qty": "11", "entry_price": "488.00",
+             "side": "long", "stop": "", "stop_current": "n/a", "thesis": "t", "setup": "s"},
+            {"symbol": "FN", "status": "open", "qty": "11", "entry_price": "426.50",
+             "side": "long", "stop": "", "stop_current": "376.77", "thesis": "t", "setup": "s"}]
+    held = {"qty": 22.0, "cost": 10059.5, "lots": 2, "avg_entry": 457.25, "entry_date": "2026-08-18"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([400.0, 405.72], [{"level": 404.32}])
+    try:
+        e = srv._review_one("FN", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    # The good lot still drives the number; the bad one is reported, not fatal.
+    assert e["stop_current"] == 376.77
+    assert e["stop_current_unparsed"] == ["n/a"]
+    assert e["lots_with_stop_current"] == 2  # both cells are filled, one is junk
+
+
+def test_short_position_takes_the_lowest_stop_and_inverts_through():
+    """Tightest depends on direction, and so does "through".
+
+    For a short the stop sits above, so the lowest is tightest and price *rising*
+    past it is the breach. Keying off max() and `last < stop` silently picks the
+    loosest stop and never fires the flag.
+    """
+    lots = [{"symbol": "XYZ", "status": "open", "qty": "100", "entry_price": "50.00",
+             "side": "short", "stop": "", "stop_current": "55.00",
+             "stop_current_set": "2026-09-04", "thesis": "t", "setup": "s"},
+            {"symbol": "XYZ", "status": "open", "qty": "100", "entry_price": "50.00",
+             "side": "short", "stop": "", "stop_current": "58.00",
+             "stop_current_set": "2026-09-04", "thesis": "t", "setup": "s"}]
+    held = {"qty": 200.0, "cost": 10000.0, "lots": 2, "avg_entry": 50.0, "entry_date": "2026-09-01"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([52.0, 53.00], [{"level": 48.0}])
+    try:
+        e = srv._review_one("XYZ", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["stop_current"] == 55.00, "lowest is tightest for a short"
+    assert e["risk_to_stop"] == (55.00 - 53.00) * 200, "risk measured upward"
+    assert e["through_stop"] is False
+
+    # Now price rises through the short's stop.
+    srv.get_stock = lambda sym, force=False: stub_stock([54.0, 56.00], [{"level": 48.0}])
+    try:
+        e2 = srv._review_one("XYZ", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+    assert e2["through_stop"] is True
+    assert e2["risk_to_stop"] < 0
+    assert "through_stop" in {f["key"] for f in srv._review_flags(e2, None)}
+
+
+def test_stop_set_date_is_withheld_when_lots_disagree():
+    """Reporting one date as though it covered the position asserts a false provenance."""
+    base = {"symbol": "COHR", "status": "open", "qty": "50", "entry_price": "302.00",
+            "side": "long", "stop": "", "stop_current": "256.41", "thesis": "t", "setup": "s"}
+    lots = [dict(base, stop_current_set="2026-09-04"), dict(base, stop_current_set="2026-09-08")]
+    held = {"qty": 100.0, "cost": 30000.0, "lots": 2, "avg_entry": 300.0, "entry_date": "2026-08-27"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([270.0, 279.50], [{"level": 254.97}])
+    try:
+        e = srv._review_one("COHR", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["stop_current"] == 256.41, "prices agree, so no disagreement on the level"
+    assert e["stop_current_disagrees"] is False
+    assert e["stop_current_set"] is None, "dates differ -- report none rather than one of them"
+
+
+def test_level_proximity_matches_the_client_constant():
+    """app.js highlights amber off this number; the near_stop flag fires off it.
+
+    They drifted once -- the table used 1.0 while the server used 0.5, so a
+    position at 0.8 ATR rendered amber with no matching flag.
+    """
+    import re
+    src = (Path(__file__).resolve().parent.parent / "app.js").read_text()
+    m = re.search(r"const LEVEL_PROXIMITY_ATR = ([0-9.]+);", src)
+    assert m, "app.js must declare LEVEL_PROXIMITY_ATR"
+    assert float(m.group(1)) == srv.LEVEL_PROXIMITY_ATR
+    assert "atr <= LEVEL_PROXIMITY_ATR" in src, "the cell must use the constant, not a literal"
+
+
 def _main() -> int:
     failures = 0
     for name, fn in sorted(globals().items()):

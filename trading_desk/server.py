@@ -768,9 +768,13 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
         "exclusion_reason": REVIEW_EXCLUDE.get(symbol),
         # Journal hygiene is a fact about the record, available even when the
         # market data fetch fails, so it is filled in before anything else.
+        # Keyed off `stop` (the entry stop), not `stop_current`. This tracks entry
+        # discipline -- the number trading_records/README.md says should trend to
+        # zero -- so a stop decided today must not silence it.
         "lots_without_stop": sum(1 for r in lots if not (r.get("stop") or "").strip()),
         "lots_without_thesis": sum(1 for r in lots if not (r.get("thesis") or "").strip()),
         "lots_without_setup": sum(1 for r in lots if not (r.get("setup") or "").strip()),
+        "lots_with_stop_current": sum(1 for r in lots if (r.get("stop_current") or "").strip()),
     }
     try:
         stock = get_stock(symbol, force=force)
@@ -832,6 +836,47 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
     # underwater position has already spent the difference.
     if sup and entry["qty"]:
         entry["risk_to_support"] = (last - sup["level"]) * entry["qty"]
+
+    # `stop_current` is the level being managed from now, separate from the entry
+    # stop. Lots of one symbol normally share it; if they disagree, take the
+    # tightest and say so rather than averaging into a number nobody set.
+    stops = set()
+    for r in lots:
+        raw = (r.get("stop_current") or "").strip()
+        if not raw:
+            continue
+        try:
+            stops.add(float(raw))
+        except ValueError:
+            # A hand-edited cell ("n/a", "$94.00") must not take the whole review
+            # down -- this runs past the get_stock guard above, so an uncaught
+            # raise here escapes _review_one's "raises nothing" contract. Same
+            # treatment open_positions gives a malformed qty/price.
+            entry.setdefault("stop_current_unparsed", []).append(raw)
+    if stops:
+        # Tightest depends on direction: for a long the stop sits below and the
+        # highest is tightest; for a short it sits above and the lowest is.
+        is_short = any((r.get("side") or "").strip().lower() == "short" for r in lots)
+        stop = min(stops) if is_short else max(stops)
+        entry["stop_current"] = stop
+        entry["stop_current_disagrees"] = len(stops) > 1
+        # Only meaningful when every lot agrees; otherwise the dates describe
+        # different decisions and reporting one as if it covered all would assert
+        # a provenance that is wrong for part of the position.
+        set_dates = {(r.get("stop_current_set") or "").strip() for r in lots
+                     if (r.get("stop_current_set") or "").strip()}
+        entry["stop_current_set"] = set_dates.pop() if len(set_dates) == 1 else None
+        # Signed so "through the stop" is always negative, both directions: a long
+        # is through when price falls below, a short when price rises above. There
+        # is no risk left *to* a level already passed, and a positive number there
+        # would read as room that does not exist.
+        per_share = (stop - last) if is_short else (last - stop)
+        if entry["qty"]:
+            entry["risk_to_stop"] = per_share * entry["qty"]
+        entry["stop_distance_pct"] = (stop / last - 1.0) * 100.0 if last else None
+        if atr:
+            entry["stop_distance_atr"] = per_share / atr
+        entry["through_stop"] = per_share < 0
     return entry
 
 
@@ -853,6 +898,18 @@ def _review_flags(e: dict, earn: dict | None) -> list[dict]:
     if e.get("lots_without_thesis"):
         flags.append({"key": "no_thesis", "level": "info",
                       "text": f"No thesis recorded on {e['lots_without_thesis']} lot(s)"})
+
+    if e.get("through_stop"):
+        flags.append({"key": "through_stop", "level": "warn",
+                      "text": f"Price {e['last']:.2f} is below the managed stop "
+                              f"{e['stop_current']:.2f} (set {e.get('stop_current_set') or 'n/a'})"})
+    elif e.get("stop_distance_atr") is not None and e["stop_distance_atr"] <= LEVEL_PROXIMITY_ATR:
+        flags.append({"key": "near_stop", "level": "warn",
+                      "text": f"Within {e['stop_distance_atr']:.1f} ATR of the managed stop "
+                              f"{e['stop_current']:.2f}"})
+    if e.get("stop_current_disagrees"):
+        flags.append({"key": "stop_disagrees", "level": "info",
+                      "text": "Open lots carry different stop_current values; showing the tightest"})
 
     sup, res = e.get("nearest_support"), e.get("nearest_resistance")
     if sup and sup.get("distance_atr") is not None and sup["distance_atr"] <= LEVEL_PROXIMITY_ATR:
@@ -935,6 +992,7 @@ def build_position_review(force: bool = False) -> dict:
         if e["excluded"]:
             # No flags and no risk math: excluded by instruction, still reported.
             e.pop("risk_to_support", None)
+            e.pop("risk_to_stop", None)
             e["flags"] = []
             excluded.append(e)
         else:
@@ -980,6 +1038,14 @@ def build_position_review(force: bool = False) -> dict:
             by_group[g] = by_group.get(g, 0.0) + e["market_value"]
 
     risk = sum(e["risk_to_support"] for e in reviewed if e.get("risk_to_support"))
+    # Only positions that actually have a stop contribute, and only the ones
+    # still above it -- summing a negative from a position already through its
+    # stop would understate what the remaining stops are protecting.
+    stop_risk = sum(e["risk_to_stop"] for e in reviewed
+                    if e.get("risk_to_stop") and e["risk_to_stop"] > 0)
+    # Per-lot, not per-symbol: a symbol with 3 lots and 2 stops protects 2, and the
+    # figure sits beside a dollar risk that only covers those.
+    lots_with_stop_current = sum(e.get("lots_with_stop_current") or 0 for e in reviewed)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "feed": FEED,
@@ -992,6 +1058,9 @@ def build_position_review(force: bool = False) -> dict:
         "totals": t_rev,
         "book_market_value": book_mv,
         "risk_to_support": risk,
+        "risk_to_stop": stop_risk,
+        "risk_to_stop_pct_of_book": (stop_risk / book_mv * 100.0) if book_mv else None,
+        "lots_with_stop_current": lots_with_stop_current,
         "risk_to_support_pct_of_book": (risk / book_mv * 100.0) if book_mv else None,
         "group_exposure": [
             {"group": g, "market_value": v,
@@ -1309,6 +1378,9 @@ class Handler(BaseHTTPRequestHandler):
                     "has_credentials": bool(HEADERS["APCA-API-KEY-ID"]),
                     "cached_board": _cache.get("board") is not None,
                     "cached_symbols": len(_cache.get("stocks", {})),
+                    # Published so app.js can key its highlight off the same
+                    # number the near_stop / at_support flags use.
+                    "level_proximity_atr": LEVEL_PROXIMITY_ATR,
                 }
             )
             return

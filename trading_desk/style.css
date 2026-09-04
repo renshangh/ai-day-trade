@@ -683,3 +683,9 @@ td.muted, .muted { color: var(--text-muted); }
   .rev-bar-row { grid-template-columns: 1fr; gap: 3px; }
   .rev-bar-val { text-align: left; }
 }
+
+/* Managed-stop cell. `warn-txt` is price within 1 ATR of the stop; `neg` (shared
+   with P&L) is already through it. `lvl-none` mutes an absent stop so a missing
+   value cannot be mistaken for a level of zero. */
+.rev-tbl .warn-txt { color: var(--warning); }
+.rev-tbl .lvl-none { color: var(--text-muted); }
