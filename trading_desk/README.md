@@ -4,7 +4,7 @@ Local dashboard that screens sectors and themes over short horizons — for mome
 or for reversals — and charts the resulting movers with the standard technical
 indicator set.
 
-**Last Updated:** 2026-09-07
+**Last Updated:** 2026-09-08
 **Status:** Active
 **Audience:** Both
 
@@ -142,7 +142,7 @@ need a browser reload.
 
 | Section | What it shows |
 |---|---|
-| View tabs | Momentum / Reversal candidates / Earnings timing / Daily review. The first two scope the hero, ranking, movers strip and table; the last two replace them. |
+| View tabs | Momentum / Reversal candidates / Earnings timing / Daily review / Cycle. The first two scope the hero, ranking, movers strip and table; the last three replace them. |
 | Lookback tabs | 1D–5D for momentum, 2D–5D for reversal. Scopes the whole board. |
 | Hottest group | Mean, median, breadth, vs SPY, and the ETF proxy return. |
 | Top reversal candidate | Prior decline, bounce, reversal breadth, vs SPY today, volume ratio. |
@@ -152,6 +152,7 @@ need a browser reload.
 | Company detail | Market cap, trailing P/E, 52-week range, volatility, SEC filings, news, research links. |
 | Earnings timing | Upcoming prints (including today's, before they land) with an uncertainty window, expected timing, 1-day and 1-week reaction stats, and held-position alerts. |
 | Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, and the journal's own recorded gaps. |
+| Cycle | The monthly AI data center cycle score: the latest GREEN / YELLOW / RED reading and total, the seven indicator scores against the criteria they were scored on, a trend of past reviews, the history table, and the form that writes the next review to the log. |
 | Ranking table | The same board in text form — every value readable without color. |
 
 ### Company detail
@@ -495,21 +496,62 @@ Buildout), so the percentages deliberately do not sum to 100%. The excluded
 holdings are left out entirely rather than filed under `(ungrouped)`, since
 inventing a theme for them would be worse than omitting them.
 
-### AI data center cycle dashboard (monthly)
+### Cycle
 
-The Daily review asks where each position stands against its levels today.
+The fifth view, and the only one with nothing to compute. The Daily review asks
+where each position stands against its levels today;
 [`AI_DATA_CENTER_CYCLE_DASHBOARD.md`](AI_DATA_CENTER_CYCLE_DASHBOARD.md) asks
 the slower question underneath it: does the reason for owning the optical and
 power names still hold? It scores seven indicators of the hyperscaler buildout
-from 0 to 2 once a month, sums them to a GREEN / YELLOW / RED reading, and ends
-on one question: starting from cash, would you still own AXTI, LITE, COHR, FN
-and POWL at their current weights?
+from 0 to 2 once a month, sums them to a GREEN / YELLOW / RED reading out of 14,
+and ends on one question: starting from cash, would you still own AXTI, LITE,
+COHR, FN and POWL at their current weights?
 
-Nothing on the page computes it; every score is a judgment entered by hand. The
-document's "How this fits the desk" section says what the desk does supply (the
-earnings calendar for the hyperscaler prints, the theme exposure on the Daily
-review), and its "Recording the score" section says how the monthly log in
-`trading_records/cycle-score.csv` is kept.
+The view is the front end for that document's monthly log,
+`trading_records/cycle-score.csv` (gitignored, like the trade journal):
+
+- the latest review's status and total, its answer to the core question and
+  what assumption changed, with the move since the previous review;
+- one tile per indicator: the score, the level it meets, and the criterion
+  that level is defined by, taken from the document;
+- a trend of every logged total, and the history table, whose column headers
+  are the CSV's own column names so it doubles as a key to the file;
+- a form that writes the next review. Each indicator shows its three criteria
+  beside the score select, with the chosen one marked, and the document's
+  "what to track" list folded away beneath.
+
+None of it is market data, and the page says so on every render. What
+`cycle.py` does is read and write the log and parse the document:
+
+- **The criteria come from the document, not from code.** `rubric()` reads the
+  seven numbered sections, their `### GREEN / YELLOW / RED` paragraphs and the
+  core question out of the markdown. `tests/test_cycle.py` asserts the parse
+  succeeds and that the document's score table, its bands and the CSV template
+  agree with `cycle.INDICATORS`, `cycle.BANDS` and `cycle.COLUMNS`. Editing the
+  framework changes the page; restructuring it fails a test rather than
+  quietly blanking a rubric.
+- **Blank is blank.** A skipped indicator is written as an empty cell and is
+  never pre-filled from last month: switching the form's date to one without a
+  review starts from nothing. A review with any blank has no total and no
+  status, both cells stay empty in the file, and the page reads
+  "Incomplete · 6 of 7 scored" rather than a number.
+- **Reads are tolerant, writes are strict.** A hand-edited file is read with
+  warnings on the page: a bad cell reads as blank, a stored total that
+  disagrees with its scores is reported and the scores win, an extra column is
+  ignored. But the view will not *write* to a file whose header differs from
+  `TEMPLATE-cycle-score.csv`, or which has a row with the wrong number of
+  cells. It refuses with the reason rather than rewriting a layout it did not
+  produce, and rows it did not write are preserved verbatim, wrong stored total
+  included.
+- **One row per date.** Saving with a date that already has a review replaces
+  that row, and the form says so before you save; any other date appends. Rows
+  are kept oldest first, and the write is atomic (temp file, then rename), the
+  same as the board cache.
+- **`POST /api/cycle` is the server's only write route.** It accepts JSON
+  only, which is also the CSRF guard for a loopback server: a form on some
+  other page cannot send `application/json` without a preflight this server
+  never answers. The body is capped at 64 KB. A validation error comes back as
+  400 carrying the message the form shows.
 
 ### Indicators
 
@@ -556,6 +598,8 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/detail?symbol=X` | Fundamentals, price stats, news, and research links. |
 | `GET /api/earnings?horizon=N` | Projected prints within N days (1-400, default 30), nearest first, with held-position flags. |
 | `GET /api/review` | Per-holding review: levels, downside to support, theme exposure, journal gaps. `?force=1` rebuilds. |
+| `GET /api/cycle` | The cycle log (every review, oldest first, totals derived from the scores), the rubric parsed from the framework document, the bands, and any file warnings. Never cached. |
+| `POST /api/cycle` | Write one review (JSON: `review_date`, `scores`, `core_question`, `assumption_changed`, `notes`), replacing a row with the same date. Returns the rebuilt payload, or 400 with the reason. |
 | `GET /api/health` | Credential and cache status. |
 
 Board and per-symbol routes cache for 5 minutes; the review caches for 2 (it reuses
@@ -604,9 +648,11 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `research/split_study.py` | Split-event counts and pre-split return study (see Split events) |
-| `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | Monthly thesis check for the optical and power positions: seven 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
+| `cycle.py` | Cycle score log: read, validate and write `cycle-score.csv`; parse the framework document for the rubric |
+| `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | The framework the Cycle view scores against: seven 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
 | `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
+| `tests/test_cycle.py` | Cycle log rules (blank stays blank, strict writes, tolerant reads), document/template/code agreement, POST validation |
 | `tests/test_ports.py` | Per-branch port mapping, HEAD parsing, launcher agreement, stale-server detection |
 
 ## Tests
@@ -614,6 +660,7 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 ```bash
 python3 trading_desk/tests/test_reversal.py       # no pytest needed
 python3 trading_desk/tests/test_review.py         # daily review
+python3 trading_desk/tests/test_cycle.py          # cycle score log and rubric
 python3 trading_desk/tests/test_ports.py          # port pinning
 python3 -m pytest trading_desk/tests/             # or under pytest
 ```

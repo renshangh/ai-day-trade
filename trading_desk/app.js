@@ -17,6 +17,9 @@ const VIEWS = [
   // Also a solo view: it reports on positions held, not on a ranked group, so
   // the hero/ranking/movers furniture has nothing to scope here either.
   { key: 'review', label: 'Daily review', lookbacks: [], solo: true },
+  // The monthly thesis score. Hand-entered judgments read from the cycle log,
+  // no market data at all -- so, like the review, nothing on the board applies.
+  { key: 'cycle', label: 'Cycle', lookbacks: [], solo: true },
 ];
 const HORIZONS = [14, 30, 45, 90];
 // Must match the server's DEFAULT_HORIZON_DAYS so the two cannot disagree.
@@ -66,6 +69,7 @@ const state = {
   horizon: DEFAULT_HORIZON,
   earnings: null,
   review: null,
+  cycle: null,
   tableView: false,
   hover: null,        // index into the visible slice
   loading: false,
@@ -245,6 +249,7 @@ function renderViewTabs() {
     earnings: 'When each name reports next — so a swing position is never held through a print by accident.',
     momentum: 'Groups ranked by raw return over the window.',
     review: 'Every open position against its own levels, sorted by how close it sits to support.',
+    cycle: 'Is the AI data center buildout thesis still intact? Seven indicators scored by hand once a month.',
   };
   $('view-note').textContent = notes[state.view] || notes.momentum;
 }
@@ -552,6 +557,309 @@ function renderReview() {
     + 'says what to do, and nothing on this page is investment advice. "Downside to support" '
     + 'is measured from today’s price, not from entry, so for an underwater position it is '
     + 'remaining risk to that level rather than the risk originally taken.';
+}
+
+// ------------------------------------------------------------- cycle view
+// The monthly AI data center cycle score. Every figure on this view is a
+// hand-entered judgment read back from trading_records/cycle-score.csv; the
+// server computes nothing from market data here, and the page says so. The
+// criteria beside each score come from the framework document, parsed by the
+// server, so the page and the document cannot drift.
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const STATUS_CLASS = { GREEN: 'st-green', YELLOW: 'st-yellow', RED: 'st-red' };
+// Must match cycle.LEVEL_OF_SCORE: a 2 meets the indicator's GREEN criterion,
+// 1 its YELLOW, 0 its RED. Asserted by test_client_declares_the_view_and_levels.
+const LEVEL_OF_SCORE = { 2: 'GREEN', 1: 'YELLOW', 0: 'RED' };
+
+async function fetchCycle() {
+  const card = $('cycle-card');
+  card.classList.add('refetching');
+  try {
+    const res = await fetch('/api/cycle');
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    state.cycle = d;
+    renderCycle();
+  } catch (e) {
+    showError(`Could not load the cycle dashboard: ${e.message}`);
+  } finally {
+    card.classList.remove('refetching');
+  }
+}
+
+async function saveCycleRow(row) {
+  const res = await fetch('/api/cycle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(row),
+  });
+  let d = {};
+  try { d = await res.json(); } catch { /* fall through to the status check */ }
+  if (!res.ok || d.error) throw new Error(d.error || `HTTP ${res.status}`);
+  state.cycle = d;
+  return d;
+}
+
+/** A notice inside the cycle card, next to what it is about, rather than in the
+ *  page-level box at the top. `html` must already be escaped. */
+function cycleNotice(kind, html) {
+  const el = document.createElement('div');
+  el.className = `notice ${kind}`;
+  el.innerHTML = `<span class="ico">${kind === 'ok' ? '✓' : '⚠'}</span><span>${html}</span>`;
+  $('cyc-notices').appendChild(el);
+}
+
+function statusBadge(status, scored, n, small) {
+  const sm = small ? ' sm' : '';
+  if (!status) return `<span class="cyc-badge${sm} st-none">Incomplete · ${scored} of ${n} scored</span>`;
+  return `<span class="cyc-badge${sm} ${STATUS_CLASS[status] || 'st-none'}">${esc(status)}</span>`;
+}
+
+/** "2026-01-31" -> "Jan '26" for the trend labels. */
+function fmtMonth(iso) {
+  const [y, m] = (iso || '').split('-');
+  return m && MONTHS[+m - 1] ? `${MONTHS[+m - 1]} '${String(y).slice(2)}` : (iso || '');
+}
+
+function renderCycle() {
+  const d = state.cycle;
+  if (!d) { $('cyc-status').innerHTML = '<div class="loading">Loading…</div>'; return; }
+  const n = d.indicators.length;
+  const stamp = d.generated_at ? new Date(d.generated_at).toLocaleTimeString('en-US') : '';
+  $('cyc-stamp').textContent = stamp ? `read ${stamp} · ${d.log_path}` : '';
+  $('cyc-sub').textContent =
+    `${n} indicators of the hyperscaler buildout, each scored 0–${d.score_max} once a month from `
+    + `primary sources and summed to a GREEN / YELLOW / RED reading out of ${d.max_score}. Nothing `
+    + `here is computed from market data: every figure is a judgment recorded in ${d.log_path}, and `
+    + `the criteria come from ${d.doc}.`;
+
+  // ---- notices: what was wrong with the file, and whether the rubric loaded
+  $('cyc-notices').innerHTML = '';
+  (d.warnings || []).forEach(w => cycleNotice('warn', esc(w)));
+  if (d.rubric_error) {
+    cycleNotice('warn', `Criteria could not be read from ${esc(d.doc)}: ${esc(d.rubric_error)}. `
+      + `Scores still save; the document has the rubric.`);
+  }
+
+  // ---- latest review
+  const L = d.latest, P = d.previous;
+  if (!L) {
+    $('cyc-status').innerHTML = `<div class="cyc-empty"><div class="lede">No reviews logged yet</div>`
+      + `<p class="sub" style="margin:6px 0 0">${d.exists
+          ? `${esc(d.log_path)} has no rows.`
+          : `${esc(d.log_path)} does not exist yet; the first save creates it with the template's columns.`}`
+      + ` Score this month in the form below.</p></div>`;
+  } else {
+    const delta = (L.total != null && P && P.total != null) ? L.total - P.total : null;
+    const deltaTxt = delta == null
+      ? (P ? `previous review (${P.review_date}) ${P.total == null ? 'was incomplete' : ''}`.trim() : 'first review logged')
+      : (delta === 0 ? `unchanged vs ${P.review_date}` : `${delta > 0 ? '+' : '−'}${Math.abs(delta)} vs ${P.review_date}`);
+    const was = P && P.status && L.status && P.status !== L.status ? ` · was ${P.status}` : '';
+    $('cyc-status').innerHTML = `
+      <div class="hero cyc-hero">
+        <div>
+          <div class="lede">Latest review · ${esc(L.review_date)}</div>
+          <div class="cyc-status-line">${statusBadge(L.status, L.scored, n)}
+            <span class="cyc-total">${L.total == null ? '—' : L.total}<span class="cyc-of"> / ${d.max_score}</span></span></div>
+          <div class="meta">${esc(deltaTxt)}${esc(was)}</div>
+        </div>
+        <div class="stat cyc-q">
+          <div class="k">Core question</div>
+          <div class="cyc-q-v">${L.core_question ? esc(L.core_question) : '—'}</div>
+          <div class="meta">${esc(d.core_question || '')}</div>
+        </div>
+        <div class="stat cyc-q">
+          <div class="k">Assumption changed</div>
+          <div class="cyc-q-v">${L.assumption_changed ? esc(L.assumption_changed) : '—'}</div>
+        </div>
+      </div>`;
+  }
+
+  // ---- one tile per indicator: the score, the level it meets, the move since
+  // the previous review, and the criterion that level is defined by.
+  $('cyc-tiles').innerHTML = `<h3 class="rev-h3">Indicators${L ? ` · ${esc(L.review_date)}` : ''}</h3>`
+    + `<div class="cyc-tiles">` + d.indicators.map(ind => {
+      const s = L ? L.scores[ind.key] : null;
+      const prev = P ? P.scores[ind.key] : null;
+      const lvl = s == null ? null : LEVEL_OF_SCORE[s];
+      const dlt = (s != null && prev != null) ? s - prev : null;
+      const dTxt = dlt == null ? '' : dlt === 0 ? '· same' : dlt > 0 ? `· ▲ from ${prev}` : `· ▼ from ${prev}`;
+      const crit = lvl && ind.rubric && ind.rubric[lvl] ? ind.rubric[lvl] : (ind.title || '');
+      return `<div class="cyc-tile ${lvl ? STATUS_CLASS[lvl] : 'st-none'}">
+        <div class="k">${esc(ind.label)}</div>
+        <div class="v">${s == null ? '—' : s}<span class="cyc-lvl">${lvl ? esc(lvl) : 'not scored'} ${esc(dTxt)}</span></div>
+        <div class="n">${esc(crit)}</div></div>`;
+    }).join('') + `</div>`;
+
+  renderCycleHistory(d);
+  // Preserve a half-entered review across a re-render (Refresh, a save).
+  renderCycleForm(d, cycleFormValues());
+
+  $('cyc-disclaimer').textContent =
+    'Observations recorded by hand, not recommendations. The framework, its criteria and its bands '
+    + `live in ${d.doc}; this page reads and writes ${d.log_path} and computes nothing else. `
+    + 'An indicator not checked this month stays blank — it is never carried forward — and a review '
+    + 'with a blank has no total and no status.';
+}
+
+function renderCycleHistory(d) {
+  const rows = d.rows || [];
+  if (!rows.length) { $('cyc-trend').innerHTML = ''; $('cyc-history').innerHTML = ''; return; }
+
+  $('cyc-trend').innerHTML = `<h3 class="rev-h3">Trend</h3><div class="cyc-trend">` + rows.map(r => {
+    const h = r.total == null ? 0 : Math.round(r.total / d.max_score * 100);
+    const title = r.total == null ? `${r.review_date}: incomplete` : `${r.review_date}: ${r.total} / ${d.max_score} ${r.status}`;
+    return `<div class="cyc-col" title="${esc(title)}">
+      <div class="cyc-col-val">${r.total == null ? '—' : r.total}</div>
+      <div class="cyc-col-track"><div class="cyc-col-fill ${r.status ? STATUS_CLASS[r.status] : 'st-none'}" style="height:${h}%"></div></div>
+      <div class="cyc-col-lbl">${esc(fmtMonth(r.review_date))}</div></div>`;
+  }).join('') + `</div>`;
+
+  // Newest first in the table -- the column headers are the CSV's own column
+  // names, so the table doubles as a key to the file.
+  const body = [...rows].reverse().map(r => `<tr>
+    <td>${esc(r.review_date)}</td>
+    ${d.indicators.map(i => { const s = r.scores[i.key]; return `<td class="${s == null ? 'muted' : ''}">${s == null ? '—' : s}</td>`; }).join('')}
+    <td>${r.total == null ? '—' : r.total}</td>
+    <td>${r.status ? statusBadge(r.status, r.scored, d.indicators.length, true) : `<span class="muted">${r.scored}/${d.indicators.length}</span>`}</td>
+    <td class="cyc-txt">${esc(r.core_question) || '—'}</td>
+    <td class="cyc-txt">${esc(r.assumption_changed) || '—'}</td>
+    <td class="cyc-txt cyc-notes">${esc(r.notes) || '—'}</td></tr>`).join('');
+  $('cyc-history').innerHTML = `<h3 class="rev-h3">History · ${rows.length} review${rows.length === 1 ? '' : 's'}</h3>`
+    + `<div class="table-wrap"><table class="cyc-tbl"><thead><tr><th>review_date</th>`
+    + d.indicators.map(i => `<th title="${esc(i.label)}">${esc(i.key)}</th>`).join('')
+    + `<th>total</th><th>status</th><th class="cyc-txt">core_question</th><th class="cyc-txt">assumption_changed</th>`
+    + `<th class="cyc-txt">notes</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+/** What the form currently holds, or null if it has not been drawn yet. */
+function cycleFormValues() {
+  const f = $('cyc-form').querySelector('form');
+  if (!f || !state.cycle) return null;
+  const fd = new FormData(f);
+  const out = {
+    review_date: fd.get('review_date') || '',
+    scores: {},
+    core_question: fd.get('core_question') || '',
+    assumption_changed: fd.get('assumption_changed') || '',
+    notes: fd.get('notes') || '',
+  };
+  state.cycle.indicators.forEach(i => {
+    const v = fd.get(`score_${i.key}`);
+    out.scores[i.key] = (v == null || v === '') ? null : Number(v);
+  });
+  return out;
+}
+
+function blankReview(d, date) {
+  return {
+    review_date: date,
+    scores: Object.fromEntries(d.indicators.map(i => [i.key, null])),
+    core_question: '', assumption_changed: '', notes: '',
+  };
+}
+
+function reviewFromRow(r) {
+  return { review_date: r.review_date, scores: { ...r.scores },
+           core_question: r.core_question, assumption_changed: r.assumption_changed, notes: r.notes };
+}
+
+function renderCycleForm(d, keep) {
+  const existingFor = date => (d.rows || []).find(r => r.review_date === date) || null;
+  // Default to today's date: an already-logged review for today is loaded for
+  // editing; otherwise the form starts blank. Never pre-filled from last month.
+  let vals = keep && keep.review_date ? keep : null;
+  if (!vals) {
+    const row = existingFor(d.today);
+    vals = row ? reviewFromRow(row) : blankReview(d, d.today);
+  }
+  const editing = existingFor(vals.review_date);
+  const opt = (v, cur, label) =>
+    `<option value="${v}"${(cur == null ? '' : String(cur)) === String(v) ? ' selected' : ''}>${label}</option>`;
+
+  const rowsHtml = d.indicators.map(ind => {
+    const cur = vals.scores[ind.key];
+    const rub = ind.rubric || {};
+    return `<div class="cyc-frow">
+      <div class="cyc-fhead"><label for="cyc-s-${ind.key}">${esc(ind.label)}</label>
+        ${ind.title ? `<span class="meta">${esc(ind.title)}</span>` : ''}</div>
+      <select id="cyc-s-${ind.key}" name="score_${ind.key}" data-key="${ind.key}">
+        ${opt('', cur, '— not scored')}${opt(2, cur, '2 · GREEN')}${opt(1, cur, '1 · YELLOW')}${opt(0, cur, '0 · RED')}
+      </select>
+      <div class="cyc-rubric">${['GREEN', 'YELLOW', 'RED'].map(lv => rub[lv]
+        ? `<div class="cyc-crit ${STATUS_CLASS[lv]}${cur != null && LEVEL_OF_SCORE[cur] === lv ? ' on' : ''}" data-level="${lv}"><b>${lv}</b> ${esc(rub[lv])}</div>`
+        : '').join('')}</div>
+      ${ind.track && ind.track.length
+        ? `<details class="cyc-track"><summary>What to check</summary><ul>${ind.track.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`
+        : ''}
+    </div>`;
+  }).join('');
+
+  $('cyc-form').innerHTML = `<h3 class="rev-h3">Score this month</h3>
+    <form class="cyc-form" autocomplete="off">
+      <div class="cyc-fmeta">
+        <label>Review date <input type="date" name="review_date" value="${esc(vals.review_date)}" max="${esc(d.today)}" required></label>
+        <span class="meta">${editing
+          ? `Editing the review dated ${esc(editing.review_date)} — saving replaces it.`
+          : 'A new review. An indicator you skip stays blank; nothing is carried forward from last month.'}</span>
+      </div>
+      <div class="cyc-frows">${rowsHtml}</div>
+      <div class="cyc-ftext">
+        <label>Core question — ${esc(d.core_question || 'starting from cash, would you own the same names at the same weights?')}
+          <input type="text" name="core_question" value="${esc(vals.core_question)}" maxlength="4000"
+                 placeholder="yes, or the names you would not"></label>
+        <label>Assumption changed
+          <input type="text" name="assumption_changed" value="${esc(vals.assumption_changed)}" maxlength="4000"
+                 placeholder="unchanged — or what was true last month and is not now"></label>
+        <label>Notes
+          <textarea name="notes" rows="3" maxlength="4000"
+                    placeholder="Sources checked, and anything that did not fit a cell">${esc(vals.notes)}</textarea></label>
+      </div>
+      <div class="cyc-fsave"><span class="meta" id="cyc-ftotal"></span><span class="spacer"></span>
+        <button type="submit" class="primary">Save to ${esc(d.log)}</button></div>
+    </form>`;
+
+  const form = $('cyc-form').querySelector('form');
+  const updateTotal = () => {
+    const v = cycleFormValues();
+    const all = Object.values(v.scores);
+    const scored = all.filter(x => x != null).length;
+    const total = scored === all.length ? all.reduce((a, b) => a + b, 0) : null;
+    const st = total == null ? null : (d.bands.find(b => total >= b.lo && total <= b.hi) || {}).status;
+    $('cyc-ftotal').innerHTML = total == null
+      ? `${scored} of ${all.length} scored — total and status stay blank until all ${all.length} are.`
+      : `Total <b>${total}</b> / ${d.max_score} → ${statusBadge(st, scored, all.length, true)}`;
+    form.querySelectorAll('select[data-key]').forEach(sel => {
+      const cur = sel.value === '' ? null : Number(sel.value);
+      sel.closest('.cyc-frow').querySelectorAll('.cyc-crit').forEach(c =>
+        c.classList.toggle('on', cur != null && LEVEL_OF_SCORE[cur] === c.dataset.level));
+    });
+  };
+  form.querySelectorAll('select').forEach(s => { s.onchange = updateTotal; });
+  updateTotal();
+
+  form.querySelector('[name=review_date]').onchange = ev => {
+    // A date with a logged review loads it for editing; any other date starts
+    // blank -- switching dates never drags one month's scores into another.
+    const row = existingFor(ev.target.value);
+    renderCycleForm(d, row ? reviewFromRow(row) : blankReview(d, ev.target.value));
+  };
+
+  form.onsubmit = async ev => {
+    ev.preventDefault();
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    const payload = cycleFormValues();
+    try {
+      await saveCycleRow(payload);
+      renderCycle();   // redraws from the server's copy, form included
+      cycleNotice('ok', `Saved the review dated <b>${esc(payload.review_date)}</b> to ${esc(state.cycle.log_path)}.`);
+    } catch (e) {
+      cycleNotice('err', `Not saved: ${esc(e.message)}`);
+      btn.disabled = false;
+    }
+  };
 }
 
 function renderLookbackTabs() {
@@ -1748,15 +2056,15 @@ function renderAll() {
   // are hidden rather than left showing stale figures.
   const v = currentView();
   const calendar = !!v.calendar;
-  const review = !!v.solo;
-  const soloView = calendar || review;
+  const soloView = calendar || !!v.solo;
   ['hero-card', 'rank-card', 'leaders-card', 'rank-table-card'].forEach(id => {
     const el = $(id);
     if (el) el.classList.toggle('hidden', soloView);
   });
   $('lookback-row').classList.toggle('hidden', soloView);
   $('earnings-card').classList.toggle('hidden', !calendar);
-  $('review-card').classList.toggle('hidden', !review);
+  $('review-card').classList.toggle('hidden', v.key !== 'review');
+  $('cycle-card').classList.toggle('hidden', v.key !== 'cycle');
 
   if (soloView) {
     if (calendar) {
@@ -1764,6 +2072,9 @@ function renderAll() {
       else renderEarnings();
       // Keep whatever symbol is charted; calendar rows can change it.
       if (state.stock) renderDetail();
+    } else if (v.key === 'cycle') {
+      if (!state.cycle) fetchCycle();   // renderCycle() runs when it lands
+      else renderCycle();
     } else if (!state.review) {
       fetchReview();          // renderReview() runs when it lands
     } else {
@@ -1845,10 +2156,14 @@ function init() {
     $('notices').innerHTML = '';
     fetchBoard(true);
     if (state.symbol) fetchStock(state.symbol, true);
-    // Both solo views cache server-side, so without this Refresh left them
-    // stale with no way for the user to force a rebuild.
+    // The calendar and the review cache server-side, so without this Refresh
+    // left them stale with no way for the user to force a rebuild. The cycle
+    // log is re-read on every request, but Refresh still re-pulls it so a row
+    // edited by hand shows up without a reload.
+    const key = currentView().key;
     if (currentView().calendar) fetchEarnings(true);
-    if (currentView().solo) fetchReview(true);
+    if (key === 'review') fetchReview(true);
+    if (key === 'cycle') fetchCycle();
   };
 
   const applyTheme = next => {

@@ -689,3 +689,166 @@ td.muted, .muted { color: var(--text-muted); }
    value cannot be mistaken for a level of zero. */
 .rev-tbl .warn-txt { color: var(--warning); }
 .rev-tbl .lvl-none { color: var(--text-muted); }
+
+/* ------------------------------------------------------------------ cycle view
+   The monthly thesis score. GREEN / YELLOW / RED reuse the desk's up / warning /
+   down tokens, and every coloured mark carries its word beside it, so status is
+   never colour alone. `st-none` is an unscored indicator or an incomplete review:
+   an absence, styled as muted rather than as any level. */
+.st-green { color: var(--up); }
+.st-yellow { color: var(--warning); }
+.st-red { color: var(--down); }
+.st-none { color: var(--text-muted); }
+
+.cyc-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 9px;
+  border-radius: 20px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.cyc-badge.sm { font-size: 10px; padding: 1px 6px; letter-spacing: 0.05em; }
+
+.cyc-hero { margin: 4px 0 6px; }
+.cyc-status-line { display: flex; align-items: center; gap: 14px; margin: 6px 0 4px; }
+.cyc-total {
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.cyc-of { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+.cyc-q { max-width: 400px; }
+.cyc-q .cyc-q-v { font-size: 15px; font-weight: 600; line-height: 1.35; }
+.cyc-q .meta { margin-top: 3px; line-height: 1.4; }
+.cyc-empty .lede { font-size: 14px; font-weight: 600; }
+
+.cyc-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+.cyc-tile {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px 10px 14px;
+  color: var(--text-primary);
+}
+/* Left rule in the level's hue; the word sits next to the number. */
+.cyc-tile.st-green { box-shadow: inset 3px 0 0 var(--up); }
+.cyc-tile.st-yellow { box-shadow: inset 3px 0 0 var(--warning); }
+.cyc-tile.st-red { box-shadow: inset 3px 0 0 var(--down); }
+.cyc-tile.st-none { box-shadow: inset 3px 0 0 var(--axis); }
+.cyc-tile .k { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.cyc-tile .v {
+  font-size: 22px;
+  font-weight: 650;
+  margin-top: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.cyc-tile .cyc-lvl { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; }
+.cyc-tile.st-green .cyc-lvl { color: var(--up); }
+.cyc-tile.st-yellow .cyc-lvl { color: var(--warning); }
+.cyc-tile.st-red .cyc-lvl { color: var(--down); }
+.cyc-tile.st-none .cyc-lvl { color: var(--text-muted); font-weight: 500; }
+.cyc-tile .n { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+/* Trend: one column per logged review, oldest first. Height is total / 14; an
+   incomplete review has no total and so no height, only its label. */
+.cyc-trend { display: flex; gap: 10px; align-items: flex-end; overflow-x: auto; padding-bottom: 4px; }
+.cyc-col { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 46px; }
+.cyc-col-val { font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.cyc-col-track {
+  width: 22px;
+  height: 72px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.cyc-col-fill { width: 100%; background: var(--axis); }
+.cyc-col-fill.st-green { background: var(--up); }
+.cyc-col-fill.st-yellow { background: var(--warning); }
+.cyc-col-fill.st-red { background: var(--down); }
+.cyc-col-lbl { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+
+.cyc-tbl td.cyc-txt, .cyc-tbl th.cyc-txt {
+  font-family: var(--sans);
+  white-space: normal;
+  text-align: left;
+  max-width: 220px;
+  line-height: 1.4;
+}
+.cyc-tbl td.cyc-notes { max-width: 360px; }
+
+/* Scoring form. One block per indicator: the select, then the three criteria
+   with the chosen one marked, then the doc's "what to track" list folded away. */
+.cyc-form { display: flex; flex-direction: column; gap: 14px; }
+.cyc-fmeta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cyc-form label { font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; }
+.cyc-fmeta label { flex-direction: row; align-items: center; gap: 8px; }
+.cyc-form input, .cyc-form select, .cyc-form textarea {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 9px;
+}
+.cyc-form textarea { resize: vertical; line-height: 1.45; }
+.cyc-form input:focus-visible, .cyc-form select:focus-visible, .cyc-form textarea:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 1px;
+}
+.cyc-frows { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+.cyc-frow {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.cyc-fhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.cyc-fhead label { font-size: 12px; font-weight: 600; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; }
+.cyc-frow select { width: 100%; }
+.cyc-rubric { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.cyc-crit {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  padding-left: 7px;
+  border-left: 2px solid transparent;
+}
+.cyc-crit b { font-weight: 600; letter-spacing: 0.04em; }
+.cyc-crit.st-green b { color: var(--up); }
+.cyc-crit.st-yellow b { color: var(--warning); }
+.cyc-crit.st-red b { color: var(--down); }
+.cyc-crit.on { color: var(--text-primary); }
+.cyc-crit.on.st-green { border-left-color: var(--up); }
+.cyc-crit.on.st-yellow { border-left-color: var(--warning); }
+.cyc-crit.on.st-red { border-left-color: var(--down); }
+.cyc-track { margin-top: 8px; }
+.cyc-track summary { cursor: pointer; font-size: 11px; color: var(--text-muted); }
+.cyc-track ul { margin: 4px 0 0; padding-left: 16px; font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+.cyc-ftext { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cyc-ftext label:last-child { grid-column: 1 / -1; }
+.cyc-fsave { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cyc-fsave .meta { font-size: 12px; }
+button.primary { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+button.primary:hover { background: var(--series-1); opacity: 0.88; color: #fff; }
+button.primary:disabled { opacity: 0.5; cursor: default; }
+.notice.ok { border-color: var(--up); color: var(--text-secondary); }
+
+@media (max-width: 720px) {
+  .cyc-ftext { grid-template-columns: 1fr; }
+  .cyc-status-line { flex-wrap: wrap; }
+}
