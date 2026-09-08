@@ -512,7 +512,9 @@ guidance changes, and the Daily review's theme exposure is the two equity
 sleeves the framework maps.
 
 The view is the front end for that document's monthly log,
-`trading_records/cycle-score.csv` (gitignored, like the trade journal):
+`trading_records/cycle-score.csv` -- tracked in git and pushed, unlike the
+trade journal, since it holds judgment scores and research notes rather
+than positions or account details:
 
 - the latest review's status and total, its answer to the core question and
   what assumption changed, with the move since the previous review;

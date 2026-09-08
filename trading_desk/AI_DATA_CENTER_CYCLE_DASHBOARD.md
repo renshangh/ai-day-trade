@@ -375,9 +375,12 @@ If the answer changes, identify exactly which underlying assumption changed.
 
 ## Recording the score
 
-One row per monthly review in `trading_records/cycle-score.csv` (gitignored
-like the rest of the journal; the template it follows,
-`trading_records/TEMPLATE-cycle-score.csv`, is committed). The seven score
+One row per monthly review in `trading_records/cycle-score.csv`. Unlike the
+rest of `trading_records/`, this file is tracked in git and pushed: it holds
+0-2 judgment scores and research notes, not positions or account details, so
+there is nothing in it that needs to stay off the public remote. The
+template it follows, `trading_records/TEMPLATE-cycle-score.csv`, is
+committed too. The seven score
 columns follow the table above in order, then `total`, `status`, the answer to
 the core question, and what changed. The column meanings are in
 `trading_records/README.md`.
