@@ -161,7 +161,7 @@ Then delete the example row (the view flags it until you do).
 
 | Column | Meaning |
 |---|---|
-| `review_date` | Date the scores were decided. |
+| `review_date` | Date the scores were decided, `YYYY-MM-DD`. |
 | `capex` … `electrical` | The seven indicator scores, 0–2, in the dashboard's order: capex, construction, vacancy, power, monetization, optical, electrical. |
 | `total` | Sum of the seven. Fill it only when all seven are scored. |
 | `status` | `GREEN` (11–14), `YELLOW` (7–10) or `RED` (0–6). Blank when `total` is blank. |
@@ -174,8 +174,10 @@ carrying last month's score forward; the dashboard's "Recording the score"
 section says why. The view enforces this: a new date starts every score blank,
 and a review with a blank is saved with `total` and `status` empty.
 
-Hand edits are fine, with one rule: keep the header exactly as the template
-has it. The view reads a file with a changed header (it warns on the page and
-shows what it can), but it will not write to one, so a column you add by hand
-takes the form out of service until you remove it. A stored `total` or `status`
-that disagrees with its row's scores is reported on the page, not corrected.
+Hand edits are fine, with two rules: keep the file UTF-8 (a spreadsheet's
+default "CSV" export often is not), and keep the header exactly as the template
+has it. The view still reads a file with a changed header, warning on the page
+and showing what it can, but it will not write to one: the form stays on screen
+and every save fails with that reason until the extra column is removed. A
+stored `total` or `status` that disagrees with its row's scores is reported on
+the page, not corrected.

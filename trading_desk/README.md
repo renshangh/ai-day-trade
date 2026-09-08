@@ -505,7 +505,11 @@ the slower question underneath it: does the reason for owning the optical and
 power names still hold? It scores seven indicators of the hyperscaler buildout
 from 0 to 2 once a month, sums them to a GREEN / YELLOW / RED reading out of 14,
 and ends on one question: starting from cash, would you still own AXTI, LITE,
-COHR, FN and POWL at their current weights?
+COHR, FN and POWL at their current weights? The document's "How this fits the
+desk" section says what the rest of the desk supplies to that judgment: the
+Earnings timing view already projects the hyperscaler prints where capex
+guidance changes, and the Daily review's theme exposure is the two equity
+sleeves the framework maps.
 
 The view is the front end for that document's monthly log,
 `trading_records/cycle-score.csv` (gitignored, like the trade journal):
@@ -538,15 +542,28 @@ None of it is market data, and the page says so on every render. What
 - **Reads are tolerant, writes are strict.** A hand-edited file is read with
   warnings on the page: a bad cell reads as blank, a stored total that
   disagrees with its scores is reported and the scores win, an extra column is
-  ignored. But the view will not *write* to a file whose header differs from
-  `TEMPLATE-cycle-score.csv`, or which has a row with the wrong number of
-  cells. It refuses with the reason rather than rewriting a layout it did not
-  produce, and rows it did not write are preserved verbatim, wrong stored total
-  included.
+  ignored, a file that is not UTF-8 is named as such. But the view will not
+  *write* to a file whose header differs from `TEMPLATE-cycle-score.csv`, which
+  has a row with the wrong number of cells, or which it cannot decode. It
+  refuses with the reason rather than rewriting a layout it did not produce,
+  and rows it did not write are preserved verbatim, wrong stored total included.
+  Dates are held to one spelling, `YYYY-MM-DD`, because `20260831` would sort
+  after every hyphenated date and never match a later save of the same day.
 - **One row per date.** Saving with a date that already has a review replaces
-  that row, and the form says so before you save; any other date appends. Rows
-  are kept oldest first, and the write is atomic (temp file, then rename), the
-  same as the board cache.
+  that row, and the form says so before you save; if what the form shows
+  differs from the logged row it says that too and offers to load it. Any
+  other date appends. Rows are kept oldest first; saves take a lock, since the
+  server is threaded and a save is a read-modify-write of the whole file; and
+  the write is atomic (a private temp file, then rename), the same as the board
+  cache.
+- **Changing the date never touches what is typed.** A date input fires its
+  change event on every keyboard step, so rebuilding the form on change would
+  wipe seven scores per arrow key. The form only re-reads the log for the new
+  date when it is empty; otherwise the banner offers to load the logged review.
+  A new date in a month that already has a review gets a nudge toward that
+  review's date, because the framework's mid-month re-score after a print means
+  editing the month's row, not adding a second one; where two reviews do share
+  a month, the trend labels them by day instead of by month.
 - **`POST /api/cycle` is the server's only write route.** It accepts JSON
   only, which is also the CSRF guard for a loopback server: a form on some
   other page cannot send `application/json` without a preflight this server

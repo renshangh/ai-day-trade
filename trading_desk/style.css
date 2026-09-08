@@ -63,6 +63,9 @@
 
   --up: #0ca30c;
   --down: #d03b3b;
+  /* The dark theme's amber reads at ~1.8:1 on white. This one is ~5:1, so
+     YELLOW status, the earnings TODAY tag and the warn notices stay legible. */
+  --warning: #9a6700;
 
   --band: rgba(42, 120, 214, 0.10);
   --band-line: rgba(42, 120, 214, 0.45);
@@ -695,10 +698,10 @@ td.muted, .muted { color: var(--text-muted); }
    down tokens, and every coloured mark carries its word beside it, so status is
    never colour alone. `st-none` is an unscored indicator or an incomplete review:
    an absence, styled as muted rather than as any level. */
-.st-green { color: var(--up); }
-.st-yellow { color: var(--warning); }
-.st-red { color: var(--down); }
-.st-none { color: var(--text-muted); }
+.st-green { --st: var(--up); color: var(--st); }
+.st-yellow { --st: var(--warning); color: var(--st); }
+.st-red { --st: var(--down); color: var(--st); }
+.st-none { --st: var(--axis); color: var(--text-muted); }
 
 .cyc-badge {
   display: inline-block;
@@ -738,11 +741,9 @@ td.muted, .muted { color: var(--text-muted); }
   padding: 10px 12px 10px 14px;
   color: var(--text-primary);
 }
-/* Left rule in the level's hue; the word sits next to the number. */
-.cyc-tile.st-green { box-shadow: inset 3px 0 0 var(--up); }
-.cyc-tile.st-yellow { box-shadow: inset 3px 0 0 var(--warning); }
-.cyc-tile.st-red { box-shadow: inset 3px 0 0 var(--down); }
-.cyc-tile.st-none { box-shadow: inset 3px 0 0 var(--axis); }
+/* Left rule in the level's hue; the word sits next to the number. The tile
+   itself keeps body text colour, so `.st-*` here only supplies --st. */
+.cyc-tile[class*="st-"] { color: var(--text-primary); box-shadow: inset 3px 0 0 var(--st); }
 .cyc-tile .k { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .cyc-tile .v {
   font-size: 22px;
@@ -753,10 +754,7 @@ td.muted, .muted { color: var(--text-muted); }
   gap: 8px;
   font-variant-numeric: tabular-nums;
 }
-.cyc-tile .cyc-lvl { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; }
-.cyc-tile.st-green .cyc-lvl { color: var(--up); }
-.cyc-tile.st-yellow .cyc-lvl { color: var(--warning); }
-.cyc-tile.st-red .cyc-lvl { color: var(--down); }
+.cyc-tile .cyc-lvl { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: var(--st); }
 .cyc-tile.st-none .cyc-lvl { color: var(--text-muted); font-weight: 500; }
 .cyc-tile .n { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
 
@@ -775,10 +773,11 @@ td.muted, .muted { color: var(--text-muted); }
   align-items: flex-end;
   overflow: hidden;
 }
-.cyc-col-fill { width: 100%; background: var(--axis); }
-.cyc-col-fill.st-green { background: var(--up); }
-.cyc-col-fill.st-yellow { background: var(--warning); }
-.cyc-col-fill.st-red { background: var(--down); }
+.cyc-col-fill { width: 100%; background: var(--st, var(--axis)); }
+/* A complete review scoring 0 is the case the framework exists to catch; it must
+   not draw as the empty track an incomplete review gets. */
+.cyc-col-fill:not(.st-none) { min-height: 3px; }
+#cyc-banner button { margin-left: 6px; font-size: 11px; padding: 2px 8px; }
 .cyc-col-lbl { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
 
 .cyc-tbl td.cyc-txt, .cyc-tbl th.cyc-txt {
@@ -828,14 +827,11 @@ td.muted, .muted { color: var(--text-muted); }
   padding-left: 7px;
   border-left: 2px solid transparent;
 }
-.cyc-crit b { font-weight: 600; letter-spacing: 0.04em; }
-.cyc-crit.st-green b { color: var(--up); }
-.cyc-crit.st-yellow b { color: var(--warning); }
-.cyc-crit.st-red b { color: var(--down); }
-.cyc-crit.on { color: var(--text-primary); }
-.cyc-crit.on.st-green { border-left-color: var(--up); }
-.cyc-crit.on.st-yellow { border-left-color: var(--warning); }
-.cyc-crit.on.st-red { border-left-color: var(--down); }
+/* A criterion row is muted text with its level word in the level's hue; the
+   chosen one turns primary and gets a left rule in that hue. */
+.cyc-crit[class*="st-"] { color: var(--text-muted); }
+.cyc-crit b { font-weight: 600; letter-spacing: 0.04em; color: var(--st); }
+.cyc-crit.on { color: var(--text-primary); border-left-color: var(--st); }
 .cyc-track { margin-top: 8px; }
 .cyc-track summary { cursor: pointer; font-size: 11px; color: var(--text-muted); }
 .cyc-track ul { margin: 4px 0 0; padding-left: 16px; font-size: 11px; color: var(--text-secondary); line-height: 1.5; }

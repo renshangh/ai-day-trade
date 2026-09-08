@@ -1268,11 +1268,16 @@ def cycle_post(body: bytes, content_type: str) -> tuple[int, dict]:
         return 400, {"error": "body must be a JSON object"}
     try:
         cycle.upsert_row(data)
+        return 200, cycle.build_cycle()
     except cycle.CycleError as e:
         return 400, {"error": str(e)}
     except OSError as e:
         return 500, {"error": f"could not write {cycle.LOG_PATH.name}: {e}"}
-    return 200, cycle.build_cycle()
+    except Exception as e:  # noqa: BLE001 - the form must always get an answer
+        # Anything else would propagate out of do_POST, and socketserver's
+        # response to an unhandled exception is a traceback on stderr and a
+        # closed socket -- the form would show "Failed to fetch" with no reason.
+        return 500, {"error": f"{type(e).__name__}: {e}"}
 
 
 # --------------------------------------------------------------------------
@@ -1432,15 +1437,25 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         path = urllib.parse.urlparse(self.path).path
+        # Every early return below answers without reading the body. On an
+        # HTTP/1.1 keep-alive socket the unread bytes would be parsed as the
+        # *next* request line, so the connection is closed instead: a 70 KB
+        # POST followed by GET /api/health on the same socket came back 414.
         if path != "/api/cycle":
+            self.close_connection = True
             self._send(404, b"not found", "text/plain")
             return
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
             length = -1
-        if length < 0 or length > MAX_POST_BYTES:
-            self._json({"error": f"request body must be 0-{MAX_POST_BYTES} bytes"}, 413)
+        if length < 0:
+            self.close_connection = True
+            self._json({"error": "Content-Length must be a non-negative integer"}, 400)
+            return
+        if length > MAX_POST_BYTES:
+            self.close_connection = True
+            self._json({"error": f"request body must be at most {MAX_POST_BYTES} bytes"}, 413)
             return
         body = self.rfile.read(length) if length else b""
         code, payload = cycle_post(body, self.headers.get("Content-Type", ""))

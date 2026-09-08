@@ -23,7 +23,10 @@ failure, not a silent divergence.
 from __future__ import annotations
 
 import csv
+import os
 import re
+import tempfile
+import threading
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -54,10 +57,22 @@ MAX_SCORE = SCORE_MAX * len(INDICATORS)   # 14
 BANDS: list[tuple[str, int, int]] = [("GREEN", 11, 14), ("YELLOW", 7, 10), ("RED", 0, 6)]
 LEVELS = ("GREEN", "YELLOW", "RED")
 # A score of 2 means the indicator's GREEN criterion is met, 1 YELLOW, 0 RED.
+# The server never consults this itself; it is the declared contract that
+# tests/test_cycle.py holds app.js's LEVEL_OF_SCORE to, since the client cannot
+# import it.
 LEVEL_OF_SCORE = {2: "GREEN", 1: "YELLOW", 0: "RED"}
 COLUMNS = ["review_date", *KEYS, "total", "status", "core_question", "assumption_changed", "notes"]
 TEXT_FIELDS = ("core_question", "assumption_changed", "notes")
 MAX_TEXT = 4000
+# `date.fromisoformat` also accepts 20260801 and 2026-W31-6. Both would be
+# written verbatim, sort after every hyphenated date, and never match a later
+# save of the same day -- so the log's dates are held to one spelling.
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+# The server is threaded and a save is a read-modify-write of the whole file.
+# Two saves at once (a double-clicked button, two tabs) would each read the
+# same rows and the second write would drop the first's row.
+_WRITE_LOCK = threading.Lock()
 
 
 class CycleError(ValueError):
@@ -65,7 +80,7 @@ class CycleError(ValueError):
 
 
 # --------------------------------------------------------------------------
-# Scores and bands
+# Scores, dates and bands
 # --------------------------------------------------------------------------
 def status_for(total: int | None) -> str | None:
     """GREEN / YELLOW / RED for a complete total; None for an incomplete review."""
@@ -93,6 +108,14 @@ def parse_score(raw) -> int | None:
     return int(s)
 
 
+def parse_review_date(raw) -> date:
+    """A review date, YYYY-MM-DD only. Raises ValueError otherwise."""
+    s = str(raw or "").strip()
+    if not _DATE_RE.match(s):
+        raise ValueError(f"{s!r} is not YYYY-MM-DD")
+    return date.fromisoformat(s)
+
+
 def _totals(scores: dict[str, int | None]) -> tuple[int, int | None, str | None]:
     """(how many scored, total or None, status or None). Blank anywhere -> no total."""
     scored = sum(v is not None for v in scores.values())
@@ -106,7 +129,7 @@ def _totals(scores: dict[str, int | None]) -> tuple[int, int | None, str | None]
 def _shape_row(raw: dict, line_no: int, warnings: list[str]) -> dict:
     rd = (raw.get("review_date") or "").strip()
     try:
-        date.fromisoformat(rd)
+        parse_review_date(rd)
     except ValueError:
         warnings.append(f"row {line_no}: review_date {rd!r} is not YYYY-MM-DD")
 
@@ -145,8 +168,6 @@ def _shape_row(raw: dict, line_no: int, warnings: list[str]) -> dict:
         "core_question": (raw.get("core_question") or "").strip(),
         "assumption_changed": (raw.get("assumption_changed") or "").strip(),
         "notes": notes,
-        "stored_total": stored_total,
-        "stored_status": stored_status,
     }
 
 
@@ -154,8 +175,9 @@ def read_log(path: Path | None = None) -> dict:
     """Every logged review, oldest first, plus what was wrong with the file.
 
     Tolerant on read: a missing column, a bad cell, a header the template does
-    not have -- each becomes a warning the page shows, and the row is kept with
-    the affected cell blank. Writing is the strict side (see `upsert_row`).
+    not have, a file that is not UTF-8 -- each becomes a warning the page shows,
+    and where a row survives it is kept with the affected cell blank. Writing is
+    the strict side (see `upsert_row`).
     """
     path = path or LOG_PATH
     out: dict = {"exists": path.exists(), "rows": [], "warnings": []}
@@ -167,22 +189,31 @@ def read_log(path: Path | None = None) -> dict:
         # otherwise turn the first header cell into '﻿review_date'.
         with path.open(newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
-            header = reader.fieldnames or []
+            header = reader.fieldnames
+            if header is None:
+                return out                  # empty file: nothing to read, nothing wrong
             missing = [c for c in COLUMNS if c not in header]
             extra = [c for c in header if c not in COLUMNS]
             if missing:
                 warnings.append(f"{path.name} header is missing {', '.join(missing)}; "
                                 f"those read as blank")
             if extra:
-                warnings.append(f"{path.name} has columns the template does not "
-                                f"({', '.join(extra)}); ignored here, and the view will not "
-                                f"write to this file until the header matches the template")
-            for n, raw in enumerate(reader, start=2):
+                # A spreadsheet's trailing comma is an extra column named '',
+                # which would print as "()" and name nothing.
+                names = ", ".join(repr(c) if c.strip() else "an empty column" for c in extra)
+                warnings.append(f"{path.name} has columns the template does not ({names}); "
+                                f"ignored here, and the view will not write to this file until "
+                                f"the header matches the template")
+            for raw in reader:
                 if not any((v or "").strip() for v in raw.values() if isinstance(v, str)):
                     continue   # a blank line, not a review
-                out["rows"].append(_shape_row(raw, n, warnings))
-    except OSError as e:
-        warnings.append(f"could not read {path.name}: {e}")
+                # line_num is the physical line, the number a spreadsheet shows
+                # and the number the write path reports -- not a count of rows,
+                # which would drift past every blank line.
+                out["rows"].append(_shape_row(raw, reader.line_num, warnings))
+    except (OSError, UnicodeDecodeError, csv.Error) as e:
+        warnings.append(f"could not read {path.name}: {e}. It must be a UTF-8 CSV; "
+                        f"a spreadsheet's default 'CSV' export often is not")
     out["rows"].sort(key=lambda r: r["review_date"])
     return out
 
@@ -194,34 +225,54 @@ def _read_raw_rows(path: Path) -> list[dict]:
     """The file's rows verbatim, for rewriting. Refuses a layout that is not the template's."""
     if not path.exists():
         return []
-    with path.open(newline="", encoding="utf-8-sig") as f:
-        reader = csv.reader(f)
-        header = next(reader, None)
-        if header != COLUMNS:
-            raise CycleError(
-                f"{path.name} header differs from {TEMPLATE_PATH.name}; the view will not "
-                f"rewrite a hand-edited layout. Expected columns: {', '.join(COLUMNS)}")
-        rows = []
-        for n, cells in enumerate(reader, start=2):
-            if not any(c.strip() for c in cells):
-                continue
-            if len(cells) != len(COLUMNS):
-                # zip() would silently drop the extra cells or blank the missing
-                # ones; a malformed row is the owner's to fix, not ours to trim.
-                raise CycleError(f"{path.name} row {n} has {len(cells)} cells, expected "
-                                 f"{len(COLUMNS)}; fix it by hand before saving from the page")
-            rows.append(dict(zip(COLUMNS, cells)))
-        return rows
+    try:
+        with path.open(newline="", encoding="utf-8-sig") as f:
+            reader = csv.reader(f)
+            header = next(reader, None)
+            if header is None:
+                return []                   # zero bytes: nothing to preserve
+            if header != COLUMNS:
+                raise CycleError(
+                    f"{path.name} header differs from {TEMPLATE_PATH.name}; the view will not "
+                    f"rewrite a hand-edited layout. Expected columns: {', '.join(COLUMNS)}")
+            rows = []
+            for cells in reader:
+                if not any(c.strip() for c in cells):
+                    continue
+                if len(cells) != len(COLUMNS):
+                    # zip() would silently drop the extra cells or blank the
+                    # missing ones; a malformed row is the owner's to fix.
+                    raise CycleError(f"{path.name} row {reader.line_num} has {len(cells)} cells, "
+                                     f"expected {len(COLUMNS)}; fix it by hand before saving "
+                                     f"from the page")
+                rows.append(dict(zip(COLUMNS, cells)))
+            return rows
+    except (UnicodeDecodeError, csv.Error) as e:
+        raise CycleError(f"{path.name} is not a UTF-8 CSV ({e}); re-save it as UTF-8 before "
+                         f"saving from the page") from None
 
 
 def _write_rows(rows: list[dict], path: Path) -> None:
+    """Write the whole log atomically: a private temp file in the same directory,
+    then rename over the log, so a crash mid-write cannot leave it half-written.
+
+    The path is resolved first. A log kept in a synced folder and symlinked into
+    trading_records/ must be written through the link: renaming over the link
+    itself would replace it with a plain file and leave the real log untouched.
+    """
+    path = Path(os.path.realpath(path))
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    with tmp.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=COLUMNS)
-        w.writeheader()
-        w.writerows(rows)
-    tmp.replace(path)   # atomic: a crash mid-write cannot leave a half-written log
+    fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=COLUMNS)
+            w.writeheader()
+            w.writerows(rows)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def upsert_row(data: dict, path: Path | None = None, today: date | None = None) -> str:
@@ -233,13 +284,13 @@ def upsert_row(data: dict, path: Path | None = None, today: date | None = None) 
     path = path or LOG_PATH
     today = today or date.today()
 
-    rd = str(data.get("review_date") or "").strip()
     try:
-        d = date.fromisoformat(rd)
+        d = parse_review_date(data.get("review_date"))
     except ValueError:
         raise CycleError("review_date must be a date, YYYY-MM-DD") from None
     if d > today:
-        raise CycleError(f"review_date {rd} is in the future; it is the date the scores were decided")
+        raise CycleError(f"review_date {d} is in the future; it is the date the scores were decided")
+    rd = d.isoformat()
 
     scores_in = data.get("scores")
     if scores_in is None:
@@ -259,7 +310,9 @@ def upsert_row(data: dict, path: Path | None = None, today: date | None = None) 
     text: dict[str, str] = {}
     for field in TEXT_FIELDS:
         v = data.get(field)
-        v = "" if v is None else str(v).replace("\r\n", "\n").strip()
+        if v is not None and not isinstance(v, str):
+            raise CycleError(f"{field} must be text")
+        v = "" if v is None else v.replace("\r\n", "\n").strip()
         if len(v) > MAX_TEXT:
             raise CycleError(f"{field} is longer than {MAX_TEXT} characters")
         text[field] = v
@@ -272,10 +325,11 @@ def upsert_row(data: dict, path: Path | None = None, today: date | None = None) 
         "status": status or "",
         **text,
     }
-    existing = _read_raw_rows(path)
-    rows = [r for r in existing if (r.get("review_date") or "").strip() != rd] + [new]
-    rows.sort(key=lambda r: r["review_date"])
-    _write_rows(rows, path)
+    with _WRITE_LOCK:
+        existing = _read_raw_rows(path)
+        rows = [r for r in existing if (r.get("review_date") or "").strip() != rd] + [new]
+        rows.sort(key=lambda r: r["review_date"])
+        _write_rows(rows, path)
     return rd
 
 
@@ -284,23 +338,31 @@ def upsert_row(data: dict, path: Path | None = None, today: date | None = None) 
 # --------------------------------------------------------------------------
 _SECTION_RE = re.compile(r"^## (\d+)\. (.+?)\s*$")
 _LEVEL_RE = re.compile(r"^### (GREEN|YELLOW|RED)\b")
+_BULLET_RE = re.compile(r"^\s*[-*] (.+?)\s*$")
 
 
-def rubric(doc_path: Path | None = None) -> dict[str, dict]:
+def read_doc(doc_path: Path | None = None) -> str:
+    """The framework document's text. Raises CycleError if it cannot be read."""
+    path = doc_path or DOC_PATH
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as e:
+        raise CycleError(f"cannot read {path.name}: {e}") from None
+
+
+def rubric(doc_path: Path | None = None, *, text: str | None = None) -> dict[str, dict]:
     """Per indicator: the doc's section title, its GREEN/YELLOW/RED criteria, and
     the bullet list of what to track.
 
     Each criterion is the first paragraph under its `### LEVEL` heading. A
     section's later commentary (the vacancy remark, the power "key question") is
-    left in the document, which the page links to. Raises CycleError if any of
-    the seven sections or any of the three levels is missing, so a restructured
+    left in the document, which the page names. Raises CycleError if any of the
+    seven sections or any of the three levels is missing, so a restructured
     document fails a test rather than quietly blanking a rubric.
     """
     path = doc_path or DOC_PATH
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as e:
-        raise CycleError(f"cannot read {path.name}: {e}") from None
+    if text is None:
+        text = read_doc(path)
 
     sections: dict[int, dict] = {}
     cur: dict | None = None
@@ -324,13 +386,14 @@ def rubric(doc_path: Path | None = None) -> dict[str, dict]:
         if line.startswith("### "):
             level = None                  # e.g. "### Monitor": bullets, not a criterion
             continue
+        bullet = _BULLET_RE.match(line)
         if level is not None:
             if line.strip():
-                cur["levels"][level].append(line.strip())
+                cur["levels"][level].append(bullet.group(1) if bullet else line.strip())
             elif cur["levels"][level]:
                 level = None              # first paragraph ended; the rest is commentary
-        elif line.startswith("- "):
-            cur["track"].append(line[2:].strip())
+        elif bullet:
+            cur["track"].append(bullet.group(1))
 
     out: dict[str, dict] = {}
     for i, (key, label) in enumerate(INDICATORS, start=1):
@@ -346,13 +409,13 @@ def rubric(doc_path: Path | None = None) -> dict[str, dict]:
     return out
 
 
-def core_question(doc_path: Path | None = None) -> str | None:
+def core_question(doc_path: Path | None = None, *, text: str | None = None) -> str | None:
     """The bold question the doc says every review must end on, or None."""
-    path = doc_path or DOC_PATH
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
-        return None
+    if text is None:
+        try:
+            text = read_doc(doc_path)
+        except CycleError:
+            return None
     m = re.search(r"^## Core Question\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
     if not m:
         return None
@@ -363,32 +426,30 @@ def core_question(doc_path: Path | None = None) -> str | None:
 # --------------------------------------------------------------------------
 # The payload the page renders
 # --------------------------------------------------------------------------
-def build_cycle(path: Path | None = None, doc_path: Path | None = None,
-                today: date | None = None) -> dict:
+def build_cycle(path: Path | None = None, doc_path: Path | None = None) -> dict:
     path = path or LOG_PATH
     log = read_log(path)
     rows = log["rows"]
+    rub: dict = {}
+    question = None
     try:
-        rub = rubric(doc_path)
+        text = read_doc(doc_path)     # one read; both parsers work from it
+        rub = rubric(doc_path, text=text)
+        question = core_question(doc_path, text=text)
         rubric_error = None
     except CycleError as e:
-        rub, rubric_error = {}, str(e)
+        rubric_error = str(e)
     try:
         log_rel = str(path.relative_to(REPO_ROOT))
     except ValueError:
         log_rel = str(path)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        # The server's own date, so the form's default and the future-date check
-        # cannot disagree across a midnight or a timezone.
-        "today": (today or date.today()).isoformat(),
         "log": path.name,
         "log_path": log_rel,
         "exists": log["exists"],
-        "template": f"trading_records/{TEMPLATE_PATH.name}",
         "doc": f"trading_desk/{DOC_PATH.name}",
         "max_score": MAX_SCORE,
-        "score_min": SCORE_MIN,
         "score_max": SCORE_MAX,
         "bands": [{"status": s, "lo": lo, "hi": hi} for s, lo, hi in BANDS],
         "indicators": [
@@ -397,7 +458,7 @@ def build_cycle(path: Path | None = None, doc_path: Path | None = None,
             for k in KEYS
         ],
         "rubric_error": rubric_error,
-        "core_question": core_question(doc_path),
+        "core_question": question,
         "rows": rows,
         "latest": rows[-1] if rows else None,
         "previous": rows[-2] if len(rows) > 1 else None,

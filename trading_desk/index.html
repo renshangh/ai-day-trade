@@ -90,7 +90,9 @@
         <span class="meta" id="cyc-stamp"></span>
       </div>
       <p class="sub" id="cyc-sub"></p>
-      <div id="cyc-notices"></div>
+      <!-- Announced: the save confirmation and its failures live here, and a
+           screen reader would otherwise hear nothing after pressing Save. -->
+      <div id="cyc-notices" role="status" aria-live="polite"></div>
       <div id="cyc-status"></div>
       <div id="cyc-tiles"></div>
       <div id="cyc-trend"></div>
