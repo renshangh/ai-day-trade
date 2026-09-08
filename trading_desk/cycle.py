@@ -1,8 +1,11 @@
 """AI data center cycle score -- the monthly thesis log behind the Cycle view.
 
 The framework is AI_DATA_CENTER_CYCLE_DASHBOARD.md, the desk owner's own text;
-the per-month scores live in trading_records/cycle-score.csv, gitignored like
-the trade journal. This module is the only code that reads or writes that file,
+the per-month scores live in trading_records/cycle-score.csv. Unlike the trade
+journal, this file is tracked in git and pushed -- it holds 0-2 judgment
+scores and research notes, never a position, a fill, or an account detail, so
+there is nothing in it that needs to stay off the public remote. This module
+is the only code that reads or writes that file,
 and it deliberately knows nothing about market data: every score here is a
 judgment a person typed in. Three rules, stated in the READMEs and held by
 tests/test_cycle.py:

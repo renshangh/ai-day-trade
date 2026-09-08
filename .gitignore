@@ -107,6 +107,7 @@ trading_records/*
 !trading_records/README.md
 !trading_records/TEMPLATE.csv
 !trading_records/TEMPLATE-cycle-score.csv
+!trading_records/cycle-score.csv
 trading_desk/research/earnings_dates.json
 trading_desk/research/drift_results.json
 trading_desk/research/drift_robustness.json

@@ -10,8 +10,14 @@ Trade journal for the swing-trading workflow driven by `trading_desk/`.
 
 ## Privacy — read this first
 
-Everything in this folder except `README.md` and the two templates
-(`TEMPLATE.csv`, `TEMPLATE-cycle-score.csv`) is **gitignored**.
+Everything in this folder except `README.md`, the two templates
+(`TEMPLATE.csv`, `TEMPLATE-cycle-score.csv`) and `cycle-score.csv` is
+**gitignored**. `cycle-score.csv` is the one exception to "real records stay
+private": it holds monthly 0-2 judgment scores and research notes, not
+positions, fills, or account details, so it is tracked and pushed on
+purpose, the same as the AI data center cycle research it logs. Keep it
+that way -- if a note ever needs an account-linked figure, that note
+belongs in the untracked journal instead, not in this file.
 Real records contain positions, fills, and account details, and this repo has a
 public remote — so the actual journal never gets committed. The `.gitignore` rule
 is an allowlist, not a blocklist:
@@ -21,6 +27,7 @@ trading_records/*
 !trading_records/README.md
 !trading_records/TEMPLATE.csv
 !trading_records/TEMPLATE-cycle-score.csv
+!trading_records/cycle-score.csv
 ```
 
 Adding a new file here keeps it private by default. If you ever *want* something
@@ -36,7 +43,7 @@ one, belongs in the filename (`trades-schwab.csv`), not in a column.
 | `TEMPLATE.csv` | Column schema with one example row. Copy it to start a journal. |
 | `trades.csv` | Your live journal (gitignored). |
 | `TEMPLATE-cycle-score.csv` | Column schema for the monthly AI data center cycle score, with one example row. |
-| `cycle-score.csv` | Your monthly cycle-score log (gitignored). Written by the dashboard's Cycle view, or by hand. |
+| `cycle-score.csv` | Your monthly cycle-score log. Tracked in git and pushed, unlike the rest of this folder -- see Privacy above. Written by the dashboard's Cycle view, or by hand. |
 
 Start one with:
 
