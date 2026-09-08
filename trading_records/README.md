@@ -10,7 +10,8 @@ Trade journal for the swing-trading workflow driven by `trading_desk/`.
 
 ## Privacy — read this first
 
-Everything in this folder except `README.md` and `TEMPLATE.csv` is **gitignored**.
+Everything in this folder except `README.md` and the two templates
+(`TEMPLATE.csv`, `TEMPLATE-cycle-score.csv`) is **gitignored**.
 Real records contain positions, fills, and account details, and this repo has a
 public remote — so the actual journal never gets committed. The `.gitignore` rule
 is an allowlist, not a blocklist:
@@ -19,6 +20,7 @@ is an allowlist, not a blocklist:
 trading_records/*
 !trading_records/README.md
 !trading_records/TEMPLATE.csv
+!trading_records/TEMPLATE-cycle-score.csv
 ```
 
 Adding a new file here keeps it private by default. If you ever *want* something
@@ -165,6 +167,6 @@ Then delete the example row.
 | `assumption_changed` | Only when the answer moved from last month: which underlying assumption changed. Otherwise `unchanged`. |
 | `notes` | Sources checked, and anything that did not fit a cell. |
 
-An indicator you did not check this month stays **blank**. Copying last month's
-score forward records a judgment nobody made, and it is exactly the
-carry-forward the rest of this repo forbids for market data.
+An indicator you did not check this month stays **blank** rather than
+carrying last month's score forward; the dashboard's "Recording the score"
+section says why.

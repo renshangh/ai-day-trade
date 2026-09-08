@@ -40,11 +40,13 @@ optical and electrical suppliers' own calls. Where the desk does help:
 - **Daily review** reports the exposure this framework maps. AXTI, LITE, COHR
   and FN sit in the `AI Optical / Interconnect` theme and POWL in
   `AI Power / Datacenter Buildout` (and Industrials), so the two equity sleeves
-  in the exposure map are exactly two `universe.py` themes, and their combined
-  book weight is on the review's theme-exposure block. The Bitcoin position
-  (held as IBIT) is reported there but excluded from the swing risk math by
-  `REVIEW_EXCLUDE`; its risks are not data center risks, which is why it is a
-  separate sleeve here as well.
+  in the exposure map correspond to two `universe.py` themes, and each theme's
+  book weight is a row on the review's theme-exposure block (a row sums every
+  reviewed holding in that theme, not only the names listed here). The crypto
+  sleeve sits outside the swing book: the Bitcoin position (held as IBIT) is
+  reported by the review but excluded from the risk math by `REVIEW_EXCLUDE`,
+  and nothing else in that sleeve is in the journal at all. Its risks are not
+  data center risks, which is why it is a separate sleeve here as well.
 - **Division of labour.** The Daily review answers where each position stands
   against its own levels *today*. This dashboard answers whether the *reason*
   for owning it still holds. A position can be sitting on support with the
@@ -260,8 +262,9 @@ Orders decline significantly and project cancellations begin appearing.
 ## Portfolio Exposure Map
 
 ### Digital / Crypto
-BTC
-ETH
+
+- BTC
+- ETH
 
 Primary risk:
 
@@ -272,10 +275,11 @@ Primary risk:
 - Risk appetite
 
 ### AI Optical Infrastructure
-AXTI
-LITE
-COHR
-FN
+
+- AXTI
+- LITE
+- COHR
+- FN
 
 Primary risk:
 

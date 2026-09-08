@@ -501,24 +501,15 @@ The Daily review asks where each position stands against its levels today.
 [`AI_DATA_CENTER_CYCLE_DASHBOARD.md`](AI_DATA_CENTER_CYCLE_DASHBOARD.md) asks
 the slower question underneath it: does the reason for owning the optical and
 power names still hold? It scores seven indicators of the hyperscaler buildout
-(capex, construction pipeline, vacancy, power, AI monetization, optical demand,
-electrical-equipment demand) from 0 to 2 once a month, sums them to a
-GREEN / YELLOW / RED reading, and ends on one question: starting from cash,
-would you still own AXTI, LITE, COHR, FN and POWL at their current weights?
+from 0 to 2 once a month, sums them to a GREEN / YELLOW / RED reading, and ends
+on one question: starting from cash, would you still own AXTI, LITE, COHR, FN
+and POWL at their current weights?
 
-Nothing on the page computes it. None of those indicators is visible in Alpaca
-bars, so every score is a judgment entered by hand from primary sources. What
-the desk does supply is the calendar and the exposure: MSFT, ORCL, AMZN, GOOGL
-and META are all in the universe, so the Earnings timing view already projects
-the prints where capex guidance changes, and the two equity sleeves in the
-framework's exposure map are exactly the `AI Optical / Interconnect` and
-`AI Power / Datacenter Buildout` themes whose combined weight the Daily review
-reports.
-
-Scores go in `trading_records/cycle-score.csv` (gitignored; start from
-`trading_records/TEMPLATE-cycle-score.csv`). An indicator not checked this
-month is left blank, not carried forward from last month -- the same rule the
-rest of the desk applies to market data.
+Nothing on the page computes it; every score is a judgment entered by hand. The
+document's "How this fits the desk" section says what the desk does supply (the
+earnings calendar for the hyperscaler prints, the theme exposure on the Daily
+review), and its "Recording the score" section says how the monthly log in
+`trading_records/cycle-score.csv` is kept.
 
 ### Indicators
 
