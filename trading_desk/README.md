@@ -4,7 +4,7 @@ Local dashboard that screens sectors and themes over short horizons — for mome
 or for reversals — and charts the resulting movers with the standard technical
 indicator set.
 
-**Last Updated:** 2026-08-14
+**Last Updated:** 2026-09-07
 **Status:** Active
 **Audience:** Both
 
@@ -495,6 +495,22 @@ Buildout), so the percentages deliberately do not sum to 100%. The excluded
 holdings are left out entirely rather than filed under `(ungrouped)`, since
 inventing a theme for them would be worse than omitting them.
 
+### AI data center cycle dashboard (monthly)
+
+The Daily review asks where each position stands against its levels today.
+[`AI_DATA_CENTER_CYCLE_DASHBOARD.md`](AI_DATA_CENTER_CYCLE_DASHBOARD.md) asks
+the slower question underneath it: does the reason for owning the optical and
+power names still hold? It scores seven indicators of the hyperscaler buildout
+from 0 to 2 once a month, sums them to a GREEN / YELLOW / RED reading, and ends
+on one question: starting from cash, would you still own AXTI, LITE, COHR, FN
+and POWL at their current weights?
+
+Nothing on the page computes it; every score is a judgment entered by hand. The
+document's "How this fits the desk" section says what the desk does supply (the
+earnings calendar for the hyperscaler prints, the theme exposure on the Daily
+review), and its "Recording the score" section says how the monthly log in
+`trading_records/cycle-score.csv` is kept.
+
 ### Indicators
 
 Overlays: SMA 20 / 50 / 200, VWAP 20 (rolling), Bollinger Bands (20, 2σ),
@@ -588,6 +604,7 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `research/split_study.py` | Split-event counts and pre-split return study (see Split events) |
+| `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | Monthly thesis check for the optical and power positions: seven 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
 | `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
 | `tests/test_ports.py` | Per-branch port mapping, HEAD parsing, launcher agreement, stale-server detection |
