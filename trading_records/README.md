@@ -2,7 +2,7 @@
 
 Trade journal for the swing-trading workflow driven by `trading_desk/`.
 
-**Last Updated:** 2026-08-10
+**Last Updated:** 2026-09-07
 **Status:** Active
 **Audience:** Both
 
@@ -33,6 +33,8 @@ one, belongs in the filename (`trades-schwab.csv`), not in a column.
 |---|---|
 | `TEMPLATE.csv` | Column schema with one example row. Copy it to start a journal. |
 | `trades.csv` | Your live journal (gitignored). |
+| `TEMPLATE-cycle-score.csv` | Column schema for the monthly AI data center cycle score, with one example row. |
+| `cycle-score.csv` | Your monthly cycle-score log (gitignored). |
 
 Start one with:
 
@@ -139,3 +141,30 @@ Worth looking at periodically:
 - **`exit_reason` mix** — a high `stop` share with negative expectancy usually
   means entries are too extended, not that stops are too tight.
 - **Trades with no `stop`** — count them. That number should trend to zero.
+
+## Monthly cycle score
+
+`trading_desk/AI_DATA_CENTER_CYCLE_DASHBOARD.md` scores seven indicators of the
+AI data center buildout from 0 to 2 once a month and asks whether, starting from
+cash, you would still own the same names at the same weights. Log each review
+as one row:
+
+```bash
+cp trading_records/TEMPLATE-cycle-score.csv trading_records/cycle-score.csv
+```
+
+Then delete the example row.
+
+| Column | Meaning |
+|---|---|
+| `review_date` | Date the scores were decided. |
+| `capex` … `electrical` | The seven indicator scores, 0–2, in the dashboard's order: capex, construction, vacancy, power, monetization, optical, electrical. |
+| `total` | Sum of the seven. Fill it only when all seven are scored. |
+| `status` | `GREEN` (11–14), `YELLOW` (7–10) or `RED` (0–6). Blank when `total` is blank. |
+| `core_question` | Starting from cash, would you own the same names at the same weights? `yes`, or the names you would not. |
+| `assumption_changed` | Only when the answer moved from last month: which underlying assumption changed. Otherwise `unchanged`. |
+| `notes` | Sources checked, and anything that did not fit a cell. |
+
+An indicator you did not check this month stays **blank**. Copying last month's
+score forward records a judgment nobody made, and it is exactly the
+carry-forward the rest of this repo forbids for market data.
