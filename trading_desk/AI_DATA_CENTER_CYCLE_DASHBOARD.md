@@ -3,7 +3,7 @@
 Monthly check on whether the long-term AI infrastructure buildout thesis behind
 the desk's optical and power positions is still intact.
 
-**Last Updated:** 2026-09-07
+**Last Updated:** 2026-09-08
 **Status:** Active
 **Audience:** Both
 
@@ -375,11 +375,18 @@ If the answer changes, identify exactly which underlying assumption changed.
 
 ## Recording the score
 
-One row per monthly review in `trading_records/cycle-score.csv`, started from
-`trading_records/TEMPLATE-cycle-score.csv` (the log is gitignored like the rest
-of the journal; the template is committed). The seven score columns follow the
-table above in order, then `total`, `status`, the answer to the core question,
-and what changed. The column meanings are in `trading_records/README.md`.
+One row per monthly review in `trading_records/cycle-score.csv` (gitignored
+like the rest of the journal; the template it follows,
+`trading_records/TEMPLATE-cycle-score.csv`, is committed). The seven score
+columns follow the table above in order, then `total`, `status`, the answer to
+the core question, and what changed. The column meanings are in
+`trading_records/README.md`.
+
+The desk's **Cycle** view is the form for this file. It shows each indicator's
+GREEN / YELLOW / RED criterion, read from this document, beside its score,
+writes one row per save, and replaces the row for a date you save again. It
+refuses to write to a file whose header differs from the template, so the log
+stays readable by hand and by the page alike.
 
 Two rules, both borrowed from how the rest of the desk treats data:
 

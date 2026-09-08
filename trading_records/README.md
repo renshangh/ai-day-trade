@@ -2,7 +2,7 @@
 
 Trade journal for the swing-trading workflow driven by `trading_desk/`.
 
-**Last Updated:** 2026-09-07
+**Last Updated:** 2026-09-08
 **Status:** Active
 **Audience:** Both
 
@@ -36,7 +36,7 @@ one, belongs in the filename (`trades-schwab.csv`), not in a column.
 | `TEMPLATE.csv` | Column schema with one example row. Copy it to start a journal. |
 | `trades.csv` | Your live journal (gitignored). |
 | `TEMPLATE-cycle-score.csv` | Column schema for the monthly AI data center cycle score, with one example row. |
-| `cycle-score.csv` | Your monthly cycle-score log (gitignored). |
+| `cycle-score.csv` | Your monthly cycle-score log (gitignored). Written by the dashboard's Cycle view, or by hand. |
 
 Start one with:
 
@@ -149,17 +149,19 @@ Worth looking at periodically:
 `trading_desk/AI_DATA_CENTER_CYCLE_DASHBOARD.md` scores seven indicators of the
 AI data center buildout from 0 to 2 once a month and asks whether, starting from
 cash, you would still own the same names at the same weights. Log each review
-as one row:
+as one row. The dashboard's **Cycle** view is a form over this file: it
+creates it on the first save, writes one row per review, and replaces the row
+whose date you save again. To start the log by hand instead:
 
 ```bash
 cp trading_records/TEMPLATE-cycle-score.csv trading_records/cycle-score.csv
 ```
 
-Then delete the example row.
+Then delete the example row (the view flags it until you do).
 
 | Column | Meaning |
 |---|---|
-| `review_date` | Date the scores were decided. |
+| `review_date` | Date the scores were decided, `YYYY-MM-DD`. |
 | `capex` … `electrical` | The seven indicator scores, 0–2, in the dashboard's order: capex, construction, vacancy, power, monetization, optical, electrical. |
 | `total` | Sum of the seven. Fill it only when all seven are scored. |
 | `status` | `GREEN` (11–14), `YELLOW` (7–10) or `RED` (0–6). Blank when `total` is blank. |
@@ -169,4 +171,13 @@ Then delete the example row.
 
 An indicator you did not check this month stays **blank** rather than
 carrying last month's score forward; the dashboard's "Recording the score"
-section says why.
+section says why. The view enforces this: a new date starts every score blank,
+and a review with a blank is saved with `total` and `status` empty.
+
+Hand edits are fine, with two rules: keep the file UTF-8 (a spreadsheet's
+default "CSV" export often is not), and keep the header exactly as the template
+has it. The view still reads a file with a changed header, warning on the page
+and showing what it can, but it will not write to one: the form stays on screen
+and every save fails with that reason until the extra column is removed. A
+stored `total` or `status` that disagrees with its row's scores is reported on
+the page, not corrected.

@@ -11,12 +11,18 @@
 const VIEWS = [
   { key: 'momentum', label: 'Momentum', lookbacks: [1, 2, 3, 4, 5] },
   { key: 'reversal', label: 'Reversal candidates', lookbacks: [2, 3, 4, 5] },
-  // A calendar, not a group ranking: no lookback applies, and it replaces the
-  // hero/ranking/movers sections rather than re-scoping them.
-  { key: 'earnings', label: 'Earnings timing', lookbacks: [], calendar: true },
-  // Also a solo view: it reports on positions held, not on a ranked group, so
-  // the hero/ranking/movers furniture has nothing to scope here either.
-  { key: 'review', label: 'Daily review', lookbacks: [], solo: true },
+  // The rest are "solo" views: each reports on something other than a ranked
+  // group (a calendar, the positions held, a hand-scored monthly log), so the
+  // hero/ranking/movers furniture and the lookback filter have nothing to scope
+  // and are hidden. Each names its card and how to load and draw itself, so
+  // renderAll and the Refresh button need no per-view branches; `state[key]`
+  // holds its data. Arrow wrappers, so the functions are looked up at call time.
+  { key: 'earnings', label: 'Earnings timing', lookbacks: [], solo: true, card: 'earnings-card',
+    load: force => fetchEarnings(force), draw: () => renderEarnings() },
+  { key: 'review', label: 'Daily review', lookbacks: [], solo: true, card: 'review-card',
+    load: force => fetchReview(force), draw: () => renderReview() },
+  { key: 'cycle', label: 'Cycle', lookbacks: [], solo: true, card: 'cycle-card',
+    load: () => fetchCycle(), draw: () => renderCycle() },
 ];
 const HORIZONS = [14, 30, 45, 90];
 // Must match the server's DEFAULT_HORIZON_DAYS so the two cannot disagree.
@@ -49,7 +55,7 @@ const OVERLAYS = [
 ];
 
 const state = {
-  view: 'momentum',   // see VIEWS -- ranked screens plus the two solo views
+  view: 'momentum',   // see VIEWS -- ranked screens plus the solo views
   lookback: 1,
   range: '6M',
   board: null,
@@ -66,6 +72,8 @@ const state = {
   horizon: DEFAULT_HORIZON,
   earnings: null,
   review: null,
+  cycle: null,
+  cycleSeq: 0,        // same out-of-order guard as selectionSeq, for /api/cycle loads
   tableView: false,
   hover: null,        // index into the visible slice
   loading: false,
@@ -88,6 +96,19 @@ const fmtPct = v => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`)
 const fmtPx = v => (v == null ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const fmtNum = (v, d = 2) => (v == null ? '—' : v.toFixed(d));
 const signClass = v => (v == null ? '' : v >= 0 ? 'pos' : 'neg');
+/** Escape text for interpolation into an HTML template string, attribute values
+ *  included. Everything read back from a file -- the journal, the cycle log, the
+ *  framework document -- and every error message goes through this. */
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/** One notice element (warn / err / ok). `html` must already be escaped. */
+function buildNotice(kind, html) {
+  const el = document.createElement('div');
+  el.className = `notice ${kind}`;
+  el.innerHTML = `<span class="ico">${kind === 'ok' ? '✓' : '⚠'}</span><span>${html}</span>`;
+  return el;
+}
 
 /** Point the header's Yahoo Finance link at the charted symbol, or at the site
  *  root when nothing is loaded. encodeURIComponent because the symbol reaches
@@ -177,11 +198,7 @@ function showError(msg) {
   // Replace any previous error rather than appending; a flapping connection was
   // otherwise able to stack notices until they pushed the board off-screen.
   box.querySelectorAll('.notice.err').forEach(n => n.remove());
-  const el = document.createElement('div');
-  el.className = 'notice err';
-  el.append(Object.assign(document.createElement('span'), { className: 'ico', textContent: '⚠' }));
-  el.append(Object.assign(document.createElement('span'), { textContent: msg }));
-  box.appendChild(el);
+  box.appendChild(buildNotice('err', esc(msg)));
 }
 
 // ------------------------------------------------------------- rendering
@@ -192,12 +209,9 @@ function renderNotices() {
   if (!b) return;
 
   if (b.stale) {
-    const el = document.createElement('div');
-    el.className = 'notice warn';
-    el.innerHTML = `<span class="ico">⚠</span><span><strong>Showing last known-good data.</strong>
-      The live refresh failed (${b.stale_reason || 'unknown error'}), so these figures are from
-      ${new Date(b.generated_at).toLocaleString()} — not current.</span>`;
-    box.appendChild(el);
+    box.appendChild(buildNotice('warn', `<strong>Showing last known-good data.</strong>
+      The live refresh failed (${esc(b.stale_reason || 'unknown error')}), so these figures are from
+      ${esc(new Date(b.generated_at).toLocaleString())} — not current.`));
   }
 
   const omitted = b.omitted || {};
@@ -205,12 +219,9 @@ function renderNotices() {
   if (groups.length) {
     const total = groups.reduce((n, g) => n + omitted[g].length, 0);
     const detail = groups.map(g => `${g}: ${[...new Set(omitted[g])].join(', ')}`).join(' · ');
-    const el = document.createElement('div');
-    el.className = 'notice warn';
-    el.innerHTML = `<span class="ico">⚠</span><span><strong>${total} symbol${total > 1 ? 's' : ''} omitted</strong>
-      — no bars returned on the ${b.feed.toUpperCase()} feed, so they are excluded rather than
-      substituted. ${detail}</span>`;
-    box.appendChild(el);
+    box.appendChild(buildNotice('warn', `<strong>${total} symbol${total > 1 ? 's' : ''} omitted</strong>
+      — no bars returned on the ${esc(b.feed.toUpperCase())} feed, so they are excluded rather than
+      substituted. ${esc(detail)}`));
   }
 }
 
@@ -245,6 +256,7 @@ function renderViewTabs() {
     earnings: 'When each name reports next — so a swing position is never held through a print by accident.',
     momentum: 'Groups ranked by raw return over the window.',
     review: 'Every open position against its own levels, sorted by how close it sits to support.',
+    cycle: 'Is the AI data center buildout thesis still intact? Seven indicators scored by hand once a month.',
   };
   $('view-note').textContent = notes[state.view] || notes.momentum;
 }
@@ -552,6 +564,415 @@ function renderReview() {
     + 'says what to do, and nothing on this page is investment advice. "Downside to support" '
     + 'is measured from today’s price, not from entry, so for an underwater position it is '
     + 'remaining risk to that level rather than the risk originally taken.';
+}
+
+// ------------------------------------------------------------- cycle view
+// The monthly AI data center cycle score. Every figure on this view is a
+// hand-entered judgment read back from trading_records/cycle-score.csv; the
+// server computes nothing from market data here, and the page says so. The
+// criteria beside each score come from the framework document, parsed by the
+// server, so the page and the document cannot drift.
+
+// Must match cycle.LEVEL_OF_SCORE: a 2 meets the indicator's GREEN criterion,
+// 1 its YELLOW, 0 its RED. Asserted by test_client_declares_the_view_and_levels.
+const LEVEL_OF_SCORE = { 2: 'GREEN', 1: 'YELLOW', 0: 'RED' };
+/** The class carrying a level's hue (st-green / st-yellow / st-red), or st-none
+ *  for "no level": an unscored indicator, an incomplete review. */
+const stClass = level => `st-${(level || 'none').toLowerCase()}`;
+
+// A save in flight. A Refresh (or tab switch) issued meanwhile waits for it
+// rather than racing it to the file, which could paint the pre-write state on
+// top of the post-write one.
+let cycleSaving = null;
+
+async function fetchCycle() {
+  const card = $('cycle-card');
+  card.classList.add('refetching');
+  const mySeq = ++state.cycleSeq;
+  try {
+    if (cycleSaving) await cycleSaving;
+    const res = await fetch('/api/cycle');
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    if (mySeq !== state.cycleSeq) return;   // a later load already superseded this one
+    state.cycle = d;
+    renderCycle();
+  } catch (e) {
+    if (mySeq === state.cycleSeq) showError(`Could not load the cycle dashboard: ${e.message}`);
+  } finally {
+    card.classList.remove('refetching');
+  }
+}
+
+async function saveCycleRow(row) {
+  const req = fetch('/api/cycle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(row),
+  });
+  cycleSaving = req.then(() => undefined, () => undefined);   // settled either way, for waiters
+  try {
+    const res = await req;
+    let d = {};
+    try { d = await res.json(); } catch { /* fall through to the status check */ }
+    if (!res.ok || d.error) throw new Error(d.error || `HTTP ${res.status}`);
+    state.cycle = d;   // the server read the file back after writing: the freshest copy there is
+    return d;
+  } finally {
+    cycleSaving = null;
+  }
+}
+
+/** A notice inside the cycle card, next to what it is about, rather than in the
+ *  page-level box at the top. `html` must already be escaped. */
+function cycleNotice(kind, html) {
+  const box = $('cyc-notices');
+  // One error at a time, as showError does: repeated failed saves would
+  // otherwise stack identical banners until they push the review off-screen.
+  if (kind === 'err') box.querySelectorAll('.notice.err').forEach(n => n.remove());
+  box.appendChild(buildNotice(kind, html));
+}
+
+function statusBadge(status, scored, n, small) {
+  const sm = small ? ' sm' : '';
+  if (!status) return `<span class="cyc-badge${sm} st-none">Incomplete · ${scored} of ${n} scored</span>`;
+  return `<span class="cyc-badge${sm} ${stClass(status)}">${esc(status)}</span>`;
+}
+
+/** "2026-01-31" -> "Jan '26" for the trend labels, or "Jan 31" when another
+ *  review shares the month (a mid-month re-score after a print), so two columns
+ *  never carry the same label. */
+function fmtMonth(iso, shared) {
+  const [y, m, day] = (iso || '').split('-');
+  if (!m || !MONTHS[+m - 1]) return iso || '';
+  return shared ? `${MONTHS[+m - 1]} ${+day}` : `${MONTHS[+m - 1]} '${String(y).slice(2)}`;
+}
+
+/** Today in the browser's own calendar, YYYY-MM-DD. Computed when the form is
+ *  drawn rather than when the payload was fetched, so a tab left open past
+ *  midnight does not default a new review to yesterday. The server still
+ *  rejects a future date; that check is the authority, this is the default. */
+function localToday() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
+function renderCycle() {
+  const d = state.cycle;
+  if (!d) { $('cyc-status').innerHTML = '<div class="loading">Loading…</div>'; return; }
+  const n = d.indicators.length;
+  const stamp = d.generated_at ? new Date(d.generated_at).toLocaleTimeString('en-US') : '';
+  $('cyc-stamp').textContent = stamp ? `read ${stamp} · ${d.log_path}` : '';
+  $('cyc-sub').textContent =
+    `${n} indicators of the hyperscaler buildout, each scored 0–${d.score_max} once a month from `
+    + `primary sources and summed to a GREEN / YELLOW / RED reading out of ${d.max_score}. Nothing `
+    + `here is computed from market data: every figure is a judgment recorded in ${d.log_path}, and `
+    + `the criteria come from ${d.doc}.`;
+
+  // ---- notices: what was wrong with the file, and whether the rubric loaded
+  $('cyc-notices').innerHTML = '';
+  (d.warnings || []).forEach(w => cycleNotice('warn', esc(w)));
+  if (d.rubric_error) {
+    cycleNotice('warn', `Criteria could not be read from ${esc(d.doc)}: ${esc(d.rubric_error)}. `
+      + `Scores still save; the document has the rubric.`);
+  }
+
+  // ---- latest review
+  const L = d.latest, P = d.previous;
+  if (!L) {
+    $('cyc-status').innerHTML = `<div class="cyc-empty"><div class="lede">No reviews logged yet</div>`
+      + `<p class="sub" style="margin:6px 0 0">${d.exists
+          ? `${esc(d.log_path)} has no rows.`
+          : `${esc(d.log_path)} does not exist yet; the first save creates it with the template's columns.`}`
+      + ` Score this month in the form below.</p></div>`;
+  } else {
+    let deltaTxt;
+    if (!P) deltaTxt = 'first review logged';
+    else if (L.total == null) deltaTxt = `incomplete, so no change to report vs ${P.review_date}`;
+    else if (P.total == null) deltaTxt = `previous review (${P.review_date}) was incomplete`;
+    else if (L.total === P.total) deltaTxt = `unchanged vs ${P.review_date}`;
+    else deltaTxt = `${L.total > P.total ? '+' : '−'}${Math.abs(L.total - P.total)} vs ${P.review_date}`;
+    const was = P && P.status && L.status && P.status !== L.status ? ` · was ${P.status}` : '';
+    $('cyc-status').innerHTML = `
+      <div class="hero cyc-hero">
+        <div>
+          <div class="lede">Latest review · ${esc(L.review_date)}</div>
+          <div class="cyc-status-line">${statusBadge(L.status, L.scored, n)}
+            <span class="cyc-total">${L.total == null ? '—' : L.total}<span class="cyc-of"> / ${d.max_score}</span></span></div>
+          <div class="meta">${esc(deltaTxt)}${esc(was)}</div>
+        </div>
+        <div class="stat cyc-q">
+          <div class="k">Core question</div>
+          <div class="cyc-q-v">${L.core_question ? esc(L.core_question) : '—'}</div>
+          <div class="meta">${esc(d.core_question || '')}</div>
+        </div>
+        <div class="stat cyc-q">
+          <div class="k">Assumption changed</div>
+          <div class="cyc-q-v">${L.assumption_changed ? esc(L.assumption_changed) : '—'}</div>
+        </div>
+      </div>`;
+  }
+
+  // ---- one tile per indicator: the score, the level it meets, the move since
+  // the previous review, and the criterion that level is defined by.
+  $('cyc-tiles').innerHTML = `<h3 class="rev-h3">Indicators${L ? ` · ${esc(L.review_date)}` : ''}</h3>`
+    + `<div class="cyc-tiles">` + d.indicators.map(ind => {
+      const s = L ? L.scores[ind.key] : null;
+      const prev = P ? P.scores[ind.key] : null;
+      const lvl = s == null ? null : LEVEL_OF_SCORE[s];
+      const dlt = (s != null && prev != null) ? s - prev : null;
+      const dTxt = dlt == null ? '' : dlt === 0 ? '· same' : dlt > 0 ? `· ▲ from ${prev}` : `· ▼ from ${prev}`;
+      const crit = lvl && ind.rubric && ind.rubric[lvl] ? ind.rubric[lvl] : (ind.title || '');
+      return `<div class="cyc-tile ${stClass(lvl)}">
+        <div class="k">${esc(ind.label)}</div>
+        <div class="v">${s == null ? '—' : s}<span class="cyc-lvl">${lvl ? esc(lvl) : 'not scored'} ${esc(dTxt)}</span></div>
+        <div class="n">${esc(crit)}</div></div>`;
+    }).join('') + `</div>`;
+
+  renderCycleHistory(d);
+  // Preserve a half-entered review across a re-render (Refresh, a save).
+  renderCycleForm(d, cycleFormValues());
+
+  $('cyc-disclaimer').textContent =
+    'Observations recorded by hand, not recommendations. The framework, its criteria and its bands '
+    + `live in ${d.doc}; this page reads and writes ${d.log_path} and computes nothing else. `
+    + 'An indicator not checked this month stays blank — it is never carried forward — and a review '
+    + 'with a blank has no total and no status.';
+}
+
+function renderCycleHistory(d) {
+  const rows = d.rows || [];
+  if (!rows.length) { $('cyc-trend').innerHTML = ''; $('cyc-history').innerHTML = ''; return; }
+
+  const perMonth = {};
+  rows.forEach(r => { const k = r.review_date.slice(0, 7); perMonth[k] = (perMonth[k] || 0) + 1; });
+  $('cyc-trend').innerHTML = `<h3 class="rev-h3">Trend</h3><div class="cyc-trend">` + rows.map(r => {
+    const h = r.total == null ? 0 : Math.round(r.total / d.max_score * 100);
+    const title = r.total == null ? `${r.review_date}: incomplete` : `${r.review_date}: ${r.total} / ${d.max_score} ${r.status}`;
+    return `<div class="cyc-col" title="${esc(title)}">
+      <div class="cyc-col-val">${r.total == null ? '—' : r.total}</div>
+      <div class="cyc-col-track"><div class="cyc-col-fill ${stClass(r.status)}" style="height:${h}%"></div></div>
+      <div class="cyc-col-lbl">${esc(fmtMonth(r.review_date, perMonth[r.review_date.slice(0, 7)] > 1))}</div></div>`;
+  }).join('') + `</div>`;
+
+  // Newest first in the table -- the column headers are the CSV's own column
+  // names, so the table doubles as a key to the file.
+  const body = [...rows].reverse().map(r => `<tr>
+    <td>${esc(r.review_date)}</td>
+    ${d.indicators.map(i => { const s = r.scores[i.key]; return `<td class="${s == null ? 'muted' : ''}">${s == null ? '—' : s}</td>`; }).join('')}
+    <td>${r.total == null ? '—' : r.total}</td>
+    <td>${r.status ? statusBadge(r.status, r.scored, d.indicators.length, true) : `<span class="muted">${r.scored}/${d.indicators.length}</span>`}</td>
+    <td class="cyc-txt">${esc(r.core_question) || '—'}</td>
+    <td class="cyc-txt">${esc(r.assumption_changed) || '—'}</td>
+    <td class="cyc-txt cyc-notes">${esc(r.notes) || '—'}</td></tr>`).join('');
+  $('cyc-history').innerHTML = `<h3 class="rev-h3">History · ${rows.length} review${rows.length === 1 ? '' : 's'}</h3>`
+    + `<div class="table-wrap"><table class="cyc-tbl"><thead><tr><th>review_date</th>`
+    + d.indicators.map(i => `<th title="${esc(i.label)}">${esc(i.key)}</th>`).join('')
+    + `<th>total</th><th>status</th><th class="cyc-txt">core_question</th><th class="cyc-txt">assumption_changed</th>`
+    + `<th class="cyc-txt">notes</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+/** What the form currently holds, or null if it has not been drawn yet. */
+function cycleFormValues() {
+  const f = $('cyc-form').querySelector('form');
+  if (!f || !state.cycle) return null;
+  const fd = new FormData(f);
+  const out = {
+    review_date: fd.get('review_date') || '',
+    scores: {},
+    core_question: fd.get('core_question') || '',
+    assumption_changed: fd.get('assumption_changed') || '',
+    notes: fd.get('notes') || '',
+  };
+  state.cycle.indicators.forEach(i => {
+    const v = fd.get(`score_${i.key}`);
+    out.scores[i.key] = (v == null || v === '') ? null : Number(v);
+  });
+  return out;
+}
+
+/** The logged review for a date, or null. */
+const loggedFor = (d, date) => (d.rows || []).find(r => r.review_date === date) || null;
+
+/** The values a form for `date` starts from: that date's logged review if there
+ *  is one, otherwise an empty review. Never another month's scores. */
+function formValuesFor(d, date) {
+  const row = loggedFor(d, date);
+  if (row) {
+    return { review_date: row.review_date, scores: { ...row.scores },
+             core_question: row.core_question, assumption_changed: row.assumption_changed, notes: row.notes };
+  }
+  return { review_date: date, scores: Object.fromEntries(d.indicators.map(i => [i.key, null])),
+           core_question: '', assumption_changed: '', notes: '' };
+}
+
+function formIsEmpty(v) {
+  return Object.values(v.scores).every(x => x == null)
+    && !v.core_question.trim() && !v.assumption_changed.trim() && !v.notes.trim();
+}
+
+/** Same review, as the server would store it: text trimmed, newlines normalised. */
+function sameReview(a, b) {
+  const norm = s => String(s || '').replace(/\r\n/g, '\n').trim();
+  return a.review_date === b.review_date
+    && ['core_question', 'assumption_changed', 'notes'].every(k => norm(a[k]) === norm(b[k]))
+    && Object.keys(a.scores).every(k => (a.scores[k] ?? null) === (b.scores[k] ?? null));
+}
+
+function renderCycleForm(d, keep) {
+  // What to draw. A half-entered review survives a re-render (Refresh, a save);
+  // a form that is empty, or that matches the log's row for its date, is redrawn
+  // from the log so a hand edit to the file shows up; a form that has diverged
+  // from the log is kept as typed, and the banner says the two differ.
+  let vals;
+  if (!keep || !keep.review_date) {
+    vals = formValuesFor(d, localToday());
+  } else {
+    const logged = loggedFor(d, keep.review_date);
+    vals = logged && (formIsEmpty(keep) || sameReview(keep, formValuesFor(d, keep.review_date)))
+      ? formValuesFor(d, keep.review_date) : keep;
+  }
+  const opt = (v, cur, label) =>
+    `<option value="${v}"${(cur == null ? '' : String(cur)) === String(v) ? ' selected' : ''}>${label}</option>`;
+
+  const rowsHtml = d.indicators.map(ind => {
+    const cur = vals.scores[ind.key];
+    const rub = ind.rubric || {};
+    return `<div class="cyc-frow">
+      <div class="cyc-fhead"><label for="cyc-s-${ind.key}">${esc(ind.label)}</label>
+        ${ind.title ? `<span class="meta">${esc(ind.title)}</span>` : ''}</div>
+      <select id="cyc-s-${ind.key}" name="score_${ind.key}" data-key="${ind.key}">
+        ${opt('', cur, '— not scored')}${opt(2, cur, '2 · GREEN')}${opt(1, cur, '1 · YELLOW')}${opt(0, cur, '0 · RED')}
+      </select>
+      <div class="cyc-rubric">${['GREEN', 'YELLOW', 'RED'].map(lv => rub[lv]
+        ? `<div class="cyc-crit ${stClass(lv)}" data-level="${lv}"><b>${lv}</b> ${esc(rub[lv])}</div>`
+        : '').join('')}</div>
+      ${ind.track && ind.track.length
+        ? `<details class="cyc-track"><summary>What to check</summary><ul>${ind.track.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`
+        : ''}
+    </div>`;
+  }).join('');
+
+  $('cyc-form').innerHTML = `<h3 class="rev-h3">Score this month</h3>
+    <form class="cyc-form" autocomplete="off">
+      <div class="cyc-fmeta">
+        <label>Review date <input type="date" name="review_date" value="${esc(vals.review_date)}" required></label>
+        <span class="meta" id="cyc-banner"></span>
+      </div>
+      <div class="cyc-frows">${rowsHtml}</div>
+      <div class="cyc-ftext">
+        <label>Core question — ${esc(d.core_question || 'starting from cash, would you own the same names at the same weights?')}
+          <input type="text" name="core_question" value="${esc(vals.core_question)}" maxlength="4000"
+                 placeholder="yes, or the names you would not"></label>
+        <label>Assumption changed
+          <input type="text" name="assumption_changed" value="${esc(vals.assumption_changed)}" maxlength="4000"
+                 placeholder="unchanged — or what was true last month and is not now"></label>
+        <label>Notes
+          <textarea name="notes" rows="3" maxlength="4000"
+                    placeholder="Sources checked, and anything that did not fit a cell">${esc(vals.notes)}</textarea></label>
+      </div>
+      <div class="cyc-fsave"><span class="meta" id="cyc-ftotal"></span><span class="spacer"></span>
+        <button type="submit" class="primary">Save to ${esc(d.log)}</button></div>
+    </form>`;
+
+  const form = $('cyc-form').querySelector('form');
+
+  const updateTotal = () => {
+    const v = cycleFormValues();
+    const all = Object.values(v.scores);
+    const scored = all.filter(x => x != null).length;
+    const total = scored === all.length ? all.reduce((a, b) => a + b, 0) : null;
+    const st = total == null ? null : (d.bands.find(b => total >= b.lo && total <= b.hi) || {}).status;
+    $('cyc-ftotal').innerHTML = total == null
+      ? `${scored} of ${all.length} scored — total and status stay blank until all ${all.length} are.`
+      : `Total <b>${total}</b> / ${d.max_score} → ${statusBadge(st, scored, all.length, true)}`;
+    form.querySelectorAll('select[data-key]').forEach(sel => {
+      const cur = sel.value === '' ? null : Number(sel.value);
+      sel.closest('.cyc-frow').querySelectorAll('.cyc-crit').forEach(c =>
+        c.classList.toggle('on', cur != null && LEVEL_OF_SCORE[cur] === c.dataset.level));
+    });
+  };
+
+  // The banner names what saving will do to the log: append a new review,
+  // replace the logged one the form matches, or replace one that differs
+  // from what is typed -- in which case it offers to load the logged values.
+  const updateBanner = () => {
+    const v = cycleFormValues();
+    const logged = loggedFor(d, v.review_date);
+    const el = $('cyc-banner');
+    el.replaceChildren();
+    if (!logged) {
+      el.textContent = 'A new review. An indicator you skip stays blank; nothing is carried forward from last month.';
+      // The framework says to re-score the month's review when a print lands,
+      // which means editing that row, not adding a second one for the month.
+      const sameMonth = (d.rows || []).filter(r => r.review_date.slice(0, 7) === v.review_date.slice(0, 7)).pop();
+      if (sameMonth) {
+        el.append(` A review dated ${sameMonth.review_date} is already logged this month; to re-score it instead of adding another, `);
+        const use = document.createElement('button');
+        use.type = 'button';
+        use.textContent = `use ${sameMonth.review_date}`;
+        use.onclick = () => {
+          form.querySelector('[name=review_date]').value = sameMonth.review_date;
+          onDateChange();
+        };
+        el.append(use);
+      }
+      return;
+    }
+    if (sameReview(v, formValuesFor(d, v.review_date))) {
+      el.textContent = `Editing the review dated ${logged.review_date} — saving replaces it.`;
+      return;
+    }
+    el.textContent = `A review dated ${logged.review_date} is already logged and differs from the form — saving replaces it. `;
+    const load = document.createElement('button');
+    load.type = 'button';
+    load.textContent = 'Load the logged review';
+    load.onclick = () => setFormValues(formValuesFor(d, v.review_date));
+    el.append(load);
+  };
+
+  /** Put values into the existing controls. Never rebuilds the form, so focus,
+   *  scroll position and any opened "What to check" list survive. */
+  const setFormValues = next => {
+    form.querySelector('[name=review_date]').value = next.review_date;
+    d.indicators.forEach(i => {
+      form.querySelector(`[name=score_${i.key}]`).value = next.scores[i.key] == null ? '' : String(next.scores[i.key]);
+    });
+    ['core_question', 'assumption_changed', 'notes'].forEach(k => { form.querySelector(`[name=${k}]`).value = next[k] || ''; });
+    updateTotal();
+    updateBanner();
+  };
+
+  // Changing the date never rebuilds the form or discards what is typed: a
+  // date input fires change on every keyboard step, and each step would
+  // otherwise wipe seven scores. An empty form loads the logged review for the
+  // new date if there is one; a form with entries keeps them, and the banner
+  // offers to load instead.
+  const onDateChange = () => {
+    const v = cycleFormValues();
+    if (loggedFor(d, v.review_date) && formIsEmpty(v)) setFormValues(formValuesFor(d, v.review_date));
+    else updateBanner();
+  };
+  form.querySelectorAll('select').forEach(s => { s.onchange = () => { updateTotal(); updateBanner(); }; });
+  form.querySelectorAll('input[type=text], textarea').forEach(el => { el.oninput = updateBanner; });
+  form.querySelector('[name=review_date]').onchange = onDateChange;
+  updateTotal();
+  updateBanner();
+
+  form.onsubmit = async ev => {
+    ev.preventDefault();
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    const payload = cycleFormValues();
+    try {
+      await saveCycleRow(payload);
+      renderCycle();   // redraws from the server's copy; the form matches the saved row, so it too comes from the log
+      cycleNotice('ok', `Saved the review dated <b>${esc(payload.review_date)}</b> to ${esc(state.cycle.log_path)}.`);
+    } catch (e) {
+      cycleNotice('err', `Not saved: ${esc(e.message)}`);
+      btn.disabled = false;
+    }
+  };
 }
 
 function renderLookbackTabs() {
@@ -1742,33 +2163,24 @@ function renderDetail() {
 function renderAll() {
   renderViewTabs();
 
-  // The calendar and the daily review both report on something other than a
-  // ranked group, so the group-ranking furniture (hero, ranking bars, movers
-  // strip, ranking table) and the lookback filter have nothing to scope. They
-  // are hidden rather than left showing stale figures.
+  // A solo view reports on something other than a ranked group, so the
+  // group-ranking furniture (hero, ranking bars, movers strip, ranking table)
+  // and the lookback filter have nothing to scope. They are hidden rather than
+  // left showing stale figures, and only the current view's own card shows.
   const v = currentView();
-  const calendar = !!v.calendar;
-  const review = !!v.solo;
-  const soloView = calendar || review;
+  const soloView = !!v.solo;
   ['hero-card', 'rank-card', 'leaders-card', 'rank-table-card'].forEach(id => {
     const el = $(id);
     if (el) el.classList.toggle('hidden', soloView);
   });
   $('lookback-row').classList.toggle('hidden', soloView);
-  $('earnings-card').classList.toggle('hidden', !calendar);
-  $('review-card').classList.toggle('hidden', !review);
+  VIEWS.filter(x => x.card).forEach(x => $(x.card).classList.toggle('hidden', x.key !== v.key));
 
   if (soloView) {
-    if (calendar) {
-      if (!state.earnings) fetchEarnings();
-      else renderEarnings();
-      // Keep whatever symbol is charted; calendar rows can change it.
-      if (state.stock) renderDetail();
-    } else if (!state.review) {
-      fetchReview();          // renderReview() runs when it lands
-    } else {
-      renderReview();
-    }
+    if (state[v.key]) v.draw();
+    else v.load();            // draws itself when the data lands
+    // Keep whatever symbol is charted; calendar and review rows can change it.
+    if (state.stock) renderDetail();
     return;
   }
 
@@ -1845,10 +2257,11 @@ function init() {
     $('notices').innerHTML = '';
     fetchBoard(true);
     if (state.symbol) fetchStock(state.symbol, true);
-    // Both solo views cache server-side, so without this Refresh left them
-    // stale with no way for the user to force a rebuild.
-    if (currentView().calendar) fetchEarnings(true);
-    if (currentView().solo) fetchReview(true);
+    // The solo views cache server-side (the cycle log is re-read per request,
+    // but a row edited by hand still needs a re-pull to show up), so without
+    // this Refresh left the one on screen stale with no way to force a rebuild.
+    const v = currentView();
+    if (v.solo) v.load(true);
   };
 
   const applyTheme = next => {

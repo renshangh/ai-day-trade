@@ -37,6 +37,7 @@ sys.path.insert(0, str(HERE))
 # so the repo root has to be added for the optional `lumibot` SEC import.
 sys.path.append(str(REPO_ROOT))
 
+import cycle  # noqa: E402
 import fundamentals  # noqa: E402
 import earnings  # noqa: E402
 import indicators  # noqa: E402
@@ -1242,6 +1243,44 @@ def get_earnings_calendar(horizon_days: int = DEFAULT_HORIZON_DAYS,
 
 
 # --------------------------------------------------------------------------
+# Cycle score (the monthly thesis log; see cycle.py)
+# --------------------------------------------------------------------------
+# A review row is a date, seven digits and three short text fields. Anything
+# larger than this is not a review.
+MAX_POST_BYTES = 64 * 1024
+
+
+def cycle_post(body: bytes, content_type: str) -> tuple[int, dict]:
+    """Validate and store one review. Returns (status code, JSON payload).
+
+    Kept free of the socket so the tests can drive it directly. Requiring a
+    JSON content type is also the CSRF guard: the server is loopback-only, but a
+    page in another tab could still fire a form POST at it, and a form cannot
+    send application/json without a preflight this server never answers.
+    """
+    if "application/json" not in (content_type or "").lower():
+        return 415, {"error": "send the review as application/json"}
+    try:
+        data = json.loads(body.decode("utf-8") or "{}")
+    except (UnicodeDecodeError, ValueError):
+        return 400, {"error": "body is not valid JSON"}
+    if not isinstance(data, dict):
+        return 400, {"error": "body must be a JSON object"}
+    try:
+        cycle.upsert_row(data)
+        return 200, cycle.build_cycle()
+    except cycle.CycleError as e:
+        return 400, {"error": str(e)}
+    except OSError as e:
+        return 500, {"error": f"could not write {cycle.LOG_PATH.name}: {e}"}
+    except Exception as e:  # noqa: BLE001 - the form must always get an answer
+        # Anything else would propagate out of do_POST, and socketserver's
+        # response to an unhandled exception is a traceback on stderr and a
+        # closed socket -- the form would show "Failed to fetch" with no reason.
+        return 500, {"error": f"{type(e).__name__}: {e}"}
+
+
+# --------------------------------------------------------------------------
 # Cache persistence (last-good survives restarts; a failed fetch never wipes it)
 # --------------------------------------------------------------------------
 def save_cache() -> None:
@@ -1363,6 +1402,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": str(e)}, 502)
             return
 
+        if path == "/api/cycle":
+            # No cache: the log is a few hundred bytes and a stale read here
+            # would show a review the owner just saved as missing.
+            try:
+                self._json(cycle.build_cycle())
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": str(e)}, 500)
+            return
+
         if path == "/api/health":
             self._json(
                 {
@@ -1386,6 +1434,32 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         self._send(404, b"not found", "text/plain")
+
+    def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        path = urllib.parse.urlparse(self.path).path
+        # Every early return below answers without reading the body. On an
+        # HTTP/1.1 keep-alive socket the unread bytes would be parsed as the
+        # *next* request line, so the connection is closed instead: a 70 KB
+        # POST followed by GET /api/health on the same socket came back 414.
+        if path != "/api/cycle":
+            self.close_connection = True
+            self._send(404, b"not found", "text/plain")
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        if length < 0:
+            self.close_connection = True
+            self._json({"error": "Content-Length must be a non-negative integer"}, 400)
+            return
+        if length > MAX_POST_BYTES:
+            self.close_connection = True
+            self._json({"error": f"request body must be at most {MAX_POST_BYTES} bytes"}, 413)
+            return
+        body = self.rfile.read(length) if length else b""
+        code, payload = cycle_post(body, self.headers.get("Content-Type", ""))
+        self._json(payload, code)
 
 
 def main() -> None:
