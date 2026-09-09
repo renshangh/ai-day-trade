@@ -3,7 +3,7 @@
 Monthly check on whether the long-term AI infrastructure buildout thesis behind
 the desk's optical and power positions is still intact.
 
-**Last Updated:** 2026-09-08
+**Last Updated:** 2026-09-09
 **Status:** Active
 **Audience:** Both
 
@@ -52,6 +52,16 @@ optical and electrical suppliers' own calls. Where the desk does help:
   for owning it still holds. A position can be sitting on support with the
   thesis GREEN, or well above its levels with the thesis RED. Read the two
   together; neither replaces the other.
+- **The review shows this score.** So the two are read together by default, the
+  Daily review carries a thesis strip at the top with the latest logged status,
+  total, the date it was scored, and how long ago. It is read back from the log
+  verbatim — the review computes nothing here, and an unscored thesis shows "not
+  scored" rather than a default GREEN. A score older than 35 days is marked
+  overdue, since this is a monthly check.
+
+**Last Updated** above tracks the framework document. The *score* has its own
+date, in the log and on the review's strip; re-scoring does not require editing
+this file.
 
 Scores are logged in `trading_records/cycle-score.csv`; see
 [Recording the score](#recording-the-score).
