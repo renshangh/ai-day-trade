@@ -25,6 +25,9 @@ const VIEWS = [
     load: () => fetchCycle(), draw: () => renderCycle() },
 ];
 const HORIZONS = [14, 30, 45, 90];
+// The cycle log's own three levels. Used to validate a status before it becomes
+// a class name, since the log is tolerant on read and hand-editable.
+const CYCLE_LEVELS = ['GREEN', 'YELLOW', 'RED'];
 // Must match the server's DEFAULT_HORIZON_DAYS so the two cannot disagree.
 const DEFAULT_HORIZON = 30;
 // The user's stated swing horizon. A print inside this window is the case the
@@ -399,8 +402,15 @@ async function fetchReview(force) {
     state.review = d;
     renderReview();
   } catch (e) {
-    $('rev-table').innerHTML = '';
-    $('rev-summary').innerHTML = '';
+    // Clear every block, not just the table. A stale thesis strip or a sizing
+    // worksheet still computing against the last good book value would sit
+    // under the error looking current -- and the worksheet is the one output
+    // someone might act on.
+    ['rev-table', 'rev-summary', 'rev-cycle', 'rev-sizing', 'rev-news',
+     'rev-cards', 'rev-groups', 'rev-excluded'].forEach(id => {
+      const el = $(id);
+      if (el) el.textContent = '';
+    });
     showError(`Could not load the daily review: ${e.message}`);
   } finally {
     card.classList.remove('refetching');
@@ -440,7 +450,10 @@ function revLevelCell(l) {
 
 // Sizing worksheet state. Module-level so a re-render (or the 5-minute review
 // refresh) does not wipe what is typed mid-edit.
-const sizing = { symbol: null, dollars: 10000, riskPct: 1.0 };
+const sizing = { symbol: null, dollars: 10000, riskPct: 1.0,
+                // Which symbol list the form was last built for, so a
+                // re-render can skip rebuilding the inputs.
+                built: null };
 
 
 // What a trade of a given size would risk, and what it would do to concentration.
@@ -495,7 +508,7 @@ function renderSizingOutput(d) {
       r.sharesInBudget == null ? '—'
         : `${r.sharesInBudget} \u00b7 ${fmtMoney0(r.budgetDollarsForBudgetShares)}`, null],
     [e.symbol + ' weight after', r.newWeight == null ? '—' : r.newWeight.toFixed(1) + '%'
-      + ` (from ${(e.book_weight_pct || 0).toFixed(1)}%)`, null],
+      + (e.book_weight_pct == null ? '' : ` (from ${e.book_weight_pct.toFixed(1)}%)`), null],
   ];
   r.themes.forEach(th => rows.push([
     th.name + ' after',
@@ -510,6 +523,11 @@ function renderSizingOutput(d) {
           + `be computed. Set <code>stop_current</code> in the journal, or size off ATR `
           + `(${e.atr14 == null ? 'n/a' : fmtPx(e.atr14)}) yourself.</p>`
         : '')
+    + (r.riskDollars != null && r.riskDollars < 0
+        ? `<p class="sub">Price is below the managed stop, so dollars at risk is negative: `
+          + `there is no risk left <em>to</em> a level already crossed. The same convention `
+          + `the table above uses, where such a position is flagged "through".</p>`
+        : '')
     + (r.overBudget
         ? `<p class="sub neg">This size risks more than the budget you entered. That is a `
           + `comparison against your own number, not a recommendation either way.</p>`
@@ -519,8 +537,19 @@ function renderSizingOutput(d) {
 
 function renderSizing(d) {
   const pos = (d.positions || []).filter(e => e.last != null);
-  if (!pos.length) { $('rev-sizing').innerHTML = ''; return; }
+  if (!pos.length) { $('rev-sizing').innerHTML = ''; sizing.built = null; return; }
   if (!sizing.symbol || !pos.some(e => e.symbol === sizing.symbol)) sizing.symbol = pos[0].symbol;
+
+  // Rebuild the form only when the choices actually change. Hoisting the values
+  // to module scope kept them across a re-render, but replacing the inputs still
+  // stole focus mid-keystroke when the 5-minute refresh landed -- so the shell is
+  // left alone and only the output is redrawn.
+  const signature = pos.map(e => e.symbol).join(',');
+  if (sizing.built === signature && $('size-sym') && $('rev-size-out')) {
+    renderSizingOutput(d);
+    return;
+  }
+  sizing.built = signature;
 
   $('rev-sizing').innerHTML = `<h3 class="rev-h3">Sizing worksheet</h3>`
     + `<p class="sub">You choose the symbol, the amount, and the risk budget. This works out `
@@ -544,7 +573,10 @@ function renderSizing(d) {
   };
   risk.oninput = () => {
     const v = parseFloat(risk.value);
-    sizing.riskPct = Number.isFinite(v) && v >= 0 ? v : 0;
+    // Clamp the upper bound too. `max` on a number input only constrains the
+    // spinner, so a typed 500 would set a budget five times the book and the
+    // over-budget notice could never fire.
+    sizing.riskPct = Number.isFinite(v) ? Math.min(Math.max(v, 0), 100) : 0;
     renderSizingOutput(d);
   };
   renderSizingOutput(d);
@@ -644,43 +676,108 @@ function renderReview() {
       + `</ul></div>`).join('') + `</div>`;
 
   // ---- thesis status: read back from the hand-scored cycle log, not computed
+  // Same reasoning as the headlines below: `read_log` is documented as tolerant
+  // on read (strictness lives in the write path), so a spreadsheet-edited cell
+  // can carry anything. Status drives a class name, so it is matched against the
+  // log's own three levels rather than lowercased into the attribute.
   const cy = d.cycle || {};
-  $('rev-cycle').innerHTML = !cy.available
-    ? `<div class="rev-cycle-row"><span class="rev-cycle-lbl">Thesis</span>`
-      + `<span class="lvl-meta">${cy.reason || 'not scored'}</span></div>`
-    : `<div class="rev-cycle-row"><span class="rev-cycle-lbl">Thesis</span>`
-      + `<span class="cyc-${(cy.status || '').toLowerCase()}">${cy.status}</span>`
-      + `<span class="lvl-meta">${cy.total}/${cy.max} \u00b7 scored ${cy.review_date}`
+  const cycleBox = $('rev-cycle');
+  cycleBox.textContent = '';
+  const cycRow = document.createElement('div');
+  cycRow.className = 'rev-cycle-row';
+  const cycLbl = document.createElement('span');
+  cycLbl.className = 'rev-cycle-lbl';
+  cycLbl.textContent = 'Thesis';
+  cycRow.append(cycLbl);
+  if (!cy.available) {
+    const why = document.createElement('span');
+    why.className = 'lvl-meta';
+    why.textContent = cy.reason || 'not scored';
+    cycRow.append(why);
+  } else {
+    const level = document.createElement('span');
+    const known = CYCLE_LEVELS.includes(cy.status);
+    level.className = known ? `cyc-${cy.status.toLowerCase()}` : 'lvl-meta';
+    level.textContent = cy.status == null ? '\u2014' : String(cy.status);
+    const meta = document.createElement('span');
+    meta.className = 'lvl-meta';
+    meta.textContent = `${cy.total == null ? '\u2014' : cy.total}/${cy.max}`
+      + ` \u00b7 scored ${cy.review_date || 'unknown date'}`
       + `${cy.days_since == null ? '' : ` \u00b7 ${cy.days_since}d ago`}`
-      + `${cy.stale ? ` \u00b7 overdue (monthly check, >${cy.stale_after_days}d)` : ''}</span>`
-      + `<span class="lvl-meta">Whether the reason for holding still stands \u2014 `
-      + `entered by hand in the Cycle view, not derived from price.</span></div>`;
+      + `${cy.stale ? ` \u00b7 overdue (monthly check, >${cy.stale_after_days}d)` : ''}`;
+    const note = document.createElement('span');
+    note.className = 'lvl-meta';
+    note.textContent = 'Whether the reason for holding still stands \u2014 entered by hand '
+      + 'in the Cycle view, not derived from price.';
+    cycRow.append(level, meta, note);
+  }
+  cycleBox.append(cycRow);
 
   // ---- sizing worksheet
   renderSizing(d);
 
   // ---- recent headlines, verbatim
+  // Built as DOM nodes with textContent, not an innerHTML string. These fields
+  // come from a third-party feed, so a headline is untrusted text: interpolating
+  // it into markup makes `<img src=x onerror=...>` executable, and interpolating
+  // a URL into an href attribute lets a quote in it inject attributes (the
+  // server only filters the scheme prefix). `renderCompany` renders this same
+  // feed the same safe way -- see the news block there.
   const withNews = d.positions.filter(e => e.news && ((e.news.items || []).length || e.news.error));
-  $('rev-news').innerHTML = !withNews.length ? '' :
-    `<h3 class="rev-h3">Recent headlines</h3>`
-    + `<p class="sub">Straight from the feed, newest first. Not scored, ranked, or summarised \u2014 `
-    + `a sentiment number here would be a guess wearing the clothes of a signal.</p>`
-    + `<div class="rev-news-wrap">` + withNews.map(e => {
+  const newsBox = $('rev-news');
+  newsBox.textContent = '';
+  if (withNews.length) {
+    const h3 = document.createElement('h3');
+    h3.className = 'rev-h3';
+    h3.textContent = 'Recent headlines';
+    const sub = document.createElement('p');
+    sub.className = 'sub';
+    sub.textContent = 'Straight from the feed, newest first. Not scored, ranked, or '
+      + 'summarised \u2014 a sentiment number here would be a guess wearing the clothes '
+      + 'of a signal.';
+    const wrap = document.createElement('div');
+    wrap.className = 'rev-news-wrap';
+    withNews.forEach(e => {
+      const col = document.createElement('div');
+      col.className = 'rev-news-col';
+      const sym = document.createElement('div');
+      sym.className = 'rev-flag-sym';
+      sym.textContent = e.symbol;
+      col.append(sym);
       const n = e.news || {};
       if (n.error) {
-        return `<div class="rev-news-col"><div class="rev-flag-sym">${e.symbol}</div>`
-             + `<p class="sub neg">news unavailable: ${n.error}</p></div>`;
+        const err = document.createElement('p');
+        err.className = 'sub neg';
+        err.textContent = `news unavailable: ${n.error}`;
+        col.append(err);
+      } else {
+        const ul = document.createElement('ul');
+        ul.className = 'rev-news-list';
+        (n.items || []).forEach(it => {
+          const li = document.createElement('li');
+          // Re-check the scheme client-side even though the server filters it:
+          // one validation at each boundary, the same as renderCompany.
+          const safe = typeof it.url === 'string' && /^https?:\/\//i.test(it.url);
+          const head = document.createElement(safe ? 'a' : 'span');
+          if (safe) {
+            head.href = it.url;          // property, never an interpolated attribute
+            head.target = '_blank';
+            head.rel = 'noopener noreferrer';
+          }
+          head.textContent = it.headline || '(untitled)';
+          const meta = document.createElement('span');
+          meta.className = 'lvl-meta';
+          meta.textContent = `${String(it.created_at || '').slice(0, 10)}`
+            + `${it.source ? ' \u00b7 ' + it.source : ''}`;
+          li.append(head, meta);
+          ul.append(li);
+        });
+        col.append(ul);
       }
-      return `<div class="rev-news-col"><div class="rev-flag-sym">${e.symbol}</div><ul class="rev-news-list">`
-        + (n.items || []).map(it => {
-          const when = String(it.created_at || '').slice(0, 10);
-          const head = it.url
-            ? `<a href="${it.url}" target="_blank" rel="noopener noreferrer">${it.headline}</a>`
-            : it.headline;
-          return `<li>${head}<span class="lvl-meta">${when}`
-               + `${it.source ? ' \u00b7 ' + it.source : ''}</span></li>`;
-        }).join('') + `</ul></div>`;
-    }).join('') + `</div>`;
+      wrap.append(col);
+    });
+    newsBox.append(h3, sub, wrap);
+  }
 
   // ---- theme concentration
   const g = d.group_exposure || [];

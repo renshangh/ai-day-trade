@@ -107,6 +107,9 @@ REVIEW_TTL = STOCK_TTL
 # Headlines age differently from bars: a print at 09:05 matters at 09:06, and the
 # feed is cheap, so this is shorter than REVIEW_TTL rather than tied to it.
 REVIEW_NEWS_TTL = 120
+# The review only ever asks for held symbols, but the helper is callable with
+# any of them, so the cache is bounded rather than trusting the call site.
+REVIEW_NEWS_CACHE_MAX = 30
 # The cycle doc calls itself a monthly check, so a score older than this is
 # overdue rather than merely old. Reported, never acted on.
 CYCLE_STALE_DAYS = 35
@@ -776,11 +779,23 @@ def review_news(symbol: str, *, limit: int = 3, force: bool = False) -> dict:
         items = fundamentals.get_news(
             key, HEADERS["APCA-API-KEY-ID"], HEADERS["APCA-API-SECRET-KEY"], limit=limit
         )
-        data = {"items": items[:limit], "error": None}
     except Exception as e:  # noqa: BLE001 - one dead feed must not kill the review
-        data = {"items": [], "error": str(e)}
+        # Never cache a failure, the same rule get_earnings_calendar states: a
+        # one-second blip would otherwise pin "news unavailable" for the whole
+        # TTL and keep showing it after the feed had recovered.
+        return {"items": [], "error": str(e)}
+    data = {"items": items[:limit], "error": None}
     with _lock:
-        _cache["review_news"][key] = {"ts": time.time(), "data": data}
+        store = _cache["review_news"]
+        store[key] = {"ts": time.time(), "data": data}
+        # Bounded like the sibling per-symbol caches (details is capped by
+        # DETAIL_CACHE_MAX). Only held symbols reach this today, but nothing in
+        # the signature enforces that -- a caller looping the universe would
+        # otherwise retain every payload for the process lifetime.
+        if len(store) > REVIEW_NEWS_CACHE_MAX:
+            for old_key in sorted(store, key=lambda k: store[k]["ts"])[
+                    : len(store) - REVIEW_NEWS_CACHE_MAX]:
+                store.pop(old_key, None)
     return data
 
 
