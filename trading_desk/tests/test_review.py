@@ -552,6 +552,130 @@ def test_level_proximity_matches_the_client_constant():
     assert "atr <= LEVEL_PROXIMITY_ATR" in src, "the cell must use the constant, not a literal"
 
 
+def test_headlines_are_passed_through_unscored():
+    """No sentiment, no ranking, no summary -- just what the feed said.
+
+    Scoring a headline would invent a number the feed does not carry and present
+    a guess as a signal. The cycle dashboard is hand-entered for the same reason.
+    """
+    calls = []
+
+    def fake_get_news(sym, key, secret, limit=12):
+        calls.append((sym, limit))
+        return [
+            {"headline": "A", "source": "s1", "url": "https://x/1", "created_at": "2026-09-08T12:00:00Z"},
+            {"headline": "B", "source": "s2", "url": "", "created_at": "2026-09-07T12:00:00Z"},
+            {"headline": "C", "source": "s3", "url": "https://x/3", "created_at": "2026-09-06T12:00:00Z"},
+            {"headline": "D", "source": "s4", "url": "https://x/4", "created_at": "2026-09-05T12:00:00Z"},
+        ]
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = fake_get_news
+    srv._cache["review_news"].clear()
+    try:
+        out = srv.review_news("AXTI", limit=3, force=True)
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert out["error"] is None
+    assert [i["headline"] for i in out["items"]] == ["A", "B", "C"], "limit applied"
+    for item in out["items"]:
+        assert "sentiment" not in item and "score" not in item
+    assert calls == [("AXTI", 3)]
+
+
+def test_news_failure_degrades_without_killing_the_review():
+    """A dead feed is one empty block, not a blank page."""
+    def boom(sym, key, secret, limit=12):
+        raise RuntimeError("news feed down")
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = boom
+    srv._cache["review_news"].clear()
+    try:
+        out = srv.review_news("FN", force=True)
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert out["items"] == []
+    assert "news feed down" in out["error"]
+
+
+def test_news_is_cached_so_a_re_render_is_not_a_re_fetch():
+    calls = []
+
+    def counting(sym, key, secret, limit=12):
+        calls.append(sym)
+        return []
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = counting
+    srv._cache["review_news"].clear()
+    try:
+        srv.review_news("COHR", force=True)
+        srv.review_news("COHR")
+        srv.review_news("COHR")
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert len(calls) == 1, f"expected one fetch inside the TTL, got {len(calls)}"
+
+
+def test_news_ttl_is_shorter_than_the_review_ttl():
+    """Headlines age faster than daily bars, so they must not inherit REVIEW_TTL."""
+    assert 0 < srv.REVIEW_NEWS_TTL < srv.REVIEW_TTL
+
+
+def test_cycle_status_is_read_back_not_computed():
+    """The status must be whatever was entered, including a RED on a rising book."""
+    import tempfile
+
+    csv_text = (
+        "review_date,capex,construction,vacancy,power,monetization,optical,electrical,"
+        "total,status,core_question,assumption_changed,notes\n"
+        "2026-01-15,0,0,0,0,0,0,0,0,RED,q,a,n\n"
+    )
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as fh:
+        fh.write(csv_text)
+        path = Path(fh.name)
+
+    original = srv.cycle.LOG_PATH
+    srv.cycle.LOG_PATH = path
+    try:
+        out = srv.cycle_status()
+    finally:
+        srv.cycle.LOG_PATH = original
+        path.unlink(missing_ok=True)
+
+    assert out["available"] is True
+    assert out["status"] == "RED", "the entered level, not one inferred from prices"
+    assert out["total"] == 0
+    assert out["review_date"] == "2026-01-15"
+    # Scored in January and read much later: a monthly check is overdue.
+    assert out["stale"] is True
+    assert out["days_since"] > srv.CYCLE_STALE_DAYS
+
+
+def test_cycle_status_says_so_when_nothing_is_logged():
+    """An unscored thesis is an absence, and must not read as a passing grade."""
+    import tempfile
+
+    missing = Path(tempfile.mkdtemp()) / "not-created.csv"
+    original = srv.cycle.LOG_PATH
+    srv.cycle.LOG_PATH = missing
+    try:
+        out = srv.cycle_status()
+    finally:
+        srv.cycle.LOG_PATH = original
+
+    assert out["available"] is False
+    assert "status" not in out, "no status at all, rather than a default GREEN"
+    assert out["reason"]
+
+
 def _main() -> int:
     failures = 0
     for name, fn in sorted(globals().items()):

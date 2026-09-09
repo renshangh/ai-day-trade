@@ -438,6 +438,119 @@ function revLevelCell(l) {
        + `${fmtPx(l.level)}<span class="lvl-meta">${fmtPct(l.distance_pct)}${atr}</span></td>`;
 }
 
+// Sizing worksheet state. Module-level so a re-render (or the 5-minute review
+// refresh) does not wipe what is typed mid-edit.
+const sizing = { symbol: null, dollars: 10000, riskPct: 1.0 };
+
+
+// What a trade of a given size would risk, and what it would do to concentration.
+// Every input is the desk owner's: the amount and the risk budget are typed, not
+// suggested. This converts a decision into risk terms; it does not make one, and
+// it deliberately does not rank the symbols or mark any of them preferable.
+function sizingResult(d, e, dollars, riskPct) {
+  const book = d.book_market_value || 0;
+  const last = e.last;
+  const stop = e.stop_current;
+  const shares = last > 0 ? Math.floor(dollars / last) : 0;
+  const cost = shares * last;
+  const perShare = (stop != null && last != null) ? last - stop : null;
+  // Negative once price is through the stop -- the same convention the review
+  // uses, where there is no risk left *to* a level already crossed.
+  const riskDollars = perShare == null ? null : shares * perShare;
+  const budget = book * (riskPct / 100);
+  const sharesInBudget = (perShare != null && perShare > 0)
+    ? Math.floor(budget / perShare) : null;
+  const newBook = book + cost;
+  const newWeight = newBook > 0 ? ((e.market_value || 0) + cost) / newBook * 100 : null;
+  const themes = (e.groups || []).map(name => {
+    const row = (d.group_exposure || []).find(x => x.group === name);
+    const mv = row ? (row.market_value || 0) : 0;
+    return { name, before: row ? row.pct_of_book : null,
+             after: newBook > 0 ? (mv + cost) / newBook * 100 : null };
+  });
+  return { shares, cost, perShare, riskDollars, budget, sharesInBudget,
+           budgetDollarsForBudgetShares: (sharesInBudget != null ? sharesInBudget * last : null),
+           riskPctOfBook: (riskDollars == null || !book) ? null : riskDollars / book * 100,
+           overBudget: (riskDollars != null && riskDollars > budget),
+           newWeight, themes };
+}
+
+
+function renderSizingOutput(d) {
+  const e = (d.positions || []).find(x => x.symbol === sizing.symbol);
+  const out = $('rev-size-out');
+  if (!e || !out) return;
+  const r = sizingResult(d, e, sizing.dollars, sizing.riskPct);
+  const rows = [
+    ['Shares at ' + fmtPx(e.last), String(r.shares), null],
+    ['Actual cost', fmtMoney0(r.cost), null],
+    ['Risk per share to stop ' + (e.stop_current == null ? '—' : fmtPx(e.stop_current)),
+      r.perShare == null ? '—' : fmtPx(r.perShare), null],
+    ['Dollars at risk', r.riskDollars == null ? '—' : fmtMoney0(r.riskDollars),
+      r.overBudget ? -1 : null],
+    ['That is % of book', r.riskPctOfBook == null ? '—' : r.riskPctOfBook.toFixed(2) + '%',
+      r.overBudget ? -1 : null],
+    ['Your budget (' + sizing.riskPct + '% of book)', fmtMoney0(r.budget), null],
+    ['Shares that fit the budget',
+      r.sharesInBudget == null ? '—'
+        : `${r.sharesInBudget} \u00b7 ${fmtMoney0(r.budgetDollarsForBudgetShares)}`, null],
+    [e.symbol + ' weight after', r.newWeight == null ? '—' : r.newWeight.toFixed(1) + '%'
+      + ` (from ${(e.book_weight_pct || 0).toFixed(1)}%)`, null],
+  ];
+  r.themes.forEach(th => rows.push([
+    th.name + ' after',
+    th.after == null ? '—' : th.after.toFixed(1) + '%'
+      + (th.before == null ? '' : ` (from ${th.before.toFixed(1)}%)`), null]));
+
+  out.innerHTML = `<table class="rev-tbl size-tbl"><tbody>` + rows.map(([k, v, sign]) =>
+    `<tr><th scope="row">${k}</th><td class="${sign == null ? '' : signClass(sign)}">${v}</td></tr>`
+  ).join('') + `</tbody></table>`
+    + (r.perShare == null
+        ? `<p class="sub">No managed stop recorded for ${e.symbol}, so dollars at risk cannot `
+          + `be computed. Set <code>stop_current</code> in the journal, or size off ATR `
+          + `(${e.atr14 == null ? 'n/a' : fmtPx(e.atr14)}) yourself.</p>`
+        : '')
+    + (r.overBudget
+        ? `<p class="sub neg">This size risks more than the budget you entered. That is a `
+          + `comparison against your own number, not a recommendation either way.</p>`
+        : '');
+}
+
+
+function renderSizing(d) {
+  const pos = (d.positions || []).filter(e => e.last != null);
+  if (!pos.length) { $('rev-sizing').innerHTML = ''; return; }
+  if (!sizing.symbol || !pos.some(e => e.symbol === sizing.symbol)) sizing.symbol = pos[0].symbol;
+
+  $('rev-sizing').innerHTML = `<h3 class="rev-h3">Sizing worksheet</h3>`
+    + `<p class="sub">You choose the symbol, the amount, and the risk budget. This works out `
+    + `the shares, what they would put at risk against that position\u2019s managed stop, and `
+    + `what it would do to concentration. It does not suggest a symbol or an amount, and the `
+    + `order of the list is the table\u2019s order \u2014 not a ranking.</p>`
+    + `<div class="size-form">`
+    + `<label>Symbol <select id="size-sym">` + pos.map(e =>
+        `<option value="${e.symbol}"${e.symbol === sizing.symbol ? ' selected' : ''}>${e.symbol}</option>`
+      ).join('') + `</select></label>`
+    + `<label>Amount $ <input id="size-amt" type="number" min="0" step="500" value="${sizing.dollars}"></label>`
+    + `<label>Risk budget % of book <input id="size-risk" type="number" min="0" max="100" step="0.25" value="${sizing.riskPct}"></label>`
+    + `</div><div id="rev-size-out"></div>`;
+
+  const sym = $('size-sym'), amt = $('size-amt'), risk = $('size-risk');
+  sym.onchange = () => { sizing.symbol = sym.value; renderSizingOutput(d); };
+  amt.oninput = () => {
+    const v = parseFloat(amt.value);
+    sizing.dollars = Number.isFinite(v) && v >= 0 ? v : 0;
+    renderSizingOutput(d);
+  };
+  risk.oninput = () => {
+    const v = parseFloat(risk.value);
+    sizing.riskPct = Number.isFinite(v) && v >= 0 ? v : 0;
+    renderSizingOutput(d);
+  };
+  renderSizingOutput(d);
+}
+
+
 function renderReview() {
   const d = state.review;
   if (!d) { $('rev-table').innerHTML = '<div class="loading">Loading…</div>'; return; }
@@ -530,6 +643,45 @@ function renderReview() {
       + e.flags.map(f => `<li class="flag-${f.level}">${f.text}</li>`).join('')
       + `</ul></div>`).join('') + `</div>`;
 
+  // ---- thesis status: read back from the hand-scored cycle log, not computed
+  const cy = d.cycle || {};
+  $('rev-cycle').innerHTML = !cy.available
+    ? `<div class="rev-cycle-row"><span class="rev-cycle-lbl">Thesis</span>`
+      + `<span class="lvl-meta">${cy.reason || 'not scored'}</span></div>`
+    : `<div class="rev-cycle-row"><span class="rev-cycle-lbl">Thesis</span>`
+      + `<span class="cyc-${(cy.status || '').toLowerCase()}">${cy.status}</span>`
+      + `<span class="lvl-meta">${cy.total}/${cy.max} \u00b7 scored ${cy.review_date}`
+      + `${cy.days_since == null ? '' : ` \u00b7 ${cy.days_since}d ago`}`
+      + `${cy.stale ? ` \u00b7 overdue (monthly check, >${cy.stale_after_days}d)` : ''}</span>`
+      + `<span class="lvl-meta">Whether the reason for holding still stands \u2014 `
+      + `entered by hand in the Cycle view, not derived from price.</span></div>`;
+
+  // ---- sizing worksheet
+  renderSizing(d);
+
+  // ---- recent headlines, verbatim
+  const withNews = d.positions.filter(e => e.news && ((e.news.items || []).length || e.news.error));
+  $('rev-news').innerHTML = !withNews.length ? '' :
+    `<h3 class="rev-h3">Recent headlines</h3>`
+    + `<p class="sub">Straight from the feed, newest first. Not scored, ranked, or summarised \u2014 `
+    + `a sentiment number here would be a guess wearing the clothes of a signal.</p>`
+    + `<div class="rev-news-wrap">` + withNews.map(e => {
+      const n = e.news || {};
+      if (n.error) {
+        return `<div class="rev-news-col"><div class="rev-flag-sym">${e.symbol}</div>`
+             + `<p class="sub neg">news unavailable: ${n.error}</p></div>`;
+      }
+      return `<div class="rev-news-col"><div class="rev-flag-sym">${e.symbol}</div><ul class="rev-news-list">`
+        + (n.items || []).map(it => {
+          const when = String(it.created_at || '').slice(0, 10);
+          const head = it.url
+            ? `<a href="${it.url}" target="_blank" rel="noopener noreferrer">${it.headline}</a>`
+            : it.headline;
+          return `<li>${head}<span class="lvl-meta">${when}`
+               + `${it.source ? ' \u00b7 ' + it.source : ''}</span></li>`;
+        }).join('') + `</ul></div>`;
+    }).join('') + `</div>`;
+
   // ---- theme concentration
   const g = d.group_exposure || [];
   $('rev-groups').innerHTML = !g.length ? '' :
@@ -563,7 +715,9 @@ function renderReview() {
     'Observations, not recommendations. Every figure here is a measurement — none of it '
     + 'says what to do, and nothing on this page is investment advice. "Downside to support" '
     + 'is measured from today’s price, not from entry, so for an underwater position it is '
-    + 'remaining risk to that level rather than the risk originally taken.';
+    + 'remaining risk to that level rather than the risk originally taken. The sizing '
+    + 'worksheet is a calculator: it converts an amount you choose into risk and '
+    + 'concentration terms, and never proposes a symbol, an amount, or a trade.';
 }
 
 // ------------------------------------------------------------- cycle view

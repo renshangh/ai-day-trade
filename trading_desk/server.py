@@ -26,7 +26,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -104,6 +104,12 @@ DETAIL_CACHE_MAX = 60
 # time on prices up to STOCK_TTL old -- the page would overstate its own
 # freshness. Equal means a rebuild and a bar refresh come due together.
 REVIEW_TTL = STOCK_TTL
+# Headlines age differently from bars: a print at 09:05 matters at 09:06, and the
+# feed is cheap, so this is shorter than REVIEW_TTL rather than tied to it.
+REVIEW_NEWS_TTL = 120
+# The cycle doc calls itself a monthly check, so a score older than this is
+# overdue rather than merely old. Reported, never acted on.
+CYCLE_STALE_DAYS = 35
 # Holdings deliberately left out of the review's risk math and flags, at the
 # desk owner's instruction. They are still reported, in a separate section:
 # silently dropping a real position would make the review actively misleading
@@ -131,7 +137,7 @@ _board_build_lock = threading.Lock()
 _earnings_build_lock = threading.Lock()
 _review_build_lock = threading.Lock()
 _cache: dict = {"board": None, "board_ts": 0.0, "stocks": {}, "details": {}, "earnings": {},
-                "review": None, "review_ts": 0.0}
+                "review": None, "review_ts": 0.0, "review_news": {}}
 
 
 # --------------------------------------------------------------------------
@@ -750,6 +756,72 @@ def _last_of(series: list) -> float | None:
     return None
 
 
+def review_news(symbol: str, *, limit: int = 3, force: bool = False) -> dict:
+    """Latest headlines for one held symbol, verbatim from the feed.
+
+    Deliberately no sentiment score, no "bullish/bearish" tag, and no summary.
+    Scoring a headline would be inventing a number the feed does not carry and
+    dressing a guess as a signal -- the same reason the cycle dashboard is
+    hand-entered. The desk reports what was published; reading it is the job.
+
+    Degrades on its own, like the other blocks in `get_detail`: a news outage
+    returns an `error` and leaves the rest of the review intact.
+    """
+    key = symbol.upper()
+    with _lock:
+        hit = _cache["review_news"].get(key)
+        if hit and not force and time.time() - hit["ts"] < REVIEW_NEWS_TTL:
+            return hit["data"]
+    try:
+        items = fundamentals.get_news(
+            key, HEADERS["APCA-API-KEY-ID"], HEADERS["APCA-API-SECRET-KEY"], limit=limit
+        )
+        data = {"items": items[:limit], "error": None}
+    except Exception as e:  # noqa: BLE001 - one dead feed must not kill the review
+        data = {"items": [], "error": str(e)}
+    with _lock:
+        _cache["review_news"][key] = {"ts": time.time(), "data": data}
+    return data
+
+
+def cycle_status() -> dict:
+    """The latest hand-entered cycle score, or why there is not one.
+
+    The review answers where a position sits against its levels today; this
+    answers whether the reason for holding it still stands. Neither is derived
+    from the other, and this one is not computed at all -- it is read back from
+    `trading_records/cycle-score.csv` exactly as it was entered.
+    """
+    try:
+        log = cycle.read_log()
+    except Exception as e:  # noqa: BLE001
+        return {"available": False, "reason": str(e)}
+    rows = log.get("rows") or []
+    if not rows:
+        return {"available": False,
+                "reason": "no score logged yet; score it in the Cycle view",
+                "warnings": log.get("warnings") or []}
+    last = rows[-1]
+    scored = last.get("review_date")
+    days = None
+    if scored:
+        try:
+            days = (date.today() - date.fromisoformat(str(scored))).days
+        except ValueError:
+            days = None
+    return {
+        "available": True,
+        "review_date": scored,
+        "total": last.get("total"),
+        "max": cycle.MAX_SCORE,
+        "status": last.get("status"),
+        "days_since": days,
+        "stale": days is not None and days > CYCLE_STALE_DAYS,
+        "stale_after_days": CYCLE_STALE_DAYS,
+        "warnings": log.get("warnings") or [],
+    }
+
+
 def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, list[str]],
                 *, force: bool = False) -> dict:
     """Everything the review reports for one holding.
@@ -998,6 +1070,10 @@ def build_position_review(force: bool = False) -> dict:
             excluded.append(e)
         else:
             e["flags"] = _review_flags(e, earn)
+            # Reviewed holdings only. An excluded position is reported for its
+            # weight and nothing else, so fetching its headlines would be calls
+            # spent on a row the page deliberately does not comment on.
+            e["news"] = review_news(symbol, force=force)
             reviewed.append(e)
 
     # Closest to its support first: that is the position where the level the
@@ -1063,6 +1139,12 @@ def build_position_review(force: bool = False) -> dict:
         "risk_to_stop_pct_of_book": (stop_risk / book_mv * 100.0) if book_mv else None,
         "lots_with_stop_current": lots_with_stop_current,
         "risk_to_support_pct_of_book": (risk / book_mv * 100.0) if book_mv else None,
+        # Read back from the hand-scored log, not computed here. It answers a
+        # different question from everything else on the page -- whether the
+        # reason for holding this sleeve still stands -- and the two are meant to
+        # be read together, so it travels with the review rather than only
+        # living in its own view.
+        "cycle": cycle_status(),
         "group_exposure": [
             {"group": g, "market_value": v,
              "pct_of_book": (v / book_mv * 100.0) if book_mv else None}
