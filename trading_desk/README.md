@@ -496,6 +496,65 @@ Buildout), so the percentages deliberately do not sum to 100%. The excluded
 holdings are left out entirely rather than filed under `(ungrouped)`, since
 inventing a theme for them would be worse than omitting them.
 
+#### Thesis strip
+
+The latest hand-entered score from the Cycle view, read back from
+`trading_records/cycle-score.csv` and shown at the top of the review. Nothing on
+the review computes it. It is here because the two halves answer different
+questions and are meant to be read together: the rest of the page says where each
+position sits against its levels *today*, and this says whether the reason for
+holding it still stands. A position can sit on support with the thesis GREEN, or
+run well above its levels with the thesis RED.
+
+A score older than `CYCLE_STALE_DAYS` (35) is marked overdue, since the dashboard
+describes itself as a monthly check. An unscored thesis reports "not scored"
+rather than defaulting to a passing grade —
+`test_cycle_status_says_so_when_nothing_is_logged` asserts there is no `status`
+key at all in that case, because a default GREEN would be a fabricated judgment.
+
+#### Sizing worksheet
+
+A calculator, not a suggestion. You pick the symbol, the dollar amount, and the
+risk budget as a percent of book; it works out:
+
+| Row | Meaning |
+|---|---|
+| Shares / actual cost | `floor(amount ÷ last)`, and what those shares cost |
+| Risk per share to stop | `last − stop_current` for that position |
+| Dollars at risk | shares × risk per share |
+| That is % of book | the same figure against `book_market_value` |
+| Your budget | `risk % × book`, from the number you typed |
+| Shares that fit the budget | the inverse: `floor(budget ÷ risk per share)` |
+| Weight after / theme after | concentration if the trade were done |
+
+**It deliberately does not rank the symbols, mark any of them preferable, or
+propose an amount.** The select is in table order, which is proximity to support,
+not desirability. Choosing what to trade and how much is the desk owner's
+decision; this converts that decision into risk and concentration terms so it can
+be made with the numbers in view. Nothing here is investment advice, and the
+standing disclaimer under the review says so on the page itself.
+
+If a position has no `stop_current`, dollars at risk reports an em dash and the
+worksheet says why, rather than silently substituting ATR — a risk number
+measured against a level nobody set would be worse than no number.
+
+#### Recent headlines
+
+Up to three per reviewed position, straight from the Alpaca news feed, newest
+first, linked out, with source and date.
+
+**Not scored, ranked, or summarised.** A sentiment number here would be a guess
+wearing the clothes of a signal — the same reason the cycle dashboard is
+hand-entered rather than computed.
+`test_headlines_are_passed_through_unscored` asserts no `sentiment` or `score`
+key ever appears on a headline. Excluded holdings get no headlines, since the
+page deliberately does not comment on them.
+
+Cached for `REVIEW_NEWS_TTL` (120s), shorter than `REVIEW_TTL` — a print at 09:05
+matters at 09:06, and daily bars do not move that fast. The block degrades on its
+own: a dead feed shows "news unavailable" on that column and leaves the rest of
+the review intact.
+
 ### Cycle
 
 The fifth view, and the only one with nothing to compute. The Daily review asks
@@ -512,7 +571,9 @@ guidance changes, and the Daily review's theme exposure is the two equity
 sleeves the framework maps.
 
 The view is the front end for that document's monthly log,
-`trading_records/cycle-score.csv` (gitignored, like the trade journal):
+`trading_records/cycle-score.csv` -- tracked in git and pushed, unlike the
+trade journal, since it holds judgment scores and research notes rather
+than positions or account details:
 
 - the latest review's status and total, its answer to the core question and
   what assumption changed, with the move since the previous review;
@@ -614,13 +675,15 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/stock?symbol=X` | ~2 years of daily bars plus every indicator series. |
 | `GET /api/detail?symbol=X` | Fundamentals, price stats, news, and research links. |
 | `GET /api/earnings?horizon=N` | Projected prints within N days (1-400, default 30), nearest first, with held-position flags. |
-| `GET /api/review` | Per-holding review: levels, downside to support, theme exposure, journal gaps. `?force=1` rebuilds. |
+| `GET /api/review` | Per-holding review: levels, downside to support, risk to the managed stop, theme exposure, journal gaps, up to three headlines per reviewed holding, and the latest hand-entered cycle score. `?force=1` rebuilds. |
 | `GET /api/cycle` | The cycle log (every review, oldest first, totals derived from the scores), the rubric parsed from the framework document, the bands, and any file warnings. Never cached. |
 | `POST /api/cycle` | Write one review (JSON: `review_date`, `scores`, `core_question`, `assumption_changed`, `notes`), replacing a row with the same date. Returns the rebuilt payload, or 400 with the reason. |
 | `GET /api/health` | Credential and cache status. |
 
 Board and per-symbol routes cache for 5 minutes; the review caches for 2 (it reuses
-the per-symbol cache, so a rebuild is cheap and prices stay live). Only the board is persisted to `cache.json`
+the per-symbol cache, so a rebuild is cheap and prices stay live), and headlines for 2
+minutes on their own shorter timer (`REVIEW_NEWS_TTL`), since a print matters within the
+minute and daily bars do not. Only the board is persisted to `cache.json`
 (~60 KB); per-symbol payloads stay in memory behind a 60-entry LRU. Persisting
 them meant re-serializing tens of megabytes under the global lock on every
 cache-miss, and they are cheap to refetch after a restart.

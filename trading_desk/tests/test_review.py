@@ -17,7 +17,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import server as srv  # noqa: E402
+import server as srv
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent  # noqa: E402
 
 
 # ----------------------------------------------------------------- fixtures
@@ -550,6 +552,260 @@ def test_level_proximity_matches_the_client_constant():
     assert m, "app.js must declare LEVEL_PROXIMITY_ATR"
     assert float(m.group(1)) == srv.LEVEL_PROXIMITY_ATR
     assert "atr <= LEVEL_PROXIMITY_ATR" in src, "the cell must use the constant, not a literal"
+
+
+def test_headlines_are_passed_through_unscored():
+    """No sentiment, no ranking, no summary -- just what the feed said.
+
+    Scoring a headline would invent a number the feed does not carry and present
+    a guess as a signal. The cycle dashboard is hand-entered for the same reason.
+    """
+    calls = []
+
+    def fake_get_news(sym, key, secret, limit=12):
+        calls.append((sym, limit))
+        return [
+            {"headline": "A", "source": "s1", "url": "https://x/1", "created_at": "2026-09-08T12:00:00Z"},
+            {"headline": "B", "source": "s2", "url": "", "created_at": "2026-09-07T12:00:00Z"},
+            {"headline": "C", "source": "s3", "url": "https://x/3", "created_at": "2026-09-06T12:00:00Z"},
+            {"headline": "D", "source": "s4", "url": "https://x/4", "created_at": "2026-09-05T12:00:00Z"},
+        ]
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = fake_get_news
+    srv._cache["review_news"].clear()
+    try:
+        out = srv.review_news("AXTI", limit=3, force=True)
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert out["error"] is None
+    assert [i["headline"] for i in out["items"]] == ["A", "B", "C"], "limit applied"
+    for item in out["items"]:
+        assert "sentiment" not in item and "score" not in item
+    assert calls == [("AXTI", 3)]
+
+
+def test_news_failure_degrades_without_killing_the_review():
+    """A dead feed is one empty block, not a blank page."""
+    def boom(sym, key, secret, limit=12):
+        raise RuntimeError("news feed down")
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = boom
+    srv._cache["review_news"].clear()
+    try:
+        out = srv.review_news("FN", force=True)
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert out["items"] == []
+    assert "news feed down" in out["error"]
+
+
+def test_news_is_cached_so_a_re_render_is_not_a_re_fetch():
+    calls = []
+
+    def counting(sym, key, secret, limit=12):
+        calls.append(sym)
+        return []
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = counting
+    srv._cache["review_news"].clear()
+    try:
+        srv.review_news("COHR", force=True)
+        srv.review_news("COHR")
+        srv.review_news("COHR")
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert len(calls) == 1, f"expected one fetch inside the TTL, got {len(calls)}"
+
+
+def test_news_ttl_is_shorter_than_the_review_ttl():
+    """Headlines age faster than daily bars, so they must not inherit REVIEW_TTL."""
+    assert 0 < srv.REVIEW_NEWS_TTL < srv.REVIEW_TTL
+
+
+def test_cycle_status_is_read_back_not_computed():
+    """The status must be whatever was entered, including a RED on a rising book."""
+    import tempfile
+
+    csv_text = (
+        "review_date,capex,construction,vacancy,power,monetization,optical,electrical,"
+        "total,status,core_question,assumption_changed,notes\n"
+        "2026-01-15,0,0,0,0,0,0,0,0,RED,q,a,n\n"
+    )
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as fh:
+        fh.write(csv_text)
+        path = Path(fh.name)
+
+    original = srv.cycle.LOG_PATH
+    srv.cycle.LOG_PATH = path
+    try:
+        out = srv.cycle_status()
+    finally:
+        srv.cycle.LOG_PATH = original
+        path.unlink(missing_ok=True)
+
+    assert out["available"] is True
+    assert out["status"] == "RED", "the entered level, not one inferred from prices"
+    assert out["total"] == 0
+    assert out["review_date"] == "2026-01-15"
+    # Scored in January and read much later: a monthly check is overdue.
+    assert out["stale"] is True
+    assert out["days_since"] > srv.CYCLE_STALE_DAYS
+
+
+def test_cycle_status_says_so_when_nothing_is_logged():
+    """An unscored thesis is an absence, and must not read as a passing grade."""
+    import tempfile
+
+    missing = Path(tempfile.mkdtemp()) / "not-created.csv"
+    original = srv.cycle.LOG_PATH
+    srv.cycle.LOG_PATH = missing
+    try:
+        out = srv.cycle_status()
+    finally:
+        srv.cycle.LOG_PATH = original
+
+    assert out["available"] is False
+    assert "status" not in out, "no status at all, rather than a default GREEN"
+    assert out["reason"]
+
+
+def test_news_failures_are_not_cached():
+    """A blip must not pin "news unavailable" for the whole TTL.
+
+    `get_earnings_calendar` states the rule this follows: never cache a failure,
+    or the page keeps showing the error after the source has recovered.
+    """
+    state = {"fail": True}
+
+    def flaky(sym, key, secret, limit=12):
+        if state["fail"]:
+            raise RuntimeError("transient")
+        return [{"headline": "recovered", "source": "s", "url": "", "created_at": ""}]
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = flaky
+    srv._cache["review_news"].clear()
+    try:
+        first = srv.review_news("AXTI")
+        assert first["error"] and first["items"] == []
+        assert "AXTI" not in srv._cache["review_news"], "a failure must not be cached"
+        # The feed comes back; the very next call must see it, with no force flag.
+        state["fail"] = False
+        second = srv.review_news("AXTI")
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert second["error"] is None
+    assert [i["headline"] for i in second["items"]] == ["recovered"]
+
+
+def test_news_cache_is_bounded_like_its_siblings():
+    """The helper takes any symbol, so the bound cannot rely on the call site."""
+    def ok(sym, key, secret, limit=12):
+        return [{"headline": sym, "source": "s", "url": "", "created_at": ""}]
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = ok
+    srv._cache["review_news"].clear()
+    try:
+        for i in range(srv.REVIEW_NEWS_CACHE_MAX + 12):
+            srv.review_news(f"SYM{i}")
+        size = len(srv._cache["review_news"])
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert size <= srv.REVIEW_NEWS_CACHE_MAX, f"cache grew to {size}, unbounded"
+
+
+def test_only_reviewed_holdings_get_headlines():
+    """Excluded rows are reported for weight and nothing else.
+
+    Fetching their headlines would spend calls on rows the page deliberately
+    does not comment on -- and this was enforced only by a comment.
+    """
+    fetched = []
+
+    def spy(sym, key, secret, limit=12):
+        fetched.append(sym)
+        return []
+
+    rows = [
+        {"symbol": "FN", "status": "open", "qty": "10", "entry_price": "400",
+         "stop": "", "thesis": "t", "setup": "s"},
+        {"symbol": "IBIT", "status": "open", "qty": "100", "entry_price": "59",
+         "stop": "", "thesis": "", "setup": ""},
+    ]
+    import tempfile, csv as _csv
+    header = ["trade_id", "status", "setup", "group", "symbol", "side", "qty",
+              "entry_date", "entry_price", "stop", "thesis"]
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, newline="") as fh:
+        w = _csv.DictWriter(fh, fieldnames=header)
+        w.writeheader()
+        for i, r in enumerate(rows, 1):
+            w.writerow({"trade_id": str(i), "entry_date": "2026-01-01", "side": "long",
+                        "group": "", **r})
+        path = Path(fh.name)
+
+    orig_journal, orig_stock, orig_news = srv.JOURNAL_PATH, srv.get_stock, srv.fundamentals.get_news
+    srv.JOURNAL_PATH = path
+    srv.get_stock = lambda sym, force=False: stub_stock([100.0, 105.0], [{"level": 95.0}])
+    srv.fundamentals.get_news = spy
+    srv._cache["review_news"].clear()
+    try:
+        out = srv.build_position_review(force=True)
+    finally:
+        srv.JOURNAL_PATH, srv.get_stock = orig_journal, orig_stock
+        srv.fundamentals.get_news = orig_news
+        srv._cache["review_news"].clear()
+        path.unlink(missing_ok=True)
+
+    assert fetched == ["FN"], f"headlines fetched for {fetched}; IBIT is excluded"
+    assert "news" in out["positions"][0]
+    assert all("news" not in e for e in out["excluded"])
+
+
+def test_feed_fields_are_never_interpolated_into_markup():
+    """Headlines are third-party text, so they must not reach innerHTML.
+
+    This shipped wrong once: the block interpolated `it.headline` and
+    `href="${it.url}"` into an innerHTML string, which makes
+    `<img src=x onerror=...>` executable and lets a quote in a URL inject
+    attributes -- while `renderCompany` had rendered the same feed safely with
+    createElement/textContent all along.
+    """
+    src = (REPO_ROOT / "trading_desk" / "app.js").read_text()
+    # Each of these is a construction this block actually shipped with, not a
+    # general ban on the identifier: `textContent = `...${n.error}`` is safe, and
+    # so is the Cycle view's `class="cyc-badge ${stClass(s)}"` with `esc(status)`
+    # inside. Broad patterns flagged both of those as false positives, so the
+    # list stays specific to the unsafe forms.
+    banned = [
+        "${it.headline}",
+        'href="${it.url}"',
+        "${it.source}",
+        "${cy.status}",
+    ]
+    for pattern in banned:
+        assert pattern not in src, (
+            f"{pattern!r} interpolates untrusted feed or log content into markup; "
+            f"assign it to textContent, or wrap it in esc() (app.js:105, whose "
+            f"docstring already covers the cycle log)"
+        )
+    # And the safe construction is actually present.
+    assert "head.textContent = it.headline" in src
+    assert "head.href = it.url" in src, "the URL must be a property, not an attribute"
+    assert "CYCLE_LEVELS.includes(cy.status)" in src, "status must be whitelisted first"
 
 
 def _main() -> int:
