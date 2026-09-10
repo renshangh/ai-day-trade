@@ -41,6 +41,7 @@ import cycle  # noqa: E402
 import fundamentals  # noqa: E402
 import earnings  # noqa: E402
 import indicators  # noqa: E402
+import sector_signals  # noqa: E402
 import universe  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
@@ -139,8 +140,9 @@ _lock = threading.Lock()
 _board_build_lock = threading.Lock()
 _earnings_build_lock = threading.Lock()
 _review_build_lock = threading.Lock()
+_sector_build_lock = threading.Lock()
 _cache: dict = {"board": None, "board_ts": 0.0, "stocks": {}, "details": {}, "earnings": {},
-                "review": None, "review_ts": 0.0, "review_news": {}}
+                "review": None, "review_ts": 0.0, "review_news": {}, "sector": {}}
 
 
 # --------------------------------------------------------------------------
@@ -1197,6 +1199,78 @@ def get_position_review(force: bool = False) -> dict:
     return data
 
 
+# The concrete case this view was built for; every group is equally usable,
+# this is only what loads before a client picks one explicitly.
+DEFAULT_SECTOR_GROUP = "AI Optical / Interconnect"
+DEFAULT_SECTOR_BENCHMARK = "SPY"
+# Same window get_stock() uses for a single symbol: ~2y of calendar days gives
+# comfortable margin over the 200 trading days breadth's SMA200 check needs,
+# with headroom left for the 63-session relative-strength window and the
+# volatility/dispersion lookback on top.
+SECTOR_LOOKBACK_DAYS = 760
+
+
+def build_sector_scorecard(group_key: str, benchmark: str | None = None, *, force: bool = False) -> dict:
+    """Leading-indicator scorecard for one universe.py group.
+
+    Generic over any group name universe.all_groups() returns -- nothing here
+    is specific to a sector or theme. One batched bars fetch for the whole
+    group plus the benchmark, then sector_signals does the rest with no I/O.
+    """
+    groups = universe.all_groups()
+    cfg = groups.get(group_key)
+    if not cfg:
+        return {"error": f"unknown group {group_key!r}", "available_groups": sorted(groups)}
+
+    constituents = cfg.get("constituents") or []
+    bench_symbol = benchmark or cfg.get("etf") or DEFAULT_SECTOR_BENCHMARK
+    symbols = list(dict.fromkeys([*constituents, bench_symbol]))  # de-dup, keep order
+
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=SECTOR_LOOKBACK_DAYS)
+    try:
+        bars = fetch_daily_bars(symbols, start, end)
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e), "available_groups": sorted(groups)}
+
+    bars_by_symbol = {s: (bars.get(s) or []) for s in constituents}
+    benchmark_bars = bars.get(bench_symbol) or None
+
+    scorecard = sector_signals.compute_sector_scorecard(
+        bars_by_symbol, benchmark_bars, level_proximity_atr=LEVEL_PROXIMITY_ATR,
+    )
+    scorecard.update({
+        "group": group_key,
+        "kind": cfg.get("kind"),
+        "benchmark": bench_symbol,
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "feed": FEED,
+        "feed_note": FEED_NOTE,
+        "available_groups": sorted(groups),
+    })
+    return scorecard
+
+
+def get_sector_scorecard(group_key: str, benchmark: str | None = None, *, force: bool = False) -> dict:
+    """Cached wrapper, keyed by (group, benchmark). Same build-lock pattern as
+    the board, the calendar, and the review."""
+    cache_key = f"{group_key}::{benchmark or ''}"
+    with _lock:
+        entry = _cache["sector"].get(cache_key)
+        if entry and not force and time.time() - entry["ts"] < STOCK_TTL:
+            return entry["data"]
+    with _sector_build_lock:
+        with _lock:
+            entry = _cache["sector"].get(cache_key)
+            if entry and not force and time.time() - entry["ts"] < STOCK_TTL:
+                return entry["data"]
+        data = build_sector_scorecard(group_key, benchmark, force=force)
+        if not data.get("error"):
+            with _lock:
+                _cache["sector"][cache_key] = {"data": data, "ts": time.time()}
+    return data
+
+
 def build_earnings_calendar(horizon_days: int) -> dict:
     """Upcoming projected prints across the universe, nearest first."""
     events_by_symbol = earnings.load_event_file()
@@ -1506,6 +1580,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(cycle.build_cycle())
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 500)
+            return
+
+        if path == "/api/sector":
+            group = (qs.get("group") or [""])[0] or DEFAULT_SECTOR_GROUP
+            benchmark = (qs.get("benchmark") or [None])[0]
+            try:
+                self._json(get_sector_scorecard(
+                    group, benchmark,
+                    force=qs.get("force", ["0"])[0] == "1",
+                ))
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": str(e)}, 502)
             return
 
         if path == "/api/health":
