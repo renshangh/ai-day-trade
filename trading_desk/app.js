@@ -23,6 +23,8 @@ const VIEWS = [
     load: force => fetchReview(force), draw: () => renderReview() },
   { key: 'cycle', label: 'Cycle', lookbacks: [], solo: true, card: 'cycle-card',
     load: () => fetchCycle(), draw: () => renderCycle() },
+  { key: 'sector', label: 'Sector', lookbacks: [], solo: true, card: 'sector-card',
+    load: force => fetchSector(force), draw: () => renderSector() },
 ];
 const HORIZONS = [14, 30, 45, 90];
 // The cycle log's own three levels. Used to validate a status before it becomes
@@ -77,6 +79,9 @@ const state = {
   review: null,
   cycle: null,
   cycleSeq: 0,        // same out-of-order guard as selectionSeq, for /api/cycle loads
+  sector: null,
+  sectorGroup: null,  // group name selected in the Sector view; null = server default
+  sectorSeq: 0,       // same out-of-order guard, for /api/sector loads
   tableView: false,
   hover: null,        // index into the visible slice
   loading: false,
@@ -260,6 +265,7 @@ function renderViewTabs() {
     momentum: 'Groups ranked by raw return over the window.',
     review: 'Every open position against its own levels, sorted by how close it sits to support.',
     cycle: 'Is the AI data center buildout thesis still intact? Seven indicators scored by hand once a month.',
+    sector: 'Measured facts about a group\'s own recent price and volume history \u2014 not a signal, not a call.',
   };
   $('view-note').textContent = notes[state.view] || notes.momentum;
 }
@@ -854,6 +860,109 @@ async function fetchCycle() {
     card.classList.remove('refetching');
   }
 }
+
+async function fetchSector(force) {
+  const card = $('sector-card');
+  card.classList.add('refetching');
+  const mySeq = ++state.sectorSeq;
+  const qs = new URLSearchParams();
+  if (state.sectorGroup) qs.set('group', state.sectorGroup);
+  if (force) qs.set('force', '1');
+  try {
+    const res = await fetch(`/api/sector?${qs}`);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    if (mySeq !== state.sectorSeq) return;   // a later load already superseded this one
+    state.sectorGroup = d.group;             // the server's resolved default, once known
+    state.sector = d;
+    renderSector();
+  } catch (e) {
+    if (mySeq === state.sectorSeq) showError(`Could not load the sector scorecard: ${e.message}`);
+  } finally {
+    card.classList.remove('refetching');
+  }
+}
+
+
+function renderSectorGroupPicker(d) {
+  const sel = $('sec-group');
+  const groups = d.available_groups || [d.group];
+  sel.innerHTML = groups.map(g =>
+    `<option value="${esc(g)}"${g === d.group ? ' selected' : ''}>${esc(g)}</option>`).join('');
+  sel.onchange = () => { state.sectorGroup = sel.value; fetchSector(false); };
+}
+
+// One row per metric: the label, the number(s), and a plain-language note on
+// what the number describes. No color, no verdict -- a table of facts, same
+// rule the daily review's flags follow. `sub` is optional context text.
+function sectorTile(label, value, sub) {
+  return `<div class="rev-stat"><div class="k">${esc(label)}</div>`
+       + `<div class="v">${value}${sub ? `<span class="lvl-meta">${sub}</span>` : ''}</div></div>`;
+}
+
+function renderSector() {
+  const d = state.sector;
+  if (!d) return;
+  renderSectorGroupPicker(d);
+  $('sec-stamp').textContent = d.generated_at ? `as of ${d.generated_at.replace('T', ' ').slice(0, 16)} UTC` : '';
+  $('sec-sub').textContent = `${d.kind === 'theme' ? 'Theme' : 'Sector'} group vs ${d.benchmark} `
+    + `\u00b7 ${(d.constituents_used || []).length} of `
+    + `${(d.constituents_used || []).length + (d.constituents_missing || []).length} constituents priced`;
+
+  const notices = $('sec-notices');
+  notices.innerHTML = '';
+  if ((d.constituents_missing || []).length) {
+    notices.appendChild(buildNotice('warn',
+      `<strong>${d.constituents_missing.length} omitted</strong> \u2014 no bars returned: `
+      + `${d.constituents_missing.map(esc).join(', ')}`));
+  }
+
+  const rs = d.relative_strength || {};
+  const w = rs.windows || {};
+  const rsRow = (label, key) => {
+    const x = w[key];
+    if (!x) return '';
+    return sectorTile(label, fmtPct(x.excess_pct),
+      `group ${fmtPct(x.group_return_pct)} \u2212 ${esc(d.benchmark)} ${fmtPct(x.benchmark_return_pct)}`);
+  };
+  const trendNote = rs.excess_trend_pct == null ? ''
+    : `${fmtPct(rs.excess_trend_pct)} vs the 5 sessions before that`;
+
+  const br = d.breadth || {};
+  const nhl = d.new_highs_lows || {};
+  const part = d.participation || {};
+  const vol = d.volatility || {};
+  const disp = d.dispersion || {};
+  const lvl = d.at_level || {};
+
+  const tiles = [
+    rsRow('Relative strength, 5d', '5'),
+    rsRow('Relative strength, 21d', '21'),
+    rsRow('Relative strength, 63d', '63'),
+    sectorTile('Excess-return trend', trendNote || '\u2014',
+      'is the 5d excess vs benchmark widening or narrowing'),
+    sectorTile('Breadth > 20d avg', br.above_sma20_pct == null ? '\u2014' : `${br.above_sma20_pct.toFixed(0)}%`,
+      `${br.n || 0} names`),
+    sectorTile('Breadth > 50d avg', br.above_sma50_pct == null ? '\u2014' : `${br.above_sma50_pct.toFixed(0)}%`),
+    sectorTile('Breadth > 200d avg', br.above_sma200_pct == null ? '\u2014' : `${br.above_sma200_pct.toFixed(0)}%`),
+    sectorTile(`New ${nhl.window_sessions || 20}d highs / lows`,
+      `${nhl.new_high_count ?? '\u2014'} / ${nhl.new_low_count ?? '\u2014'}`,
+      `of ${nhl.n || 0} names`),
+    sectorTile('Participation ($ vol, 5d/20d)', part.ratio == null ? '\u2014' : part.ratio.toFixed(2),
+      '&gt;1 = recent dollar volume above the group\'s own past month'),
+    sectorTile('Volatility (ATR%) now', vol.avg_atr_pct_now == null ? '\u2014' : `${vol.avg_atr_pct_now.toFixed(1)}%`,
+      vol.expansion_pct_points == null ? '' : `${fmtPct(vol.expansion_pct_points)}pts vs 20d ago`),
+    sectorTile('Dispersion today vs norm', disp.ratio == null ? '\u2014' : disp.ratio.toFixed(2),
+      '&lt;1 = moved together more than usual (one shared factor, not stock-picking)'),
+    sectorTile('At a level', `${lvl.at_support_count ?? 0} sup / ${lvl.at_resistance_count ?? 0} res`,
+      `of ${lvl.n || 0} names, within ${LEVEL_PROXIMITY_ATR} ATR`),
+  ];
+  $('sec-tiles').innerHTML = tiles.join('');
+
+  $('sec-disclaimer').textContent = 'Every number above is a measured fact about this group\'s own '
+    + 'recent price and volume history \u2014 not a signal, not a ranking, not a call on direction.';
+}
+
 
 async function saveCycleRow(row) {
   const req = fetch('/api/cycle', {
