@@ -295,109 +295,149 @@ def at_level(
     return {"n": n, "at_support_count": at_support, "at_resistance_count": at_resistance}
 
 
-# The six-stage cycle a name's own price structure cycles through, in order.
-# "Local Peak" and "Local Euphoria/Peak" are adjacent, not synonyms: Local
-# Euphoria/Peak is the blow-off top still accelerating into an extreme; Local
-# Peak is that same top once momentum has visibly rolled over. The loop closes
-# Local Euphoria/Peak -> Local Peak.
+# The six-stage cycle a name's own price cycles through, in order.
 #
-# Named "Local" deliberately: both are read off a 20-session (~1 month) high,
-# not a 52-week one. A name can be a Local Peak while sitting 30%+ below its
-# own 52-week high -- it made a real high months ago, corrected hard, and is
-# now stalling inside a much smaller recent range. That is a real, useful
-# thing to know, but "Peak" alone reads as "at its high", which is the
-# opposite of true in that case. `cycle_stages()` reports each name's distance
-# from its own 52-week (or longest-available) high alongside the stage
-# specifically so a "Local Peak" 30% under its 52-week high cannot be
-# mistaken for one sitting at an actual multi-month high.
+# Built on the standard definitions of these words rather than on indicators:
+# how far a name sits below its own peak (10-20% is a correction, past 20% is
+# a bear market) and how far it has rallied off its own trough (+20% starts a
+# new bull market). No moving averages, no oscillators, no benchmark -- just
+# closing prices against a name's own peak and trough, plus which direction it
+# is currently moving.
+#
+# "Local Peak" and "Local Euphoria/Peak" are adjacent, not synonyms: Local
+# Euphoria/Peak is a name at a fresh peak and still advancing hard into it;
+# Local Peak is a name within 10% of its peak whose advance has stalled --
+# what the literature calls the distribution phase, "sideways and range-bound
+# after an extended uptrend". The loop closes Local Euphoria/Peak -> Local Peak.
 CYCLE_STAGES = ("Local Peak", "Correction", "Bottoming", "Recovery", "Extended/Uptrend", "Local Euphoria/Peak")
 
-# Thresholds behind the euphoria/peak split. Named so they can be tuned without
-# hunting through the rule body; there is no universally agreed number here,
-# only a reasonable, disclosed one.
-EUPHORIA_RSI = 70.0
-EUPHORIA_EXTENSION_PCT = 15.0          # % above SMA50
-EUPHORIA_NEAR_HIGH_PCT = 5.0           # within this % of the 20-session high
-PEAK_NEAR_HIGH_PCT = 10.0              # within this % of the 20-session high
-SMA50_SLOPE_LOOKBACK = 10              # sessions back, for "is SMA50 rising"
-LONG_HIGH_WINDOW_SESSIONS = 252        # ~52 weeks, for the context alongside the stage
+# Thresholds. The three that carry the classification are the industry-standard
+# ones, not numbers invented here. The 10/20 split traces to Alan Shaw at Smith
+# Barney; citations are inline so the attribution stays checkable where the
+# numbers are defined rather than only in the README.
+#
+# https://www.morningstar.com/markets/whats-difference-between-bear-market-correction
+CORRECTION_DRAWDOWN_PCT = 10.0         # standard: 10-20% off the peak is a correction
+# https://www.schwab.com/learn/story/market-correction-what-does-it-mean
+BEAR_DRAWDOWN_PCT = 20.0               # standard: beyond 20% off the peak is a bear market
+# https://www.usbank.com/financialiq/invest-your-money/market-perspectives/bull-market-to-bear-market.html
+NEW_BULL_OFF_LOW_PCT = 20.0            # standard: +20% off the low starts a new bull market
+
+LONG_HIGH_WINDOW_SESSIONS = 252        # ~52 weeks: the window the peak and trough are taken from
+RECENT_MOVE_WINDOW_SESSIONS = 20       # ~1 month: the window recent direction is judged over
+
+# These have no industry standard. Research describes the distribution
+# (topping) phase qualitatively -- "sideways and range-bound after an extended
+# uptrend" -- so these are this desk's operationalization of that sentence, not
+# a convention anyone else shares. Named and disclosed rather than buried.
+STALL_MOVE_PCT = 3.0                   # near the peak and within this of flat = stalling, not advancing
+STILL_FALLING_PCT = 8.0                # a decline this steep over the recent window = still falling
+EUPHORIA_MOVE_PCT = 15.0               # at a fresh peak AND up this much = the near-vertical advance
+EUPHORIA_PEAK_TOLERANCE_PCT = 2.0      # "at a fresh peak" allows this much pullback from the exact high
 
 
-def _name_cycle_stage(closes: list[float], a: dict) -> str | None:
-    """One name's stage, from its own price structure alone -- no benchmark.
+def _cycle_context(closes: list[float]) -> dict | None:
+    """The four numbers the stage is read from, all straight off closing prices.
 
-    This is a classification, not a measurement: a rule-based read of where
-    price sits relative to its own trend (Weinstein-style stage analysis: SMA50
-    vs SMA200 position, whether SMA50 itself is rising, momentum extremity via
-    RSI, and proximity to its recent high), not a forecast of what happens
-    next. Every threshold is a named constant above, not a magic number here.
+    `drawdown_pct` is how far below its own peak the name is (<= 0) -- the
+    number the standard correction/bear thresholds are defined against.
+    `off_low_pct` is how far it has rallied off its own trough (>= 0), the
+    other half of that convention. `trough_is_newer` says which extreme came
+    last: a name 40% below a peak set last month is falling, while the same
+    40% gap with the trough more recent means it already bottomed and is
+    climbing -- the two are opposite situations and the drawdown alone cannot
+    tell them apart. `move_pct` is the simple return over
+    `RECENT_MOVE_WINDOW_SESSIONS` sessions.
 
-    Returns None when there isn't enough history to read all of SMA50, SMA200,
-    RSI14, and a 20-session high -- an unclassified name, not a guessed one.
-
-    Takes already-computed `closes` rather than raw bars -- nothing here reads
-    highs, lows, or volume, so `cycle_stages()` derives the close series once
-    per symbol and shares it with `_long_high_context` instead of each
-    function repeating `_closes(bars)` independently.
-    """
-    if len(closes) < 20 + SMA50_SLOPE_LOOKBACK:
-        return None
-    last = closes[-1]
-    sma50_series, sma200_series, rsi_series = a["sma50"], a["sma200"], a["rsi14"]
-    sma50, sma200, rsi = _last(sma50_series), _last(sma200_series), _last(rsi_series)
-    if sma50 is None or sma200 is None or rsi is None:
-        return None
-    sma50_then = sma50_series[-1 - SMA50_SLOPE_LOOKBACK]
-    if sma50_then is None:
-        return None
-    sma50_rising = sma50 > sma50_then
-
-    high_20d = max(closes[-20:])
-    pct_from_high = (last / high_20d - 1.0) * 100.0       # <= 0
-    pct_above_sma50 = (last / sma50 - 1.0) * 100.0
-
-    above_50, above_200 = last > sma50, last > sma200
-
-    if above_50 and above_200:
-        if (sma50_rising and (rsi >= EUPHORIA_RSI or pct_above_sma50 >= EUPHORIA_EXTENSION_PCT)
-                and pct_from_high >= -EUPHORIA_NEAR_HIGH_PCT):
-            return "Local Euphoria/Peak"
-        if not sma50_rising and pct_from_high >= -PEAK_NEAR_HIGH_PCT:
-            return "Local Peak"
-        return "Extended/Uptrend"
-    if above_50 and not above_200:
-        return "Recovery"
-    if not above_50 and above_200:
-        return "Correction"
-    return "Bottoming"                                     # below both
-
-
-def _long_high_context(closes: list[float]) -> dict | None:
-    """Distance from this name's own longest-available high (up to 52 weeks).
-
-    Exists specifically so a `Local Peak` or `Local Euphoria/Peak` -- both read
-    off a 20-session high -- cannot be mistaken for a name at an actual
-    multi-month high. `window_sessions` is the real number of sessions the high
-    was taken over: fewer than `LONG_HIGH_WINDOW_SESSIONS` for a name without a
-    full 52 weeks of history, reported honestly rather than silently claiming
+    `window_sessions` is the real number of sessions the peak and trough were
+    taken from: fewer than `LONG_HIGH_WINDOW_SESSIONS` for a name without a
+    full 52 weeks of history, reported honestly rather than claiming
     "52-week" for a shorter window.
 
-    Takes already-computed `closes` rather than raw bars: `cycle_stages()`
-    calls this right beside `_name_cycle_stage`, and both ultimately need the
-    same close series, so the caller derives it once per symbol instead of
-    each function repeating `_closes(bars)` independently.
+    Returns None below `RECENT_MOVE_WINDOW_SESSIONS + 1` sessions -- an
+    unclassified name, not a guessed one.
     """
-    if len(closes) < DEFAULT_LOOKBACK_SESSIONS:
+    if len(closes) < RECENT_MOVE_WINDOW_SESSIONS + 1:
         return None
     window = min(len(closes), LONG_HIGH_WINDOW_SESSIONS)
-    high = max(closes[-window:])
+    recent = closes[-window:]
+    last = closes[-1]
+
+    # One pass, tracking the LAST occurrence of each extreme rather than the
+    # first. `list.index()` finds the earliest match, which is the wrong
+    # semantic for "which extreme came last": a name that put in its low,
+    # rallied to a peak, then retested that same low would report the trough as
+    # the older extreme and lose its Recovery classification. Using `>=` keeps
+    # the latest index for repeated values.
+    peak = trough = recent[0]
+    peak_at = trough_at = 0
+    for i, close in enumerate(recent):
+        if close >= peak:
+            peak, peak_at = close, i
+        if close <= trough:
+            trough, trough_at = close, i
+
+    if trough <= 0:
+        # A zero or negative close is a feed defect, not a price. Reporting the
+        # name unclassified beats dividing by it and failing the whole group's
+        # scorecard with a ZeroDivisionError.
+        return None
+
     return {
-        "pct_from_high": (closes[-1] / high - 1.0) * 100.0,   # <= 0
+        "drawdown_pct": (last / peak - 1.0) * 100.0,      # <= 0
+        "off_low_pct": (last / trough - 1.0) * 100.0,      # >= 0
+        "trough_is_newer": trough_at > peak_at,
+        "move_pct": (last / closes[-1 - RECENT_MOVE_WINDOW_SESSIONS] - 1.0) * 100.0,
+        # `last` is inside `recent`, so this is true only when today's close is
+        # the window's highest -- or within EUPHORIA_PEAK_TOLERANCE_PCT of it,
+        # so that one day's pullback from a blow-off top does not disqualify it.
+        "at_peak": last >= peak * (1.0 - EUPHORIA_PEAK_TOLERANCE_PCT / 100.0),
         "window_sessions": window,
     }
 
 
-def cycle_stages(bars_by_symbol: dict[str, list[dict]], indicators_by_symbol: dict[str, dict]) -> dict:
+def _name_cycle_stage(ctx: dict) -> str:
+    """One name's stage, from how far it sits off its own peak and trough.
+
+    A pure decision table over `_cycle_context`'s numbers -- no moving
+    averages, no oscillators, no benchmark. The three thresholds that carry it
+    are the standard ones (10% off the peak is a correction, 20% is a bear
+    market, 20% off the low starts a new bull); the rest is direction.
+
+    In order:
+
+      - within 10% of its peak, at a fresh high, advancing hard -> Local Euphoria/Peak
+      - within 10% of its peak, recent move stalled             -> Local Peak
+      - within 10% of its peak, still advancing                 -> Extended/Uptrend
+      - 10-20% off its peak                                     -> Correction
+      - past 20% off its peak, but +20% off a *newer* trough     -> Recovery
+      - past 20% off its peak, still falling hard                -> Correction
+      - past 20% off its peak, no longer falling                 -> Bottoming
+
+    The last two are the split the old moving-average version got wrong: a
+    name down 45% and still dropping 29% in a month is mid-decline, not
+    "bottoming", however close to its low it happens to sit.
+    """
+    drawdown = ctx["drawdown_pct"]
+    move = ctx["move_pct"]
+    off_low = ctx["off_low_pct"]
+    at_peak = ctx["at_peak"]
+    trough_is_newer = ctx["trough_is_newer"]
+
+    if drawdown > -CORRECTION_DRAWDOWN_PCT:
+        if at_peak and move >= EUPHORIA_MOVE_PCT:
+            return "Local Euphoria/Peak"
+        return "Local Peak" if move <= STALL_MOVE_PCT else "Extended/Uptrend"
+    if drawdown > -BEAR_DRAWDOWN_PCT:
+        return "Correction"
+    if off_low >= NEW_BULL_OFF_LOW_PCT and trough_is_newer:
+        return "Recovery"
+    if move <= -STILL_FALLING_PCT:
+        return "Correction"
+    return "Bottoming"
+
+
+def cycle_stages(bars_by_symbol: dict[str, list[dict]]) -> dict:
     """Per-name cycle stage, a count per stage, and the group's own label.
 
     The group label is the stage the most names sit in. A tie is reported as a
@@ -405,11 +445,11 @@ def cycle_stages(bars_by_symbol: dict[str, list[dict]], indicators_by_symbol: di
     single answer nobody actually observed.
     """
     by_symbol: dict[str, str | None] = {}
-    long_high: dict[str, dict | None] = {}
+    context: dict[str, dict | None] = {}
     for symbol, bars in bars_by_symbol.items():
-        closes = _closes(bars)
-        by_symbol[symbol] = _name_cycle_stage(closes, indicators_by_symbol[symbol])
-        long_high[symbol] = _long_high_context(closes)
+        ctx = _cycle_context(_closes(bars))
+        context[symbol] = ctx
+        by_symbol[symbol] = _name_cycle_stage(ctx) if ctx else None
 
     counts = {stage: 0 for stage in CYCLE_STAGES}
     unclassified = []
@@ -432,7 +472,7 @@ def cycle_stages(bars_by_symbol: dict[str, list[dict]], indicators_by_symbol: di
 
     return {
         "by_symbol": by_symbol,
-        "long_high": long_high,
+        "context": context,
         "counts": counts,
         "unclassified": sorted(unclassified),
         "group_label": group_label,
@@ -465,5 +505,5 @@ def compute_sector_scorecard(
         "volatility": volatility_regime(usable, indicators_by_symbol),
         "dispersion": dispersion(usable),
         "at_level": at_level(usable, indicators_by_symbol, level_proximity_atr),
-        "cycle_stages": cycle_stages(usable, indicators_by_symbol),
+        "cycle_stages": cycle_stages(usable),
     }
