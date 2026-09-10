@@ -2,7 +2,7 @@
 
 Trade journal for the swing-trading workflow driven by `trading_desk/`.
 
-**Last Updated:** 2026-09-08
+**Last Updated:** 2026-09-10
 **Status:** Active
 **Audience:** Both
 
@@ -153,7 +153,7 @@ Worth looking at periodically:
 
 ## Monthly cycle score
 
-`trading_desk/AI_DATA_CENTER_CYCLE_DASHBOARD.md` scores seven indicators of the
+`trading_desk/AI_DATA_CENTER_CYCLE_DASHBOARD.md` scores eight indicators of the
 AI data center buildout from 0 to 2 once a month and asks whether, starting from
 cash, you would still own the same names at the same weights. Log each review
 as one row. The dashboard's **Cycle** view is a form over this file: it
@@ -169,9 +169,9 @@ Then delete the example row (the view flags it until you do).
 | Column | Meaning |
 |---|---|
 | `review_date` | Date the scores were decided, `YYYY-MM-DD`. |
-| `capex` … `electrical` | The seven indicator scores, 0–2, in the dashboard's order: capex, construction, vacancy, power, monetization, optical, electrical. |
-| `total` | Sum of the seven. Fill it only when all seven are scored. |
-| `status` | `GREEN` (11–14), `YELLOW` (7–10) or `RED` (0–6). Blank when `total` is blank. |
+| `capex` … `agent_capability` | The eight indicator scores, 0–2, in the dashboard's order: capex, construction, vacancy, power, monetization, optical, electrical, agent_capability. |
+| `total` | Sum of the eight. Fill it only when all eight are scored. |
+| `status` | `GREEN` (13–16), `YELLOW` (8–12) or `RED` (0–7). Blank when `total` is blank. |
 | `core_question` | Starting from cash, would you own the same names at the same weights? `yes`, or the names you would not. |
 | `assumption_changed` | Only when the answer moved from last month: which underlying assumption changed. Otherwise `unchanged`. |
 | `notes` | Sources checked, and anything that did not fit a cell. |

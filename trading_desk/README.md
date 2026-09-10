@@ -4,7 +4,7 @@ Local dashboard that screens sectors and themes over short horizons — for mome
 or for reversals — and charts the resulting movers with the standard technical
 indicator set.
 
-**Last Updated:** 2026-09-08
+**Last Updated:** 2026-09-10
 **Status:** Active
 **Audience:** Both
 
@@ -152,7 +152,7 @@ need a browser reload.
 | Company detail | Market cap, trailing P/E, 52-week range, volatility, SEC filings, news, research links. |
 | Earnings timing | Upcoming prints (including today's, before they land) with an uncertainty window, expected timing, 1-day and 1-week reaction stats, and held-position alerts. |
 | Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, and the journal's own recorded gaps. |
-| Cycle | The monthly AI data center cycle score: the latest GREEN / YELLOW / RED reading and total, the seven indicator scores against the criteria they were scored on, a trend of past reviews, the history table, and the form that writes the next review to the log. |
+| Cycle | The monthly AI data center cycle score: the latest GREEN / YELLOW / RED reading and total, the eight indicator scores against the criteria they were scored on, a trend of past reviews, the history table, and the form that writes the next review to the log. |
 | Ranking table | The same board in text form — every value readable without color. |
 
 ### Company detail
@@ -561,8 +561,8 @@ The fifth view, and the only one with nothing to compute. The Daily review asks
 where each position stands against its levels today;
 [`AI_DATA_CENTER_CYCLE_DASHBOARD.md`](AI_DATA_CENTER_CYCLE_DASHBOARD.md) asks
 the slower question underneath it: does the reason for owning the optical and
-power names still hold? It scores seven indicators of the hyperscaler buildout
-from 0 to 2 once a month, sums them to a GREEN / YELLOW / RED reading out of 14,
+power names still hold? It scores eight indicators of the hyperscaler buildout
+from 0 to 2 once a month, sums them to a GREEN / YELLOW / RED reading out of 16,
 and ends on one question: starting from cash, would you still own AXTI, LITE,
 COHR, FN and POWL at their current weights? The document's "How this fits the
 desk" section says what the rest of the desk supplies to that judgment: the
@@ -589,7 +589,7 @@ None of it is market data, and the page says so on every render. What
 `cycle.py` does is read and write the log and parse the document:
 
 - **The criteria come from the document, not from code.** `rubric()` reads the
-  seven numbered sections, their `### GREEN / YELLOW / RED` paragraphs and the
+  eight numbered sections, their `### GREEN / YELLOW / RED` paragraphs and the
   core question out of the markdown. `tests/test_cycle.py` asserts the parse
   succeeds and that the document's score table, its bands and the CSV template
   agree with `cycle.INDICATORS`, `cycle.BANDS` and `cycle.COLUMNS`. Editing the
@@ -599,7 +599,7 @@ None of it is market data, and the page says so on every render. What
   never pre-filled from last month: switching the form's date to one without a
   review starts from nothing. A review with any blank has no total and no
   status, both cells stay empty in the file, and the page reads
-  "Incomplete · 6 of 7 scored" rather than a number.
+  "Incomplete · 7 of 8 scored" rather than a number.
 - **Reads are tolerant, writes are strict.** A hand-edited file is read with
   warnings on the page: a bad cell reads as blank, a stored total that
   disagrees with its scores is reported and the scores win, an extra column is
@@ -619,7 +619,7 @@ None of it is market data, and the page says so on every render. What
   cache.
 - **Changing the date never touches what is typed.** A date input fires its
   change event on every keyboard step, so rebuilding the form on change would
-  wipe seven scores per arrow key. The form only re-reads the log for the new
+  wipe eight scores per arrow key. The form only re-reads the log for the new
   date when it is empty; otherwise the banner offers to load the logged review.
   A new date in a month that already has a review gets a nudge toward that
   review's date, because the framework's mid-month re-score after a print means
@@ -729,7 +729,7 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `research/split_study.py` | Split-event counts and pre-split return study (see Split events) |
 | `cycle.py` | Cycle score log: read, validate and write `cycle-score.csv`; parse the framework document for the rubric |
-| `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | The framework the Cycle view scores against: seven 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
+| `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | The framework the Cycle view scores against: eight 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
 | `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
 | `tests/test_cycle.py` | Cycle log rules (blank stays blank, strict writes, tolerant reads), document/template/code agreement, POST validation |

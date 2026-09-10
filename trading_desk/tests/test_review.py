@@ -637,8 +637,8 @@ def test_cycle_status_is_read_back_not_computed():
 
     csv_text = (
         "review_date,capex,construction,vacancy,power,monetization,optical,electrical,"
-        "total,status,core_question,assumption_changed,notes\n"
-        "2026-01-15,0,0,0,0,0,0,0,0,RED,q,a,n\n"
+        "agent_capability,total,status,core_question,assumption_changed,notes\n"
+        "2026-01-15,0,0,0,0,0,0,0,0,0,RED,q,a,n\n"
     )
     with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as fh:
         fh.write(csv_text)
