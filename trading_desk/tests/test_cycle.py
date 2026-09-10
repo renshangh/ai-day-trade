@@ -60,7 +60,7 @@ def _csv_row(review_date: str, scores: list, total="", status="", **text) -> dic
 
 def _review(review_date: str = "2026-08-31", scores: list | None = None, **over) -> dict:
     """A POST-shaped review, complete unless told otherwise."""
-    scores = [2, 2, 2, 1, 1, 2, 2] if scores is None else scores
+    scores = [2, 2, 2, 1, 1, 2, 2, 2] if scores is None else scores
     body = {"review_date": review_date, "scores": dict(zip(cycle.KEYS, scores)),
             "core_question": "yes", "assumption_changed": "unchanged", "notes": "test"}
     body.update(over)
@@ -105,6 +105,7 @@ def test_rubric_parses_every_indicator_and_level_from_the_doc():
     assert rub["capex"]["rubric"]["GREEN"] == "Capex guidance is maintained or raised."
     assert rub["electrical"]["rubric"]["YELLOW"] == "Backlog growth slows but remains elevated."
     assert "AXTI" in rub["optical"]["track"]
+    assert rub["agent_capability"]["rubric"]["RED"].startswith("Enterprise agent deployments")
 
 
 def test_rubric_is_the_first_paragraph_only():
@@ -149,9 +150,9 @@ def test_client_declares_the_view_and_levels():
 
 # -------------------------------------------------------------------- bands
 def test_status_bands_are_inclusive_at_their_edges():
-    assert cycle.status_for(0) == "RED" and cycle.status_for(6) == "RED"
-    assert cycle.status_for(7) == "YELLOW" and cycle.status_for(10) == "YELLOW"
-    assert cycle.status_for(11) == "GREEN" and cycle.status_for(14) == "GREEN"
+    assert cycle.status_for(0) == "RED" and cycle.status_for(7) == "RED"
+    assert cycle.status_for(8) == "YELLOW" and cycle.status_for(12) == "YELLOW"
+    assert cycle.status_for(13) == "GREEN" and cycle.status_for(16) == "GREEN"
     assert cycle.status_for(None) is None
     # Every integer total has exactly one band.
     assert all(cycle.status_for(t) for t in range(cycle.MAX_SCORE + 1))
@@ -176,29 +177,29 @@ def test_missing_log_is_absence_not_an_empty_history():
 
 
 def test_blank_score_leaves_total_and_status_blank():
-    p = _tmp_log([_csv_row("2026-08-31", [None, 2, 2, 2, 2, 2, 2])])
+    p = _tmp_log([_csv_row("2026-08-31", [None, 2, 2, 2, 2, 2, 2, 2])])
     try:
         row = cycle.read_log(p)["rows"][0]
     finally:
         p.unlink()
     assert row["scores"]["capex"] is None
-    assert row["scored"] == 6
+    assert row["scored"] == 7
     assert row["total"] is None and row["status"] is None
 
 
 def test_stored_total_that_disagrees_is_reported_not_corrected():
-    p = _tmp_log([_csv_row("2026-08-31", [2, 2, 2, 1, 1, 2, 2], total="13", status="GREEN")])
+    p = _tmp_log([_csv_row("2026-08-31", [2, 2, 2, 1, 1, 2, 2, 2], total="15", status="GREEN")])
     try:
         out = cycle.read_log(p)
     finally:
         p.unlink()
     row = out["rows"][0]
-    assert row["total"] == 12 and row["status"] == "GREEN"     # derived from the scores
-    assert any("stored total 13" in w for w in out["warnings"]), out["warnings"]
+    assert row["total"] == 14 and row["status"] == "GREEN"     # derived from the scores
+    assert any("stored total 15" in w for w in out["warnings"]), out["warnings"]
 
 
 def test_bad_score_cell_becomes_blank_with_a_warning():
-    p = _tmp_log([_csv_row("2026-08-31", [3, 2, 2, 2, 2, 2, 2])])
+    p = _tmp_log([_csv_row("2026-08-31", [3, 2, 2, 2, 2, 2, 2, 2])])
     try:
         out = cycle.read_log(p)
     finally:
@@ -209,8 +210,8 @@ def test_bad_score_cell_becomes_blank_with_a_warning():
 
 
 def test_rows_come_back_oldest_first_whatever_the_file_order():
-    p = _tmp_log([_csv_row("2026-08-31", [2] * 7), _csv_row("2026-06-30", [1] * 7),
-                  _csv_row("2026-07-31", [0] * 7)])
+    p = _tmp_log([_csv_row("2026-08-31", [2] * 8), _csv_row("2026-06-30", [1] * 8),
+                  _csv_row("2026-07-31", [0] * 8)])
     try:
         rows = cycle.read_log(p)["rows"]
     finally:
@@ -219,7 +220,7 @@ def test_rows_come_back_oldest_first_whatever_the_file_order():
 
 
 def test_example_row_is_flagged():
-    p = _tmp_log([_csv_row("2026-01-31", [2] * 7, notes="Example row - delete me.")])
+    p = _tmp_log([_csv_row("2026-01-31", [2] * 8, notes="Example row - delete me.")])
     try:
         out = cycle.read_log(p)
     finally:
@@ -229,7 +230,7 @@ def test_example_row_is_flagged():
 
 def test_bom_header_is_tolerated():
     """A spreadsheet re-save prepends a BOM; that must not blank review_date."""
-    p = _tmp_log([_csv_row("2026-08-31", [2] * 7)], bom=True)
+    p = _tmp_log([_csv_row("2026-08-31", [2] * 8)], bom=True)
     try:
         out = cycle.read_log(p)
         assert out["rows"][0]["review_date"] == "2026-08-31"
@@ -241,7 +242,7 @@ def test_bom_header_is_tolerated():
 
 
 def test_extra_column_reads_with_a_warning_and_blocks_writes():
-    p = _tmp_log([{**_csv_row("2026-08-31", [2] * 7), "mood": "fine"}],
+    p = _tmp_log([{**_csv_row("2026-08-31", [2] * 8), "mood": "fine"}],
                  header=cycle.COLUMNS + ["mood"])
     try:
         out = cycle.read_log(p)
@@ -269,7 +270,7 @@ def test_first_save_creates_the_file_with_the_template_header():
         assert header == cycle.COLUMNS
         rows = _read_all(p)
         assert len(rows) == 1
-        assert rows[0]["total"] == "12" and rows[0]["status"] == "GREEN"
+        assert rows[0]["total"] == "14" and rows[0]["status"] == "GREEN"
         assert rows[0]["capex"] == "2" and rows[0]["power"] == "1"
         assert not list(d.glob("*.tmp")), "atomic write left its temp file"
     finally:
@@ -279,10 +280,10 @@ def test_first_save_creates_the_file_with_the_template_header():
 
 
 def test_same_date_replaces_and_other_dates_sort():
-    p = _tmp_log([_csv_row("2026-08-31", [2] * 7, total="14", status="GREEN")])
+    p = _tmp_log([_csv_row("2026-08-31", [2] * 8, total="16", status="GREEN")])
     try:
-        cycle.upsert_row(_review("2026-06-30", scores=[1] * 7), p, today=date(2026, 9, 1))
-        cycle.upsert_row(_review("2026-08-31", scores=[0] * 7, notes="revised"), p,
+        cycle.upsert_row(_review("2026-06-30", scores=[1] * 8), p, today=date(2026, 9, 1))
+        cycle.upsert_row(_review("2026-08-31", scores=[0] * 8, notes="revised"), p,
                          today=date(2026, 9, 1))
         rows = _read_all(p)
     finally:
@@ -294,7 +295,7 @@ def test_same_date_replaces_and_other_dates_sort():
 def test_incomplete_review_writes_blank_total_and_status():
     p = _tmp_log()
     try:
-        cycle.upsert_row(_review("2026-08-31", scores=[2, 2, 2, None, 2, 2, 2]), p,
+        cycle.upsert_row(_review("2026-08-31", scores=[2, 2, 2, None, 2, 2, 2, 2]), p,
                          today=date(2026, 9, 1))
         row = _read_all(p)[0]
     finally:
@@ -306,7 +307,7 @@ def test_rejects_bad_scores_dates_and_unknown_keys():
     p = _tmp_log()
     today = date(2026, 9, 1)
     cases = {
-        "score 3": _review(scores=[3, 2, 2, 2, 2, 2, 2]),
+        "score 3": _review(scores=[3, 2, 2, 2, 2, 2, 2, 2]),
         "future date": _review((today + timedelta(days=1)).isoformat()),
         "not a date": _review("last month"),
         # date.fromisoformat would take both of these; written as typed they
@@ -315,7 +316,7 @@ def test_rejects_bad_scores_dates_and_unknown_keys():
         "week date": _review("2026-W35-1"),
         "short month": _review("2026-8-31"),
         "unknown indicator": {**_review(), "scores": {**_review()["scores"], "mood": 2}},
-        "scores not an object": {**_review(), "scores": [2] * 7},
+        "scores not an object": {**_review(), "scores": [2] * 8},
         "notes too long": _review(notes="x" * (cycle.MAX_TEXT + 1)),
         "notes not text": _review(notes={"src": "CBRE"}),
         "answer not text": _review(core_question=False),
@@ -334,11 +335,11 @@ def test_rejects_bad_scores_dates_and_unknown_keys():
 
 def test_malformed_row_blocks_the_write():
     header = ",".join(cycle.COLUMNS)
-    p = _tmp_log(raw_lines=[header, "2026-08-31,2,2,2,2,2,2,2,14,GREEN,yes,unchanged"])  # 12 cells
+    p = _tmp_log(raw_lines=[header, "2026-08-31,2,2,2,2,2,2,2,2,14,GREEN,yes,unchanged"])  # 13 cells
     try:
         cycle.upsert_row(_review("2026-09-30"), p, today=date(2026, 9, 30))
     except cycle.CycleError as e:
-        assert "12 cells" in str(e), e
+        assert "13 cells" in str(e), e
     else:
         raise AssertionError("a short row would have been silently padded")
     finally:
@@ -347,7 +348,7 @@ def test_malformed_row_blocks_the_write():
 
 def test_hand_edited_rows_are_preserved_verbatim():
     """Rewriting the file must not 'fix' a row the owner typed."""
-    p = _tmp_log([_csv_row("2026-07-31", [2] * 7, total="99", status="GREEN", notes="typed")])
+    p = _tmp_log([_csv_row("2026-07-31", [2] * 8, total="99", status="GREEN", notes="typed")])
     try:
         cycle.upsert_row(_review("2026-08-31"), p, today=date(2026, 9, 1))
         rows = {r["review_date"]: r for r in _read_all(p)}
@@ -380,7 +381,7 @@ def test_post_rejects_bad_json():
 
 def test_post_validation_error_is_400_and_leaves_the_file_alone():
     def run(p):
-        code, body = srv.cycle_post(json.dumps(_review(scores=[3] * 7)).encode(),
+        code, body = srv.cycle_post(json.dumps(_review(scores=[3] * 8)).encode(),
                                     "application/json; charset=utf-8")
         assert code == 400 and "Hyperscaler Capex" in body["error"], body
         assert _read_all(p) == []
@@ -393,7 +394,7 @@ def test_post_returns_the_rebuilt_payload():
                                     "application/json")
         assert code == 200, body
         assert body["latest"]["review_date"] == "2026-08-31"
-        assert body["latest"]["total"] == 12 and body["latest"]["status"] == "GREEN"
+        assert body["latest"]["total"] == 14 and body["latest"]["status"] == "GREEN"
         assert body["exists"] is True and body["warnings"] == []
         assert [i["key"] for i in body["indicators"]] == cycle.KEYS
     _with_tmp_log(run)
@@ -416,7 +417,7 @@ def test_post_answers_even_when_something_unexpected_breaks():
 
 # ------------------------------------------------ hand-edited files, harder cases
 def test_compact_date_reads_with_a_warning():
-    p = _tmp_log([_csv_row("20260831", [2] * 7)])
+    p = _tmp_log([_csv_row("20260831", [2] * 8)])
     try:
         out = cycle.read_log(p)
     finally:
@@ -447,7 +448,7 @@ def test_non_utf8_file_is_a_warning_on_read_and_a_reason_on_write():
     os.close(fd)
     p = Path(name)
     header = ",".join(cycle.COLUMNS)
-    p.write_bytes((header + "\n2026-08-31,2,2,2,2,2,2,2,14,GREEN,yes,unchanged,").encode()
+    p.write_bytes((header + "\n2026-08-31,2,2,2,2,2,2,2,2,14,GREEN,yes,unchanged,").encode()
                   + b"caf\x92 notes\n")                      # 0x92: cp1252 right single quote
     try:
         out = cycle.read_log(p)
@@ -497,7 +498,7 @@ def test_rubric_accepts_star_and_indented_bullets():
     body = "\n".join([
         "# x", "",
         *[f"## {i}. Section {i}\n\n- dash\n* star\n  - indented\n\n### GREEN\n- as a bullet\n\n"
-          f"### YELLOW\ny\n\n### RED\nr\n" for i in range(1, 8)],
+          f"### YELLOW\ny\n\n### RED\nr\n" for i in range(1, 9)],
     ])
     doc.write_text(body)
     try:
@@ -511,7 +512,7 @@ def test_rubric_accepts_star_and_indented_bullets():
 def test_empty_header_cell_is_named_in_the_warning():
     """A spreadsheet's trailing comma is an extra column called ''."""
     header = ",".join(cycle.COLUMNS) + ","
-    p = _tmp_log(raw_lines=[header, "2026-08-31,2,2,2,2,2,2,2,14,GREEN,yes,unchanged,x,"])
+    p = _tmp_log(raw_lines=[header, "2026-08-31,2,2,2,2,2,2,2,2,14,GREEN,yes,unchanged,x,"])
     try:
         out = cycle.read_log(p)
     finally:
@@ -524,8 +525,8 @@ def test_row_numbers_are_physical_lines_on_both_paths():
     """The number the page names must be the one a spreadsheet shows, and the same
     number the write path would report for the same line."""
     header = ",".join(cycle.COLUMNS)
-    p = _tmp_log(raw_lines=[header, "", "2026-08-31,3,2,2,2,2,2,2,,,yes,unchanged,x",
-                            "2026-09-30,2,2,2,2,2,2,2,14,GREEN,yes,unchanged"])   # 12 cells
+    p = _tmp_log(raw_lines=[header, "", "2026-08-31,3,2,2,2,2,2,2,2,,,yes,unchanged,x",
+                            "2026-09-30,2,2,2,2,2,2,2,2,14,GREEN,yes,unchanged"])   # 13 cells
     try:
         out = cycle.read_log(p)
         assert any(w.startswith("row 3 ") for w in out["warnings"]), out["warnings"]
@@ -569,16 +570,16 @@ def test_concurrent_saves_keep_every_row():
 
 # ------------------------------------------------------------------ payload
 def test_build_cycle_reports_latest_and_previous():
-    p = _tmp_log([_csv_row("2026-07-31", [1] * 7), _csv_row("2026-08-31", [2] * 7)])
+    p = _tmp_log([_csv_row("2026-07-31", [1] * 8), _csv_row("2026-08-31", [2] * 8)])
     try:
         out = cycle.build_cycle(p)
     finally:
         p.unlink()
-    assert out["latest"]["review_date"] == "2026-08-31" and out["latest"]["total"] == 14
-    assert out["previous"]["review_date"] == "2026-07-31" and out["previous"]["total"] == 7
-    assert out["max_score"] == 14 and out["rubric_error"] is None
+    assert out["latest"]["review_date"] == "2026-08-31" and out["latest"]["total"] == 16
+    assert out["previous"]["review_date"] == "2026-07-31" and out["previous"]["total"] == 8
+    assert out["max_score"] == 16 and out["rubric_error"] is None
     assert out["core_question"] and "AXTI" in out["core_question"]
-    assert out["bands"][0] == {"status": "GREEN", "lo": 11, "hi": 14}
+    assert out["bands"][0] == {"status": "GREEN", "lo": 13, "hi": 16}
 
 
 def test_build_cycle_survives_a_missing_doc():

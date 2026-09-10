@@ -51,13 +51,14 @@ INDICATORS: list[tuple[str, str]] = [
     ("monetization", "AI Monetization"),
     ("optical", "Optical Demand"),
     ("electrical", "Electrical Equipment Demand"),
+    ("agent_capability", "AI Agent Capability / Adaptation"),
 ]
 KEYS = [k for k, _ in INDICATORS]
 LABELS = dict(INDICATORS)
 SCORE_MIN, SCORE_MAX = 0, 2
-MAX_SCORE = SCORE_MAX * len(INDICATORS)   # 14
+MAX_SCORE = SCORE_MAX * len(INDICATORS)   # 16
 # Inclusive bands over the total, exactly as the doc states them.
-BANDS: list[tuple[str, int, int]] = [("GREEN", 11, 14), ("YELLOW", 7, 10), ("RED", 0, 6)]
+BANDS: list[tuple[str, int, int]] = [("GREEN", 13, 16), ("YELLOW", 8, 12), ("RED", 0, 7)]
 LEVELS = ("GREEN", "YELLOW", "RED")
 # A score of 2 means the indicator's GREEN criterion is met, 1 YELLOW, 0 RED.
 # The server never consults this itself; it is the declared contract that

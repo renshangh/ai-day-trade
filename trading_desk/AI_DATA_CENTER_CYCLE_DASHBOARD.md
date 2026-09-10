@@ -3,7 +3,7 @@
 Monthly check on whether the long-term AI infrastructure buildout thesis behind
 the desk's optical and power positions is still intact.
 
-**Last Updated:** 2026-09-09
+**Last Updated:** 2026-09-10
 **Status:** Active
 **Audience:** Both
 
@@ -269,6 +269,37 @@ Backlog growth slows but remains elevated.
 ### RED
 Orders decline significantly and project cancellations begin appearing.
 
+## 8. AI Agent Capability and Adaptation Rate
+
+Track whether autonomous AI agents are becoming capable enough, and adopted
+widely enough, to be a real source of inference demand rather than a demo --
+the leading edge of section 5's monetization case, one layer closer to the
+model.
+
+Track:
+
+- Frontier model releases and their jump (or lack of one) on agentic /
+  tool-use benchmarks (e.g. SWE-bench-style coding and browsing tasks)
+- Enterprise AI agent deployments, and pilot-to-production conversion rate
+- Agentic coding tool usage and revenue (e.g. Claude Code, GitHub Copilot,
+  Cursor, Codex-style tools)
+- Inference token volume growth attributable to agents rather than chat
+- Hyperscaler and lab commentary on agent-driven compute demand
+- Reports of agent pilots stalling, being abandoned, or missing ROI
+
+### GREEN
+Model capability on agentic tasks keeps improving release over release, and
+enterprise agent deployment and usage keeps growing.
+
+### YELLOW
+Capability gains slow to incremental improvements, or adoption plateaus while
+compute cost per completed task stays flat or rises.
+
+### RED
+Enterprise agent deployments are broadly paused or scaled back, or a new
+model generation shows no material capability gain, undercutting the case for
+continued inference-driving infrastructure.
+
 ## Portfolio Exposure Map
 
 ### Digital / Crypto
@@ -345,16 +376,17 @@ Score each category from 0 to 2.
 | AI Monetization | 0–2 |
 | Optical Demand | 0–2 |
 | Electrical Equipment Demand | 0–2 |
+| AI Agent Capability / Adaptation | 0–2 |
 
-Maximum score: **14**
+Maximum score: **16**
 
-### 11–14: GREEN
+### 13–16: GREEN
 AI infrastructure cycle remains strong.
 
-### 7–10: YELLOW
+### 8–12: YELLOW
 Remain invested but become more selective and preserve dry powder.
 
-### 0–6: RED
+### 0–7: RED
 Reassess the core AI infrastructure thesis and portfolio exposure.
 
 ## Investment Principle
@@ -390,7 +422,7 @@ rest of `trading_records/`, this file is tracked in git and pushed: it holds
 0-2 judgment scores and research notes, not positions or account details, so
 there is nothing in it that needs to stay off the public remote. The
 template it follows, `trading_records/TEMPLATE-cycle-score.csv`, is
-committed too. The seven score
+committed too. The eight score
 columns follow the table above in order, then `total`, `status`, the answer to
 the core question, and what changed. The column meanings are in
 `trading_records/README.md`.
@@ -405,7 +437,7 @@ Two rules, both borrowed from how the rest of the desk treats data:
 
 - **An indicator you did not check this month stays blank.** Copying last
   month's score forward records a judgment nobody made. Leave `total` and
-  `status` blank too when any of the seven is blank; a partial total is not
+  `status` blank too when any of the eight is blank; a partial total is not
   comparable to a full one.
 - **`assumption_changed` is written only when the core question's answer moved.**
   Otherwise write `unchanged`. The point of the column is to force the
