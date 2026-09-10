@@ -20,6 +20,12 @@ import statistics
 
 import indicators
 
+# Shared by new_highs_lows, participation, volatility_regime, and dispersion.
+# One constant rather than four independent `=20` defaults, so a future change
+# to widen or narrow the window is a single edit with an explicit relationship
+# between the four, not four defaults that happen to agree today by accident.
+DEFAULT_LOOKBACK_SESSIONS = 20
+
 
 def _closes(bars: list[dict]) -> list[float]:
     return [float(b["c"]) for b in bars]
@@ -127,7 +133,7 @@ def breadth(bars_by_symbol: dict[str, list[dict]], indicators_by_symbol: dict[st
     }
 
 
-def new_highs_lows(bars_by_symbol: dict[str, list[dict]], window: int = 20) -> dict:
+def new_highs_lows(bars_by_symbol: dict[str, list[dict]], window: int = DEFAULT_LOOKBACK_SESSIONS) -> dict:
     """Count of constituents at a new `window`-session high or low today.
 
     Short-window (20 sessions, ~1 month) rather than 52-week on purpose: a
@@ -152,7 +158,7 @@ def new_highs_lows(bars_by_symbol: dict[str, list[dict]], window: int = 20) -> d
     return {"n": n, "new_high_count": new_high, "new_low_count": new_low, "window_sessions": window}
 
 
-def participation(bars_by_symbol: dict[str, list[dict]], lookback: int = 20) -> dict:
+def participation(bars_by_symbol: dict[str, list[dict]], lookback: int = DEFAULT_LOOKBACK_SESSIONS) -> dict:
     """Aggregate dollar volume, trailing 5-session average vs trailing `lookback`.
 
     A ratio above 1 means dollar volume across the group has picked up
@@ -184,7 +190,7 @@ def participation(bars_by_symbol: dict[str, list[dict]], lookback: int = 20) -> 
 
 
 def volatility_regime(
-    bars_by_symbol: dict[str, list[dict]], indicators_by_symbol: dict[str, dict], lookback: int = 20,
+    bars_by_symbol: dict[str, list[dict]], indicators_by_symbol: dict[str, dict], lookback: int = DEFAULT_LOOKBACK_SESSIONS,
 ) -> dict:
     """Average ATR%, now versus `lookback` sessions ago.
 
@@ -217,7 +223,7 @@ def volatility_regime(
     }
 
 
-def dispersion(bars_by_symbol: dict[str, list[dict]], lookback: int = 20) -> dict:
+def dispersion(bars_by_symbol: dict[str, list[dict]], lookback: int = DEFAULT_LOOKBACK_SESSIONS) -> dict:
     """How much constituents moved together today versus their own recent norm.
 
     Cross-sectional standard deviation of one day's returns across the group:
