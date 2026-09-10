@@ -972,7 +972,7 @@ function renderSector() {
 // these ever drift apart the breakdown would silently reorder itself relative
 // to the server's own count keys, so keep this list identical to
 // sector_signals.CYCLE_STAGES.
-const CYCLE_STAGE_ORDER = ['Local Peak', 'Correction', 'Bottoming', 'Recovery', 'Extended/Uptrend', 'Local Euphoria/Peak'];
+const CYCLE_STAGE_ORDER = ['Local Peak', 'Correction', 'Markdown', 'Bottoming', 'Recovery', 'Extended/Uptrend', 'Local Euphoria/Peak'];
 // Must match sector_signals.LONG_HIGH_WINDOW_SESSIONS -- a `context.window_sessions`
 // equal to this means the full window was available, so the label can honestly
 // say "52w" rather than "Nd".

@@ -397,10 +397,21 @@ def test_stage_just_inside_ten_percent_is_not_yet_a_correction():
     assert _stage_of(peak=100, trough=50, last=95, move_pct=-1) == "Local Peak"
 
 
-def test_stage_past_twenty_percent_off_the_peak_and_still_falling_is_a_correction():
+def test_stage_past_twenty_percent_off_the_peak_and_still_falling_is_a_markdown():
     """The read the moving-average version got wrong for FN: down 45% and
-    still dropping 29% in a month is mid-decline, not a base forming."""
-    assert _stage_of(peak=100, trough=50, last=55, move_pct=-29) == "Correction"
+    still dropping 29% in a month is mid-decline, not a base forming.
+
+    Markdown, not Correction: the standard reserves "correction" for a 10-20%
+    decline, and one label spanning -10% to -54% put AXTI and ANET under the
+    same word."""
+    assert _stage_of(peak=100, trough=50, last=55, move_pct=-29) == "Markdown"
+
+
+def test_correction_and_markdown_are_split_at_the_bear_market_threshold():
+    """The distinction that motivated the seventh stage: either side of -20%
+    gets a different word, exactly as the convention draws it."""
+    assert _stage_of(peak=100, trough=50, last=81, move_pct=-12) == "Correction"   # -19%
+    assert _stage_of(peak=100, trough=50, last=79, move_pct=-12) == "Markdown"     # -21%
 
 
 def test_stage_past_twenty_percent_off_the_peak_and_no_longer_falling_is_bottoming():

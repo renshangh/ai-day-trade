@@ -696,12 +696,23 @@ to have.
 
 #### Cycle stage -- the one exception, and why it is handled differently
 
-Below the tiles is a panel classifying each constituent into one of six cycle
+Below the tiles is a panel classifying each constituent into one of seven cycle
 stages, in the order the wheel turns:
 
 ```
-Local Peak -> Correction -> Bottoming -> Recovery -> Extended/Uptrend -> Local Euphoria/Peak -> (back to Local Peak)
+Local Peak -> Correction -> Markdown -> Bottoming -> Recovery -> Extended/Uptrend -> Local Euphoria/Peak -> (back to Local Peak)
 ```
+
+**Why seven and not six.** The taxonomy started at six, with one `Correction`
+stage covering every decline. That put `AXTI` at -54% and `ANET` at -10% under
+the same word -- and it contradicted the very convention the thresholds below
+come from, which reserves *correction* for a 10-20% decline and calls anything
+past 20% a *bear market*. `Markdown` (Wyckoff's term for that leg, and one that
+does not imply anything about the whole market) is that seventh stage. Before
+the split, 10 of 13 names in `AI Optical / Interconnect` read "Correction";
+after it, 2 do, 8 are in `Markdown`, and the group label changed from
+`Correction` to `Markdown` -- a materially different and more honest read of a
+sector where most names have halved.
 
 This **is** a classification, not a raw measurement -- it turns several numbers
 into one label. That is a real departure from every other number on this view,
@@ -733,7 +744,7 @@ came last, and its return over the last month):
 | Within 10% of its peak, still advancing | `Extended/Uptrend` |
 | 10-20% off its peak | `Correction` |
 | Past 20% off its peak, but +20% off a **newer** trough | `Recovery` |
-| Past 20% off its peak, still falling hard | `Correction` |
+| Past 20% off its peak, still falling hard | `Markdown` |
 | Past 20% off its peak, no longer falling | `Bottoming` |
 
 Design notes worth keeping:
