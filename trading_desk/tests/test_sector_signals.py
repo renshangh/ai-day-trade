@@ -394,43 +394,104 @@ def _stage_bars_recovery() -> list[dict]:
 def test_stage_extended_uptrend_above_both_averages_sma50_rising_not_extreme():
     bars = _stage_bars_extended()
     a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(bars, a) == "Extended/Uptrend"
+    assert ss._name_cycle_stage(ss._closes(bars), a) == "Extended/Uptrend"
 
 
 def test_stage_euphoria_peak_needs_extension_or_overbought_near_a_high():
     bars = _stage_bars_euphoria()
     a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(bars, a) == "Euphoria/Peak"
+    assert ss._name_cycle_stage(ss._closes(bars), a) == "Local Euphoria/Peak"
 
 
 def test_stage_peak_is_near_the_high_but_sma50_has_rolled_over():
     bars = _stage_bars_peak()
     a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(bars, a) == "Peak"
+    assert ss._name_cycle_stage(ss._closes(bars), a) == "Local Peak"
+
+
+# ---- long_high context ---------------------------------------------------------
+
+def test_long_high_context_reports_the_full_window_when_history_allows():
+    bars = _stage_bars_extended()   # 260 sessions, well over the 252-session window
+    ctx = ss._long_high_context(ss._closes(bars))
+    assert ctx["window_sessions"] == ss.LONG_HIGH_WINDOW_SESSIONS
+    assert ctx["pct_from_high"] <= 0
+
+
+def test_long_high_context_uses_whatever_history_is_actually_available():
+    """A name with less than 52 weeks of history must not silently claim one."""
+    bars = _wicked([100.0] * 40)
+    ctx = ss._long_high_context(ss._closes(bars))
+    assert ctx["window_sessions"] == 40
+
+
+def test_long_high_context_is_none_below_the_minimum_history():
+    bars = _wicked([100.0] * 15)
+    assert ss._long_high_context(ss._closes(bars)) is None
+
+
+def test_local_peak_can_sit_far_below_its_own_long_high():
+    """The GLW case: a name stalling near a 20-session high that is itself far
+    below where the name actually traded months ago. A `Local Peak` reads as
+    "at its high" unless this context travels with it -- this is the
+    regression test for exactly that misreading.
+
+    Built directly (not by reusing `_stage_bars_peak`'s own embedded uptrend --
+    layering that whole shape on top of a decline just re-climbs past the
+    original peak, defeating the point): a genuine multi-month peak, a real
+    decline, then a plateau-and-small-dip at the post-decline level. The
+    decline alone leaves enough residual weight in the trailing 200-day
+    average that price still clears both SMA50 and SMA200 by the end, without
+    a second independent climb.
+    """
+    real_peak = _noisy_trend(60.0, 0.5, 0.5, 180)
+    decline = _noisy_trend(real_peak[-1], -0.35, 0.3, 50)[1:]
+    base = decline[-1]
+    plateau = [base] * 45
+    dip = [base * 0.96, base * 0.95, base * 0.96, base * 0.965, base * 1.001]
+    closes = real_peak + decline + plateau + dip
+    bars = _wicked(closes, wick_pct=1.0)
+
+    a = _indicators_for({"A": bars})["A"]
+    stage = ss._name_cycle_stage(ss._closes(bars), a)
+    ctx = ss._long_high_context(ss._closes(bars))
+
+    assert stage == "Local Peak"
+    # The whole point: a real, double-digit-percent gap between "near its
+    # 20-session high" (true, by construction of the Local Peak shape) and
+    # "near its 52-week high" (false -- it peaked and fell first).
+    assert ctx["pct_from_high"] < -10.0
+
+
+def test_cycle_stages_includes_long_high_context_per_symbol():
+    group = {"A": _stage_bars_extended()}
+    out = ss.cycle_stages(group, _indicators_for(group))
+    assert "long_high" in out
+    assert out["long_high"]["A"]["window_sessions"] == ss.LONG_HIGH_WINDOW_SESSIONS
 
 
 def test_stage_correction_is_below_sma50_but_still_above_sma200():
     bars = _stage_bars_correction()
     a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(bars, a) == "Correction"
+    assert ss._name_cycle_stage(ss._closes(bars), a) == "Correction"
 
 
 def test_stage_bottoming_is_below_both_averages():
     bars = _stage_bars_bottoming()
     a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(bars, a) == "Bottoming"
+    assert ss._name_cycle_stage(ss._closes(bars), a) == "Bottoming"
 
 
 def test_stage_recovery_is_above_sma50_but_still_below_sma200():
     bars = _stage_bars_recovery()
     a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(bars, a) == "Recovery"
+    assert ss._name_cycle_stage(ss._closes(bars), a) == "Recovery"
 
 
 def test_stage_is_none_when_history_is_too_short():
     bars = _wicked([100.0] * 25)
     a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(bars, a) is None
+    assert ss._name_cycle_stage(ss._closes(bars), a) is None
 
 
 def test_cycle_stages_group_label_is_the_most_common_stage():
@@ -442,7 +503,7 @@ def test_cycle_stages_group_label_is_the_most_common_stage():
     out = ss.cycle_stages(group, _indicators_for(group))
     assert out["group_label"] == "Extended/Uptrend"
     assert out["counts"]["Extended/Uptrend"] == 2
-    assert out["counts"]["Peak"] == 1
+    assert out["counts"]["Local Peak"] == 1
     assert out["n_classified"] == 3
     assert out["unclassified"] == []
 
@@ -455,7 +516,7 @@ def test_cycle_stages_reports_a_tie_rather_than_inventing_a_winner():
     out = ss.cycle_stages(group, _indicators_for(group))
     assert " / " in out["group_label"]
     assert "Extended/Uptrend" in out["group_label"]
-    assert "Peak" in out["group_label"]
+    assert "Local Peak" in out["group_label"]
 
 
 def test_cycle_stages_excludes_short_history_names_from_the_label():
