@@ -334,175 +334,227 @@ def _noisy_trend(start: float, drift_pct: float, amp_pct: float, n: int) -> list
     return c
 
 
-# Six fixtures, one per cycle stage, each verified numerically against
-# `_name_cycle_stage` before being written here -- see the PR description for
-# the derivation. Every one uses `_noisy_trend` for realistic RSI behavior
-# rather than a flat base.
+# ---- cycle stage: drawdown from peak + rally off trough ------------------------
+#
+# The rule is built on the standard definitions of these words, not on
+# indicators: 10-20% off a peak is a correction, past 20% is a bear market,
+# +20% off a trough starts a new bull market. `_cycle_closes` builds a close
+# series with an exact drawdown, off-low, and recent move so each band can be
+# tested at its real threshold.
 
-def _stage_bars_extended() -> list[dict]:
-    """Steady climb throughout: above both averages, SMA50 rising, RSI moderate."""
-    return _wicked(_noisy_trend(60.0, 0.15, 0.5, 260), wick_pct=1.0)
+def _cycle_closes(peak: float, trough: float, last: float, move_pct: float,
+                  trough_first: bool = True, total_len: int = 252) -> list[float]:
+    """A close series with an exact peak, trough, final close, and recent move.
 
-
-def _stage_bars_euphoria() -> list[dict]:
-    """A steady climb that accelerates sharply in the final month."""
-    base = _noisy_trend(60.0, 0.15, 0.5, 240)
-    tail = _noisy_trend(base[-1], 1.5, 0.5, 21)[1:]
-    return _wicked(base + tail, wick_pct=1.0)
-
-
-def _stage_bars_peak() -> list[dict]:
-    """An uptrend, a plateau (SMA50 catches up to price), then a small dip with
-    a partial recovery -- enough to flip SMA50's own recent slope negative
-    without pulling price back below it. This is the mathematically narrow
-    case: price above SMA50 while SMA50 itself has just started rolling over,
-    which for a 50-day average fed by a long prior uptrend requires the last
-    few days to retrace toward -- not through -- the average, not a simple
-    proportional decline (which flips both conditions at once, landing on
-    Correction instead)."""
-    uptrend = _noisy_trend(60.0, 0.2, 0.4, 180)
-    peak_level = uptrend[-1]
-    plateau = [peak_level] * 45
-    dip = [peak_level * 0.96, peak_level * 0.95, peak_level * 0.96,
-           peak_level * 0.965, peak_level * 1.001]
-    return _wicked(uptrend + plateau + dip, wick_pct=1.0)
-
-
-def _stage_bars_correction() -> list[dict]:
-    """An uptrend, then a real recent decline -- below SMA50, still above SMA200."""
-    base = _noisy_trend(60.0, 0.15, 0.5, 240)
-    tail = _noisy_trend(base[-1], -0.5, 0.3, 20)[1:]
-    return _wicked(base + tail, wick_pct=1.0)
-
-
-def _stage_bars_bottoming() -> list[dict]:
-    """An uptrend, then a long decline -- below both averages."""
-    base = _noisy_trend(60.0, 0.15, 0.5, 200)
-    tail = _noisy_trend(base[-1], -0.3, 0.3, 61)[1:]
-    return _wicked(base + tail, wick_pct=1.0)
-
-
-def _stage_bars_recovery() -> list[dict]:
-    """An uptrend, a long decline (drags SMA200 down), then a real bounce that
-    reclaims SMA50 while SMA200 is still well above price."""
-    base = _noisy_trend(60.0, 0.15, 0.5, 200)
-    decline = _noisy_trend(base[-1], -0.25, 0.3, 221)[1:]
-    bounce = _noisy_trend((base + decline)[-1], 0.8, 0.3, 21)[1:]
-    return _wicked(base + decline + bounce, wick_pct=1.0)
-
-
-def test_stage_extended_uptrend_above_both_averages_sma50_rising_not_extreme():
-    bars = _stage_bars_extended()
-    a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(ss._closes(bars), a) == "Extended/Uptrend"
-
-
-def test_stage_euphoria_peak_needs_extension_or_overbought_near_a_high():
-    bars = _stage_bars_euphoria()
-    a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(ss._closes(bars), a) == "Local Euphoria/Peak"
-
-
-def test_stage_peak_is_near_the_high_but_sma50_has_rolled_over():
-    bars = _stage_bars_peak()
-    a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(ss._closes(bars), a) == "Local Peak"
-
-
-# ---- long_high context ---------------------------------------------------------
-
-def test_long_high_context_reports_the_full_window_when_history_allows():
-    bars = _stage_bars_extended()   # 260 sessions, well over the 252-session window
-    ctx = ss._long_high_context(ss._closes(bars))
-    assert ctx["window_sessions"] == ss.LONG_HIGH_WINDOW_SESSIONS
-    assert ctx["pct_from_high"] <= 0
-
-
-def test_long_high_context_uses_whatever_history_is_actually_available():
-    """A name with less than 52 weeks of history must not silently claim one."""
-    bars = _wicked([100.0] * 40)
-    ctx = ss._long_high_context(ss._closes(bars))
-    assert ctx["window_sessions"] == 40
-
-
-def test_long_high_context_is_none_below_the_minimum_history():
-    bars = _wicked([100.0] * 15)
-    assert ss._long_high_context(ss._closes(bars)) is None
-
-
-def test_local_peak_can_sit_far_below_its_own_long_high():
-    """The GLW case: a name stalling near a 20-session high that is itself far
-    below where the name actually traded months ago. A `Local Peak` reads as
-    "at its high" unless this context travels with it -- this is the
-    regression test for exactly that misreading.
-
-    Built directly (not by reusing `_stage_bars_peak`'s own embedded uptrend --
-    layering that whole shape on top of a decline just re-climbs past the
-    original peak, defeating the point): a genuine multi-month peak, a real
-    decline, then a plateau-and-small-dip at the post-decline level. The
-    decline alone leaves enough residual weight in the trailing 200-day
-    average that price still clears both SMA50 and SMA200 by the end, without
-    a second independent climb.
+    `trough_first` puts the trough earlier in the window than the peak (the
+    normal "ran up, then fell" shape); False puts the peak first, so the
+    trough is the more recent extreme -- the shape that separates a name
+    recovering off a fresh bottom from one still sliding away from an old top.
     """
-    real_peak = _noisy_trend(60.0, 0.5, 0.5, 180)
-    decline = _noisy_trend(real_peak[-1], -0.35, 0.3, 50)[1:]
-    base = decline[-1]
-    plateau = [base] * 45
-    dip = [base * 0.96, base * 0.95, base * 0.96, base * 0.965, base * 1.001]
-    closes = real_peak + decline + plateau + dip
-    bars = _wicked(closes, wick_pct=1.0)
-
-    a = _indicators_for({"A": bars})["A"]
-    stage = ss._name_cycle_stage(ss._closes(bars), a)
-    ctx = ss._long_high_context(ss._closes(bars))
-
-    assert stage == "Local Peak"
-    # The whole point: a real, double-digit-percent gap between "near its
-    # 20-session high" (true, by construction of the Local Peak shape) and
-    # "near its 52-week high" (false -- it peaked and fell first).
-    assert ctx["pct_from_high"] < -10.0
+    tail_len = ss.RECENT_MOVE_WINDOW_SESSIONS + 1
+    anchor = last / (1 + move_pct / 100.0)          # becomes closes[-1 - window]
+    tail = [anchor + (last - anchor) * i / (tail_len - 1) for i in range(tail_len)]
+    extremes = [trough, peak] if trough_first else [peak, trough]
+    mid = (peak + trough) / 2.0
+    body = extremes + [mid] * (total_len - tail_len - 2)
+    return body + tail
 
 
-def test_cycle_stages_includes_long_high_context_per_symbol():
-    group = {"A": _stage_bars_extended()}
-    out = ss.cycle_stages(group, _indicators_for(group))
-    assert "long_high" in out
-    assert out["long_high"]["A"]["window_sessions"] == ss.LONG_HIGH_WINDOW_SESSIONS
+def _stage_of(peak: float, trough: float, last: float, move_pct: float,
+              trough_first: bool = True) -> str:
+    ctx = ss._cycle_context(_cycle_closes(peak, trough, last, move_pct, trough_first))
+    return ss._name_cycle_stage(ctx)
 
 
-def test_stage_correction_is_below_sma50_but_still_above_sma200():
-    bars = _stage_bars_correction()
-    a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(ss._closes(bars), a) == "Correction"
+def test_stage_within_ten_percent_of_the_peak_and_advancing_is_an_uptrend():
+    """Not yet a correction by the standard definition, and still moving up."""
+    assert _stage_of(peak=100, trough=50, last=95, move_pct=10) == "Extended/Uptrend"
 
 
-def test_stage_bottoming_is_below_both_averages():
-    bars = _stage_bars_bottoming()
-    a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(ss._closes(bars), a) == "Bottoming"
+def test_stage_within_ten_percent_of_the_peak_but_stalled_is_a_local_peak():
+    """The distribution phase: near the peak, no longer advancing."""
+    assert _stage_of(peak=100, trough=50, last=95, move_pct=1) == "Local Peak"
 
 
-def test_stage_recovery_is_above_sma50_but_still_below_sma200():
-    bars = _stage_bars_recovery()
-    a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(ss._closes(bars), a) == "Recovery"
+def test_stage_at_a_fresh_peak_still_advancing_hard_is_euphoria():
+    assert _stage_of(peak=100, trough=50, last=100, move_pct=20) == "Local Euphoria/Peak"
 
 
-def test_stage_is_none_when_history_is_too_short():
-    bars = _wicked([100.0] * 25)
-    a = _indicators_for({"A": bars})["A"]
-    assert ss._name_cycle_stage(ss._closes(bars), a) is None
+def test_stage_at_a_fresh_peak_without_the_advance_is_not_euphoria():
+    """Sitting at a high is not the same as running into one."""
+    assert _stage_of(peak=100, trough=50, last=100, move_pct=1) == "Local Peak"
+
+
+def test_stage_ten_to_twenty_percent_off_the_peak_is_a_correction():
+    """The textbook definition, and the reason this threshold is not invented:
+    a 10-20% decline from a recent peak is what "correction" means."""
+    assert _stage_of(peak=100, trough=50, last=85, move_pct=-5) == "Correction"
+    assert _stage_of(peak=100, trough=50, last=82, move_pct=+2) == "Correction"
+
+
+def test_stage_just_inside_ten_percent_is_not_yet_a_correction():
+    """Under 10% is noise, not a correction -- the same convention's other side."""
+    assert _stage_of(peak=100, trough=50, last=95, move_pct=-1) == "Local Peak"
+
+
+def test_stage_past_twenty_percent_off_the_peak_and_still_falling_is_a_correction():
+    """The read the moving-average version got wrong for FN: down 45% and
+    still dropping 29% in a month is mid-decline, not a base forming."""
+    assert _stage_of(peak=100, trough=50, last=55, move_pct=-29) == "Correction"
+
+
+def test_stage_past_twenty_percent_off_the_peak_and_no_longer_falling_is_bottoming():
+    """GLW's case: a deep drawdown that has gone quiet. Bottoming describes
+    where it is without claiming it turns up from here."""
+    assert _stage_of(peak=100, trough=50, last=64, move_pct=-2) == "Bottoming"
+
+
+def test_stage_twenty_percent_off_a_newer_trough_is_a_recovery():
+    """+20% off the low is the standard new-bull trigger. It only applies when
+    the trough is the *more recent* extreme -- otherwise a name sliding away
+    from an old top would read as recovering off a year-old low."""
+    assert _stage_of(peak=100, trough=50, last=65, move_pct=+12,
+                     trough_first=False) == "Recovery"
+
+
+def test_stage_a_stale_low_does_not_manufacture_a_recovery():
+    """Same drawdown and same rally off the low, but the peak came last -- the
+    name is below an old top, not climbing off a fresh bottom. This is the
+    distinction `trough_is_newer` exists for; without it GLW, up 120% off a
+    year-old low, would have read as "Recovery" while 36% below its peak."""
+    assert _stage_of(peak=100, trough=50, last=65, move_pct=-2,
+                     trough_first=True) == "Bottoming"
+
+
+def test_recency_uses_the_last_occurrence_of_each_extreme():
+    """A name that retests its low after peaking has the *newer* trough.
+
+    `list.index()` returns the first match, which is the wrong semantic here:
+    with the low hit early, a peak after it, and the same low retested later,
+    first-occurrence logic reports the trough as the older extreme and the
+    name loses its Recovery classification. The fixtures built by
+    `_cycle_closes` seed each extreme exactly once, so they cannot reach this
+    -- hence the hand-built double bottom.
+    """
+    closes = ([50.0, 100.0] + [75.0] * 180 + [50.0] * 5
+              + [55.0 + i * 0.5 for i in range(1, 22)])
+    ctx = ss._cycle_context(closes)
+    assert ctx["trough_is_newer"] is True, "the retested low is the newer extreme"
+    # Deep drawdown plus a real rally off that newer low is a Recovery, not a base.
+    assert ctx["drawdown_pct"] < -ss.BEAR_DRAWDOWN_PCT
+    assert ctx["off_low_pct"] >= ss.NEW_BULL_OFF_LOW_PCT
+    assert ss._name_cycle_stage(ctx) == "Recovery"
+
+
+def test_recency_holds_when_the_peak_is_the_repeated_extreme():
+    """The mirror case: a peak set early, retested late, with the trough
+    between them -- the peak is the newer extreme and must not read as older."""
+    closes = ([100.0, 50.0] + [75.0] * 180 + [100.0] * 5
+              + [95.0 - i * 0.2 for i in range(1, 22)])
+    ctx = ss._cycle_context(closes)
+    assert ctx["trough_is_newer"] is False
+
+
+def test_euphoria_survives_a_small_pullback_from_the_exact_peak():
+    """A blow-off top that ticks down a day is still the same advance.
+
+    Requiring the close to be exactly the window maximum made this stage fire
+    only on days that set a fresh 252-session high; a 1% pullback disqualified
+    it entirely.
+    """
+    assert _stage_of(peak=100, trough=50, last=99, move_pct=20) == "Local Euphoria/Peak"
+
+
+def test_euphoria_does_not_extend_past_the_stated_tolerance():
+    """The tolerance is a small allowance, not a loophole -- 5% off the peak is
+    outside it, so the same strong advance reads as an uptrend instead."""
+    assert _stage_of(peak=100, trough=50, last=95, move_pct=20) == "Extended/Uptrend"
+
+
+def test_a_zero_close_is_reported_unclassified_not_a_crash():
+    """A zero close is a feed defect. Dividing by it would fail the whole
+    group's scorecard rather than one name."""
+    assert ss._cycle_context([0.0] * 30) is None
+
+
+def test_stage_rule_uses_no_moving_averages_or_oscillators():
+    """The redesign's whole point: the stage comes from prices against a
+    name's own peak and trough, nothing else.
+
+    Whole-word matching, not substring: "version" contains "rsi", and a
+    substring check flagged the docstring rather than any real indicator use.
+    """
+    import inspect
+    import re
+    src = (inspect.getsource(ss._name_cycle_stage)
+           + inspect.getsource(ss._cycle_context)).lower()
+    for banned in ("sma", "ema", "rsi", "macd", "indicators", "sma50", "sma200"):
+        assert not re.search(rf"\b{banned}\b", src), \
+            f"{banned!r} leaked back into the stage rule"
+
+
+def test_standard_thresholds_match_the_published_convention():
+    """These three are the industry-standard numbers, not tuning knobs -- if
+    someone changes them the rule stops meaning what its labels claim."""
+    assert ss.CORRECTION_DRAWDOWN_PCT == 10.0
+    assert ss.BEAR_DRAWDOWN_PCT == 20.0
+    assert ss.NEW_BULL_OFF_LOW_PCT == 20.0
+
+
+# ---- cycle context ---------------------------------------------------------------
+
+def test_cycle_context_reports_drawdown_and_rally_off_the_low():
+    ctx = ss._cycle_context(_cycle_closes(peak=100, trough=50, last=75, move_pct=0))
+    assert abs(ctx["drawdown_pct"] - (-25.0)) < 1e-6
+    assert abs(ctx["off_low_pct"] - 50.0) < 1e-6
+
+
+def test_cycle_context_tracks_which_extreme_came_last():
+    newer_trough = ss._cycle_context(
+        _cycle_closes(peak=100, trough=50, last=75, move_pct=0, trough_first=False))
+    older_trough = ss._cycle_context(
+        _cycle_closes(peak=100, trough=50, last=75, move_pct=0, trough_first=True))
+    assert newer_trough["trough_is_newer"] is True
+    assert older_trough["trough_is_newer"] is False
+
+
+def test_cycle_context_reports_the_full_window_when_history_allows():
+    ctx = ss._cycle_context(_cycle_closes(100, 50, 75, 0, total_len=300))
+    assert ctx["window_sessions"] == ss.LONG_HIGH_WINDOW_SESSIONS
+
+
+def test_cycle_context_uses_whatever_history_is_actually_available():
+    """A name with less than 52 weeks of history must not silently claim one."""
+    assert ss._cycle_context([100.0] * 40)["window_sessions"] == 40
+
+
+def test_cycle_context_is_none_below_the_minimum_history():
+    assert ss._cycle_context([100.0] * ss.RECENT_MOVE_WINDOW_SESSIONS) is None
+
+
+def test_cycle_context_on_a_flat_series_is_all_zeroes_not_a_crash():
+    ctx = ss._cycle_context([100.0] * 60)
+    assert ctx["drawdown_pct"] == 0.0
+    assert ctx["off_low_pct"] == 0.0
+    assert ctx["move_pct"] == 0.0
+
+
+# ---- cycle_stages assembly -------------------------------------------------------
+
+def _bars_for(peak: float, trough: float, last: float, move_pct: float,
+              trough_first: bool = True) -> list[dict]:
+    return _bars(_cycle_closes(peak, trough, last, move_pct, trough_first))
 
 
 def test_cycle_stages_group_label_is_the_most_common_stage():
     group = {
-        "A": _stage_bars_extended(),
-        "B": _stage_bars_extended(),
-        "C": _stage_bars_peak(),
+        "A": _bars_for(100, 50, 85, -5),    # Correction
+        "B": _bars_for(100, 50, 85, -5),    # Correction
+        "C": _bars_for(100, 50, 95, 1),     # Local Peak
     }
-    out = ss.cycle_stages(group, _indicators_for(group))
-    assert out["group_label"] == "Extended/Uptrend"
-    assert out["counts"]["Extended/Uptrend"] == 2
+    out = ss.cycle_stages(group)
+    assert out["group_label"] == "Correction"
+    assert out["counts"]["Correction"] == 2
     assert out["counts"]["Local Peak"] == 1
     assert out["n_classified"] == 3
     assert out["unclassified"] == []
@@ -510,37 +562,45 @@ def test_cycle_stages_group_label_is_the_most_common_stage():
 
 def test_cycle_stages_reports_a_tie_rather_than_inventing_a_winner():
     group = {
-        "A": _stage_bars_extended(),
-        "B": _stage_bars_peak(),
+        "A": _bars_for(100, 50, 85, -5),    # Correction
+        "B": _bars_for(100, 50, 95, 1),     # Local Peak
     }
-    out = ss.cycle_stages(group, _indicators_for(group))
+    out = ss.cycle_stages(group)
     assert " / " in out["group_label"]
-    assert "Extended/Uptrend" in out["group_label"]
+    assert "Correction" in out["group_label"]
     assert "Local Peak" in out["group_label"]
+
+
+def test_cycle_stages_includes_context_per_symbol():
+    group = {"A": _bars_for(100, 50, 75, 0)}
+    out = ss.cycle_stages(group)
+    assert "context" in out
+    assert abs(out["context"]["A"]["drawdown_pct"] - (-25.0)) < 1e-6
+    assert out["context"]["A"]["window_sessions"] == ss.LONG_HIGH_WINDOW_SESSIONS
 
 
 def test_cycle_stages_excludes_short_history_names_from_the_label():
     group = {
-        "A": _stage_bars_extended(),
-        "SHORT": _wicked([100.0] * 25),
+        "A": _bars_for(100, 50, 85, -5),
+        "SHORT": _bars([100.0] * 10),
     }
-    out = ss.cycle_stages(group, _indicators_for(group))
+    out = ss.cycle_stages(group)
     assert out["unclassified"] == ["SHORT"]
     assert out["n_classified"] == 1
-    assert out["group_label"] == "Extended/Uptrend"
+    assert out["group_label"] == "Correction"
+    assert out["context"]["SHORT"] is None
 
 
 def test_cycle_stages_group_label_is_none_when_nothing_is_classifiable():
-    group = {"SHORT": _wicked([100.0] * 25)}
-    out = ss.cycle_stages(group, _indicators_for(group))
+    out = ss.cycle_stages({"SHORT": _bars([100.0] * 10)})
     assert out["group_label"] is None
     assert out["unclassified"] == ["SHORT"]
 
 
 def test_compute_sector_scorecard_includes_cycle_stages():
-    group = {"A": _stage_bars_extended()}
+    group = {"A": _bars_for(100, 50, 85, -5)}
     out = ss.compute_sector_scorecard(group, _trend(100, 0.1, 260))
-    assert out["cycle_stages"]["group_label"] == "Extended/Uptrend"
+    assert out["cycle_stages"]["group_label"] == "Correction"
 
 
 def _main() -> int:

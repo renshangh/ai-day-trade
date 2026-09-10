@@ -696,63 +696,77 @@ to have.
 
 #### Cycle stage -- the one exception, and why it is handled differently
 
-Below the tiles is a panel classifying each constituent into one of six
-technical cycle stages, in the order the wheel actually turns:
+Below the tiles is a panel classifying each constituent into one of six cycle
+stages, in the order the wheel turns:
 
 ```
 Local Peak -> Correction -> Bottoming -> Recovery -> Extended/Uptrend -> Local Euphoria/Peak -> (back to Local Peak)
 ```
 
-This **is** a classification, not a raw measurement -- it combines each name's
-own price versus its 50/200-day averages, whether the 50-day average itself is
-rising, RSI, and distance from its recent high into one label. That is a real
-departure from every other number on this view, so it earns different
-treatment rather than being dressed up as another fact tile:
+This **is** a classification, not a raw measurement -- it turns several numbers
+into one label. That is a real departure from every other number on this view,
+so it earns different treatment rather than being dressed up as another fact
+tile.
 
-- **The exact rule is disclosed, not hidden behind a label.** `Local Peak` and
-  `Correction` and the rest are Weinstein-style stage-analysis reads of a
-  name's own trend structure -- above/below its own averages, whether the
-  short average is still rising -- not a proprietary score. `Local Peak` and
-  `Local Euphoria/Peak` are adjacent, not synonyms: `Local Euphoria/Peak` is a
-  top still accelerating into an extreme (RSI or extension past a named
-  threshold, near a fresh high); `Local Peak` is that same top once the
-  50-day average has visibly rolled over. The thresholds live as named
-  constants in `sector_signals.py` (`EUPHORIA_RSI`, `EUPHORIA_EXTENSION_PCT`,
-  `EUPHORIA_NEAR_HIGH_PCT`, `PEAK_NEAR_HIGH_PCT`, `SMA50_SLOPE_LOOKBACK`) so
-  they can be found and argued with, not buried in a rule nobody can see.
-- **"Local" is in the name on purpose, and every name's distance from its own
-  longest-available high travels with the label.** Both peak stages are read
-  off a 20-session (~1 month) high, not a 52-week one. A name can be a `Local
-  Peak` while sitting 30%+ below its own 52-week high -- it made a real high
-  months ago, corrected hard, and is now stalling inside a much smaller
-  recent range that just happens to be rolling over again. `GLW` is exactly
-  this case: classified `Local Peak` while sitting **36% below** the high it
-  set three months earlier. The panel appends each name's gap from its
-  longest-available high (`long_high` in the API response, `window_sessions`
-  capped at `LONG_HIGH_WINDOW_SESSIONS` and reported honestly when less
-  history exists) to every name in the breakdown, not only the two peak
-  stages -- a `Bottoming` or `Correction` name is just as often nowhere near
-  its old high, and hiding that context there would be the identical mistake
-  in the other direction.
-- **No benchmark, on purpose.** Every other metric on this view measures
-  against SPY or the group's own ETF; the stage read does not, because a
-  name's own price-versus-its-own-trend structure is what stage analysis
-  measures, and requiring a benchmark here would tie the classification to a
-  choice (which benchmark) that has nothing to do with the shape of its
-  chart.
-- **The group label is the most common stage among constituents, not an
-  average, and a tie is reported as a tie.** Six stages have no natural
-  numeric mean, and forcing a single winner out of, say, 4 `Correction` and 4
-  `Bottoming` would assert a consensus that does not exist. The breakdown
-  underneath the label -- a count and the actual names, per stage -- is what
-  keeps a mixed group from reading as false agreement.
-- **A name needs enough history to classify.** SMA200, RSI14, and a 20-session
-  high all need real data; a constituent without it is reported as
-  unclassified, never guessed into a stage.
-- **Still not a forecast.** Naming a name `Bottoming` says its price sits below
-  both of its own moving averages -- a fact about where it is, not a
-  prediction that it turns up from here. Nothing about the classification
-  claims to know what a name does next.
+**The thresholds are the published ones, not numbers this desk invented.** An
+earlier version of this classifier used moving-average positions (price vs
+SMA50/SMA200, whether SMA50 was rising) with hand-picked cutoffs. It produced
+a genuinely wrong read -- `GLW`, sitting 36% below the high it set three months
+earlier, was labelled a "Peak" -- and the cutoffs behind it were defensible-
+sounding but arbitrary. The rule now rests on the definitions these words
+already have in the industry:
+
+| Threshold | Meaning | Source |
+|---|---|---|
+| **10%** off the peak | Below this is noise; 10-20% is a **correction** | The 10/20 split traces to Alan Shaw at Smith Barney; still the definition used by [Morningstar](https://www.morningstar.com/markets/whats-difference-between-bear-market-correction), [Schwab](https://www.schwab.com/learn/story/market-correction-what-does-it-mean), and [Fisher](https://www.fisherinvestments.com/en-us/resource-library/market-cycles/bear-markets) |
+| **20%** off the peak | Past this is a **bear market** | Same convention |
+| **+20%** off the trough | What starts a **new bull market** | The other half of the same convention ([U.S. Bank](https://www.usbank.com/financialiq/invest-your-money/market-perspectives/bull-market-to-bear-market.html)) |
+
+The rule, in order, over four numbers taken straight off closing prices
+(drawdown from the name's own peak, rally off its own trough, which extreme
+came last, and its return over the last month):
+
+| Condition | Stage |
+|---|---|
+| Within 10% of its peak, at a fresh peak, up 15%+ in a month | `Local Euphoria/Peak` |
+| Within 10% of its peak, advance stalled | `Local Peak` |
+| Within 10% of its peak, still advancing | `Extended/Uptrend` |
+| 10-20% off its peak | `Correction` |
+| Past 20% off its peak, but +20% off a **newer** trough | `Recovery` |
+| Past 20% off its peak, still falling hard | `Correction` |
+| Past 20% off its peak, no longer falling | `Bottoming` |
+
+Design notes worth keeping:
+
+- **No moving averages, no oscillators, no benchmark.** Only closing prices
+  against a name's own peak and trough. `test_stage_rule_uses_no_moving_averages_or_oscillators`
+  asserts this by inspecting the rule's own source, so an indicator cannot
+  quietly reappear in it.
+- **Which extreme came last matters.** A name 40% below a peak set last month
+  is falling; the same 40% gap with the trough more recent means it already
+  bottomed and is climbing. The drawdown alone cannot tell those apart, so
+  `Recovery` additionally requires the trough to be the newer extreme --
+  without that, `GLW`, up 120% off a year-old low while 36% below its peak,
+  would read as "Recovery".
+- **"Still falling" beats "near the low".** A name down 45% and still dropping
+  29% in a month is mid-decline, not a base forming, however close to its low
+  it sits. This is the split the moving-average version got wrong for `FN`.
+- **Two numbers have no published standard**, and are labelled as such in the
+  code: what counts as a stalled advance near a peak (`STALL_MOVE_PCT`) and
+  what counts as still falling (`STILL_FALLING_PCT`). The literature describes
+  the distribution phase only qualitatively -- "sideways and range-bound after
+  an extended uptrend" -- so these are this desk's operationalization of that
+  sentence rather than a convention anyone else shares.
+- **The group label is the most common stage, and a tie is reported as a tie.**
+  Six stages have no numeric mean; forcing a winner out of 4 `Correction` and 4
+  `Bottoming` would assert a consensus that does not exist.
+- **A name needs enough history to classify** (`RECENT_MOVE_WINDOW_SESSIONS + 1`
+  sessions) and is otherwise reported unclassified, never guessed. The window
+  the peak and trough come from is reported per name, so a name without a full
+  52 weeks does not silently claim one.
+- **Still not a forecast.** `Bottoming` says a name is well off its peak and no
+  longer falling -- where it is, not that it turns up from here.
+
 
 ### Indicators
 
@@ -802,7 +816,7 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/cycle` | The cycle log (every review, oldest first, totals derived from the scores), the rubric parsed from the framework document, the bands, and any file warnings. Never cached. |
 | `POST /api/cycle` | Write one review (JSON: `review_date`, `scores`, `core_question`, `assumption_changed`, `notes`), replacing a row with the same date. Returns the rebuilt payload, or 400 with the reason. |
 | `GET /api/sector?group=X&benchmark=Y` | Leading-indicator scorecard for one universe.py group (`X` defaults to `DEFAULT_SECTOR_GROUP`; `benchmark` defaults to the group's own `etf`, then `SPY`). Cached like `/api/stock`; `?force=1` bypasses it. Unknown group returns `error` plus `available_groups`. |
-| — | The same response also carries `cycle_stages`: per-name technical cycle stage, each name's distance from its own longest-available high (`long_high`), a count per stage, and the group's majority label (ties reported as ties). See Sector scorecard → Cycle stage. |
+| — | The same response also carries `cycle_stages`: per-name cycle stage, each name's drawdown from its own peak, rally off its own trough, which extreme came last, and recent move (`context`), a count per stage, and the group's majority label (ties reported as ties). See Sector scorecard → Cycle stage. |
 | `GET /api/health` | Credential and cache status. |
 
 Board and per-symbol routes cache for 5 minutes; the review caches for 2 (it reuses
