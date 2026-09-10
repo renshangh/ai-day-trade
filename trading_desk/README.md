@@ -142,7 +142,7 @@ need a browser reload.
 
 | Section | What it shows |
 |---|---|
-| View tabs | Momentum / Reversal candidates / Earnings timing / Daily review / Cycle. The first two scope the hero, ranking, movers strip and table; the last three replace them. |
+| View tabs | Momentum / Reversal candidates / Earnings timing / Daily review / Cycle / Sector. The first two scope the hero, ranking, movers strip and table; the last four replace them. |
 | Lookback tabs | 1D–5D for momentum, 2D–5D for reversal. Scopes the whole board. |
 | Hottest group | Mean, median, breadth, vs SPY, and the ETF proxy return. |
 | Top reversal candidate | Prior decline, bounce, reversal breadth, vs SPY today, volume ratio. |
@@ -153,6 +153,7 @@ need a browser reload.
 | Earnings timing | Upcoming prints (including today's, before they land) with an uncertainty window, expected timing, 1-day and 1-week reaction stats, and held-position alerts. |
 | Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, and the journal's own recorded gaps. |
 | Cycle | The monthly AI data center cycle score: the latest GREEN / YELLOW / RED reading and total, the eight indicator scores against the criteria they were scored on, a trend of past reviews, the history table, and the form that writes the next review to the log. |
+| Sector | A scorecard of measured facts about one universe.py group's own recent price/volume history -- relative strength vs its benchmark (and whether that excess is widening or narrowing), breadth above its own moving averages, new highs/lows, participation, volatility, dispersion, and how many constituents sit near a level. Any group is selectable; nothing here is scored, banded, or turned into a call. See Sector scorecard below. |
 | Ranking table | The same board in text form — every value readable without color. |
 
 ### Company detail
@@ -631,6 +632,68 @@ None of it is market data, and the page says so on every render. What
   never answers. The body is capped at 64 KB. A validation error comes back as
   400 carrying the message the form shows.
 
+### Sector scorecard
+
+Cycle asks a hand-scored monthly question about the whole buildout thesis.
+Sector answers a different, faster one from data the desk already has: is
+whatever group you point it at actually leading or lagging right now, measured
+against its own recent history and a benchmark -- not against a target price
+or a rating.
+
+Every metric on the view is a `sector_signals.py` function over plain daily
+bars, computed live on every load (subject to the same `STOCK_TTL` cache as a
+single stock, keyed by group *and* benchmark so flipping between two
+benchmarks for one group cannot serve one's numbers back under the other's
+label):
+
+- **Relative strength** -- equal-weighted group return minus the benchmark's,
+  at 5/21/63 sessions, plus whether the 5-session excess is widening or
+  narrowing versus the 5 sessions before it. The trend is the point: a group
+  outperforming by a shrinking margin is a different fact than one
+  outperforming by a growing one, and the level alone does not distinguish
+  them.
+- **Breadth** -- the share of constituents above their own 20/50/200-day
+  average. Narrow breadth under a rising benchmark is the classic divergence;
+  this reports the number, not the divergence story.
+- **New highs / lows** -- constituents at a new 20-session extreme. Twenty
+  sessions, not 52 weeks: a 52-week extreme is rare enough that a 4-13 name
+  group would show zero on most days, which is not useful for something meant
+  to move with the tape.
+- **Participation** -- aggregate dollar volume, trailing 5 sessions against
+  trailing 20. Dollar volume, not share count, so one high-price low-share-count
+  name cannot be swamped by a cheap, heavily-traded one in the sum.
+- **Volatility** -- average ATR% now against 20 sessions ago. Expansion
+  precedes a resolution without saying which way it resolves.
+- **Dispersion** -- how much constituents moved together *today* versus their
+  own trailing-20-session norm, not against a fixed universal threshold. A
+  ratio under 1 means today was driven by something shared across the whole
+  group -- a rate move, a sector-wide print -- rather than any one name's own
+  news; a ratio near or above 1 means the day was closer to normal, name-by-name
+  dispersion. This is the computed, generic version of a question that comes up
+  by hand in the Daily review whenever every held position moves the same way
+  on the same day.
+- **At a level** -- constituents currently within `LEVEL_PROXIMITY_ATR` of a
+  support or resistance, the same proximity the Daily review's `at_support` /
+  `at_resistance` flags use, applied across the whole group instead of one
+  position.
+
+Every group `universe.py` knows is selectable from the dropdown, sector or
+theme alike -- nothing here is written for one sector specifically. The
+benchmark resolves in order: an explicit `?benchmark=` query param, then the
+group's own `etf` field (`SMH` for Semiconductors, `XLK` for Technology), then
+`SPY` for a theme group with no ETF of its own (`AI Optical / Interconnect`,
+`AI Power / Datacenter Buildout`). `DEFAULT_SECTOR_GROUP` in `server.py` is
+which group loads before a client picks one -- currently the one this view was
+built to look at, and a plain constant to update by hand on the rare occasion
+the desk's answer to "which theme matters most" actually changes, rather than
+anything the server tries to detect on its own.
+
+As with every other flag on this desk: **these are facts about the group's own
+history, not a score, a rank, or a call on direction.** A dashboard that
+combined relative strength, breadth, and dispersion into one number would be
+manufacturing a composite edge none of these measurements individually claims
+to have.
+
 ### Indicators
 
 Overlays: SMA 20 / 50 / 200, VWAP 20 (rolling), Bollinger Bands (20, 2σ),
@@ -678,6 +741,7 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/review` | Per-holding review: levels, downside to support, risk to the managed stop, theme exposure, journal gaps, up to three headlines per reviewed holding, and the latest hand-entered cycle score. `?force=1` rebuilds. |
 | `GET /api/cycle` | The cycle log (every review, oldest first, totals derived from the scores), the rubric parsed from the framework document, the bands, and any file warnings. Never cached. |
 | `POST /api/cycle` | Write one review (JSON: `review_date`, `scores`, `core_question`, `assumption_changed`, `notes`), replacing a row with the same date. Returns the rebuilt payload, or 400 with the reason. |
+| `GET /api/sector?group=X&benchmark=Y` | Leading-indicator scorecard for one universe.py group (`X` defaults to `DEFAULT_SECTOR_GROUP`; `benchmark` defaults to the group's own `etf`, then `SPY`). Cached like `/api/stock`; `?force=1` bypasses it. Unknown group returns `error` plus `available_groups`. |
 | `GET /api/health` | Credential and cache status. |
 
 Board and per-symbol routes cache for 5 minutes; the review caches for 2 (it reuses
@@ -728,11 +792,14 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `research/split_study.py` | Split-event counts and pre-split return study (see Split events) |
+| `sector_signals.py` | Sector scorecard math: relative strength, breadth, new highs/lows, participation, volatility, dispersion, level proximity. Pure functions over bars, no I/O |
 | `cycle.py` | Cycle score log: read, validate and write `cycle-score.csv`; parse the framework document for the rubric |
 | `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | The framework the Cycle view scores against: eight 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
 | `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
 | `tests/test_cycle.py` | Cycle log rules (blank stays blank, strict writes, tolerant reads), document/template/code agreement, POST validation |
+| `tests/test_sector_signals.py` | Sector scorecard math on synthetic bars: relative strength, breadth, new highs/lows, participation, volatility, dispersion, level proximity |
+| `tests/test_sector_route.py` | `/api/sector` benchmark resolution (own etf, fallback, override), missing-constituent handling, cache keying and TTL, error-not-raised |
 | `tests/test_ports.py` | Per-branch port mapping, HEAD parsing, launcher agreement, stale-server detection |
 
 ## Tests
@@ -741,6 +808,8 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 python3 trading_desk/tests/test_reversal.py       # no pytest needed
 python3 trading_desk/tests/test_review.py         # daily review
 python3 trading_desk/tests/test_cycle.py          # cycle score log and rubric
+python3 trading_desk/tests/test_sector_signals.py # sector scorecard math
+python3 trading_desk/tests/test_sector_route.py   # sector scorecard route
 python3 trading_desk/tests/test_ports.py          # port pinning
 python3 -m pytest trading_desk/tests/             # or under pytest
 ```

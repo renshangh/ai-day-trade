@@ -52,6 +52,15 @@ optical and electrical suppliers' own calls. Where the desk does help:
   for owning it still holds. A position can be sitting on support with the
   thesis GREEN, or well above its levels with the thesis RED. Read the two
   together; neither replaces the other.
+- **The Sector view is the third leg, and a different kind of input than this
+  one.** Every score below is hand-entered from primary sources this dashboard
+  cannot fetch -- capex guidance, backlog, interconnection filings. The
+  Sector view computes its own facts live from bars alone: relative strength,
+  breadth, dispersion, participation, for `AI Optical / Interconnect` or any
+  other `universe.py` group. It cannot see a hyperscaler's capex guidance and
+  this framework cannot see today's breadth -- reading them together answers
+  more than either does alone, but neither is a substitute input for the
+  other's score.
 - **The review shows this score.** So the two are read together by default, the
   Daily review carries a thesis strip at the top with the latest logged status,
   total, the date it was scored, and how long ago. It is read back from the log
