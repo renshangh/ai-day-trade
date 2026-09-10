@@ -958,9 +958,73 @@ function renderSector() {
       `of ${lvl.n || 0} names, within ${LEVEL_PROXIMITY_ATR} ATR`),
   ];
   $('sec-tiles').innerHTML = tiles.join('');
+  renderCycleStagePanel(d);
 
   $('sec-disclaimer').textContent = 'Every number above is a measured fact about this group\'s own '
     + 'recent price and volume history \u2014 not a signal, not a ranking, not a call on direction.';
+}
+
+// The cycle-stage order the wheel actually turns in -- Peak, once momentum has
+// visibly rolled over, gives way to Correction, then Bottoming, then Recovery,
+// then an established Extended/Uptrend, which can run into Euphoria/Peak before
+// closing the loop back into Peak. Used for both the breakdown's display order
+// and CYCLE_STAGES on the server -- if these ever drift apart the breakdown
+// would silently reorder itself relative to the server's own count keys, so
+// keep this list identical to sector_signals.CYCLE_STAGES.
+const CYCLE_STAGE_ORDER = ['Peak', 'Correction', 'Bottoming', 'Recovery', 'Extended/Uptrend', 'Euphoria/Peak'];
+
+function renderCycleStagePanel(d) {
+  const cs = d.cycle_stages;
+  const box = $('sec-cycle');
+  if (!cs) { box.innerHTML = ''; return; }
+
+  const label = cs.group_label
+    ? esc(cs.group_label)
+    : '<span class="lvl-meta">not enough history to classify any constituent</span>';
+
+  const counts = cs.counts || {};
+  const bySymbol = cs.by_symbol || {};
+  // Defensive, not decorative: if the server ever adds or renames a stage
+  // without this list being updated to match, a silently-dropped stage would
+  // look like "the group has fewer stages now" rather than "this display list
+  // is stale" -- surfaced instead of hidden.
+  const unknownStages = Object.keys(counts).filter(s => !CYCLE_STAGE_ORDER.includes(s) && counts[s] > 0);
+  const rows = CYCLE_STAGE_ORDER.map(stage => {
+    const n = counts[stage] || 0;
+    const names = Object.keys(bySymbol)
+      .filter(s => bySymbol[s] === stage)
+      .sort();
+    const nameList = names.length ? esc(names.join(', ')) : '<span class="lvl-meta">none</span>';
+    return `<div class="cyc-stage-row${n ? '' : ' cyc-stage-row-empty'}">`
+      + `<span class="cyc-stage-name">${esc(stage)}</span>`
+      + `<span class="cyc-stage-count">${n}</span>`
+      + `<span class="cyc-stage-names">${nameList}</span></div>`;
+  }).join('');
+
+  const unclassified = cs.unclassified || [];
+  const unclassifiedNote = unclassified.length
+    ? `<p class="sub">${unclassified.length} not enough history to classify: ${esc(unclassified.join(', '))}</p>`
+    : '';
+  const unknownStageNote = unknownStages.length
+    ? `<p class="sub cyc-stage-warn">Server reports ${unknownStages.length} stage(s) this view cannot `
+      + `display (${esc(unknownStages.join(', '))}) -- not counted above.</p>`
+    : '';
+
+  box.innerHTML = `<div class="cyc-stage-panel">
+    <div class="cyc-stage-head">
+      <span class="cyc-stage-label-k">Cycle stage</span>
+      <span class="cyc-stage-label-v">${label}</span>
+      <span class="lvl-meta">${cs.n_classified || 0} of ${(cs.n_classified || 0) + unclassified.length} classified</span>
+    </div>
+    <div class="cyc-stage-rows">${rows}</div>
+    ${unclassifiedNote}
+    ${unknownStageNote}
+    <p class="sub">A rule-based read of each name's own price structure -- price vs its 50/200-day
+      average, whether the 50-day average itself is rising, momentum, and distance from its recent
+      high -- not a forecast of what happens next and not specific to this group's theme. The group
+      label is whichever stage the most names currently sit in; a tie between stages is shown as a
+      tie, not resolved arbitrarily.</p>
+  </div>`;
 }
 
 

@@ -305,7 +305,7 @@ def test_scorecard_has_every_documented_top_level_key():
     group = {"A": _trend(100, 0.2, 70)}
     out = ss.compute_sector_scorecard(group, _trend(100, 0.2, 70))
     for key in ("relative_strength", "breadth", "new_highs_lows", "participation",
-                "volatility", "dispersion", "at_level"):
+                "volatility", "dispersion", "at_level", "cycle_stages"):
         assert key in out, key
 
 
@@ -313,6 +313,173 @@ def test_scorecard_survives_an_empty_group_without_raising():
     out = ss.compute_sector_scorecard({}, None)
     assert out["constituents_used"] == []
     assert out["breadth"]["n"] == 0
+
+
+# ---- cycle_stages -------------------------------------------------------------
+
+def _noisy_trend(start: float, drift_pct: float, amp_pct: float, n: int) -> list[float]:
+    """A close series with genuine bidirectional daily moves, not a flat line.
+
+    Every other day steps by `drift_pct + amp_pct`, the rest by `drift_pct -
+    amp_pct` -- net drift accumulates over time, but with amp_pct > 0 there are
+    real up AND down days, so RSI lands at a realistic mid-range value instead
+    of pinning at 0 or 100 the way a perfectly flat-then-one-direction series
+    does (a flat base has zero average loss, so RSI=100 on literally any single
+    uptick -- the bug that made the first version of these fixtures useless).
+    """
+    c = [start]
+    for i in range(1, n):
+        step = drift_pct + (amp_pct if i % 2 == 0 else -amp_pct)
+        c.append(c[-1] * (1 + step / 100.0))
+    return c
+
+
+# Six fixtures, one per cycle stage, each verified numerically against
+# `_name_cycle_stage` before being written here -- see the PR description for
+# the derivation. Every one uses `_noisy_trend` for realistic RSI behavior
+# rather than a flat base.
+
+def _stage_bars_extended() -> list[dict]:
+    """Steady climb throughout: above both averages, SMA50 rising, RSI moderate."""
+    return _wicked(_noisy_trend(60.0, 0.15, 0.5, 260), wick_pct=1.0)
+
+
+def _stage_bars_euphoria() -> list[dict]:
+    """A steady climb that accelerates sharply in the final month."""
+    base = _noisy_trend(60.0, 0.15, 0.5, 240)
+    tail = _noisy_trend(base[-1], 1.5, 0.5, 21)[1:]
+    return _wicked(base + tail, wick_pct=1.0)
+
+
+def _stage_bars_peak() -> list[dict]:
+    """An uptrend, a plateau (SMA50 catches up to price), then a small dip with
+    a partial recovery -- enough to flip SMA50's own recent slope negative
+    without pulling price back below it. This is the mathematically narrow
+    case: price above SMA50 while SMA50 itself has just started rolling over,
+    which for a 50-day average fed by a long prior uptrend requires the last
+    few days to retrace toward -- not through -- the average, not a simple
+    proportional decline (which flips both conditions at once, landing on
+    Correction instead)."""
+    uptrend = _noisy_trend(60.0, 0.2, 0.4, 180)
+    peak_level = uptrend[-1]
+    plateau = [peak_level] * 45
+    dip = [peak_level * 0.96, peak_level * 0.95, peak_level * 0.96,
+           peak_level * 0.965, peak_level * 1.001]
+    return _wicked(uptrend + plateau + dip, wick_pct=1.0)
+
+
+def _stage_bars_correction() -> list[dict]:
+    """An uptrend, then a real recent decline -- below SMA50, still above SMA200."""
+    base = _noisy_trend(60.0, 0.15, 0.5, 240)
+    tail = _noisy_trend(base[-1], -0.5, 0.3, 20)[1:]
+    return _wicked(base + tail, wick_pct=1.0)
+
+
+def _stage_bars_bottoming() -> list[dict]:
+    """An uptrend, then a long decline -- below both averages."""
+    base = _noisy_trend(60.0, 0.15, 0.5, 200)
+    tail = _noisy_trend(base[-1], -0.3, 0.3, 61)[1:]
+    return _wicked(base + tail, wick_pct=1.0)
+
+
+def _stage_bars_recovery() -> list[dict]:
+    """An uptrend, a long decline (drags SMA200 down), then a real bounce that
+    reclaims SMA50 while SMA200 is still well above price."""
+    base = _noisy_trend(60.0, 0.15, 0.5, 200)
+    decline = _noisy_trend(base[-1], -0.25, 0.3, 221)[1:]
+    bounce = _noisy_trend((base + decline)[-1], 0.8, 0.3, 21)[1:]
+    return _wicked(base + decline + bounce, wick_pct=1.0)
+
+
+def test_stage_extended_uptrend_above_both_averages_sma50_rising_not_extreme():
+    bars = _stage_bars_extended()
+    a = _indicators_for({"A": bars})["A"]
+    assert ss._name_cycle_stage(bars, a) == "Extended/Uptrend"
+
+
+def test_stage_euphoria_peak_needs_extension_or_overbought_near_a_high():
+    bars = _stage_bars_euphoria()
+    a = _indicators_for({"A": bars})["A"]
+    assert ss._name_cycle_stage(bars, a) == "Euphoria/Peak"
+
+
+def test_stage_peak_is_near_the_high_but_sma50_has_rolled_over():
+    bars = _stage_bars_peak()
+    a = _indicators_for({"A": bars})["A"]
+    assert ss._name_cycle_stage(bars, a) == "Peak"
+
+
+def test_stage_correction_is_below_sma50_but_still_above_sma200():
+    bars = _stage_bars_correction()
+    a = _indicators_for({"A": bars})["A"]
+    assert ss._name_cycle_stage(bars, a) == "Correction"
+
+
+def test_stage_bottoming_is_below_both_averages():
+    bars = _stage_bars_bottoming()
+    a = _indicators_for({"A": bars})["A"]
+    assert ss._name_cycle_stage(bars, a) == "Bottoming"
+
+
+def test_stage_recovery_is_above_sma50_but_still_below_sma200():
+    bars = _stage_bars_recovery()
+    a = _indicators_for({"A": bars})["A"]
+    assert ss._name_cycle_stage(bars, a) == "Recovery"
+
+
+def test_stage_is_none_when_history_is_too_short():
+    bars = _wicked([100.0] * 25)
+    a = _indicators_for({"A": bars})["A"]
+    assert ss._name_cycle_stage(bars, a) is None
+
+
+def test_cycle_stages_group_label_is_the_most_common_stage():
+    group = {
+        "A": _stage_bars_extended(),
+        "B": _stage_bars_extended(),
+        "C": _stage_bars_peak(),
+    }
+    out = ss.cycle_stages(group, _indicators_for(group))
+    assert out["group_label"] == "Extended/Uptrend"
+    assert out["counts"]["Extended/Uptrend"] == 2
+    assert out["counts"]["Peak"] == 1
+    assert out["n_classified"] == 3
+    assert out["unclassified"] == []
+
+
+def test_cycle_stages_reports_a_tie_rather_than_inventing_a_winner():
+    group = {
+        "A": _stage_bars_extended(),
+        "B": _stage_bars_peak(),
+    }
+    out = ss.cycle_stages(group, _indicators_for(group))
+    assert " / " in out["group_label"]
+    assert "Extended/Uptrend" in out["group_label"]
+    assert "Peak" in out["group_label"]
+
+
+def test_cycle_stages_excludes_short_history_names_from_the_label():
+    group = {
+        "A": _stage_bars_extended(),
+        "SHORT": _wicked([100.0] * 25),
+    }
+    out = ss.cycle_stages(group, _indicators_for(group))
+    assert out["unclassified"] == ["SHORT"]
+    assert out["n_classified"] == 1
+    assert out["group_label"] == "Extended/Uptrend"
+
+
+def test_cycle_stages_group_label_is_none_when_nothing_is_classifiable():
+    group = {"SHORT": _wicked([100.0] * 25)}
+    out = ss.cycle_stages(group, _indicators_for(group))
+    assert out["group_label"] is None
+    assert out["unclassified"] == ["SHORT"]
+
+
+def test_compute_sector_scorecard_includes_cycle_stages():
+    group = {"A": _stage_bars_extended()}
+    out = ss.compute_sector_scorecard(group, _trend(100, 0.1, 260))
+    assert out["cycle_stages"]["group_label"] == "Extended/Uptrend"
 
 
 def _main() -> int:

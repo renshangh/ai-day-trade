@@ -694,6 +694,52 @@ combined relative strength, breadth, and dispersion into one number would be
 manufacturing a composite edge none of these measurements individually claims
 to have.
 
+#### Cycle stage -- the one exception, and why it is handled differently
+
+Below the tiles is a panel classifying each constituent into one of six
+technical cycle stages, in the order the wheel actually turns:
+
+```
+Peak -> Correction -> Bottoming -> Recovery -> Extended/Uptrend -> Euphoria/Peak -> (back to Peak)
+```
+
+This **is** a classification, not a raw measurement -- it combines each name's
+own price versus its 50/200-day averages, whether the 50-day average itself is
+rising, RSI, and distance from its recent high into one label. That is a real
+departure from every other number on this view, so it earns different
+treatment rather than being dressed up as another fact tile:
+
+- **The exact rule is disclosed, not hidden behind a label.** `Peak` and
+  `Correction` and the rest are Weinstein-style stage-analysis reads of a
+  name's own trend structure -- above/below its own averages, whether the
+  short average is still rising -- not a proprietary score. `Peak` and
+  `Euphoria/Peak` are adjacent, not synonyms: `Euphoria/Peak` is a top still
+  accelerating into an extreme (RSI or extension past a named threshold, near
+  a fresh high); `Peak` is that same top once the 50-day average has visibly
+  rolled over. The thresholds live as named constants in `sector_signals.py`
+  (`EUPHORIA_RSI`, `EUPHORIA_EXTENSION_PCT`, `EUPHORIA_NEAR_HIGH_PCT`,
+  `PEAK_NEAR_HIGH_PCT`, `SMA50_SLOPE_LOOKBACK`) so they can be found and
+  argued with, not buried in a rule nobody can see.
+- **No benchmark, on purpose.** Every other metric on this view measures
+  against SPY or the group's own ETF; the stage read does not, because a
+  name's own price-versus-its-own-trend structure is what stage analysis
+  measures, and requiring a benchmark here would tie the classification to a
+  choice (which benchmark) that has nothing to do with the shape of its
+  chart.
+- **The group label is the most common stage among constituents, not an
+  average, and a tie is reported as a tie.** Six stages have no natural
+  numeric mean, and forcing a single winner out of, say, 4 `Correction` and 4
+  `Bottoming` would assert a consensus that does not exist. The breakdown
+  underneath the label -- a count and the actual names, per stage -- is what
+  keeps a mixed group from reading as false agreement.
+- **A name needs enough history to classify.** SMA200, RSI14, and a 20-session
+  high all need real data; a constituent without it is reported as
+  unclassified, never guessed into a stage.
+- **Still not a forecast.** Naming a name `Bottoming` says its price sits below
+  both of its own moving averages -- a fact about where it is, not a
+  prediction that it turns up from here. Nothing about the classification
+  claims to know what a name does next.
+
 ### Indicators
 
 Overlays: SMA 20 / 50 / 200, VWAP 20 (rolling), Bollinger Bands (20, 2σ),
@@ -742,6 +788,7 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/cycle` | The cycle log (every review, oldest first, totals derived from the scores), the rubric parsed from the framework document, the bands, and any file warnings. Never cached. |
 | `POST /api/cycle` | Write one review (JSON: `review_date`, `scores`, `core_question`, `assumption_changed`, `notes`), replacing a row with the same date. Returns the rebuilt payload, or 400 with the reason. |
 | `GET /api/sector?group=X&benchmark=Y` | Leading-indicator scorecard for one universe.py group (`X` defaults to `DEFAULT_SECTOR_GROUP`; `benchmark` defaults to the group's own `etf`, then `SPY`). Cached like `/api/stock`; `?force=1` bypasses it. Unknown group returns `error` plus `available_groups`. |
+| — | The same response also carries `cycle_stages`: per-name technical cycle stage, a count per stage, and the group's majority label (ties reported as ties). See Sector scorecard → Cycle stage. |
 | `GET /api/health` | Credential and cache status. |
 
 Board and per-symbol routes cache for 5 minutes; the review caches for 2 (it reuses
@@ -792,7 +839,7 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `research/split_study.py` | Split-event counts and pre-split return study (see Split events) |
-| `sector_signals.py` | Sector scorecard math: relative strength, breadth, new highs/lows, participation, volatility, dispersion, level proximity. Pure functions over bars, no I/O |
+| `sector_signals.py` | Sector scorecard math: relative strength, breadth, new highs/lows, participation, volatility, dispersion, level proximity, six-stage cycle classification. Pure functions over bars, no I/O |
 | `cycle.py` | Cycle score log: read, validate and write `cycle-score.csv`; parse the framework document for the rubric |
 | `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | The framework the Cycle view scores against: eight 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
 | `tests/test_reversal.py` | Reversal qualification regression tests |

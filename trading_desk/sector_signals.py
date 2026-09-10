@@ -295,6 +295,106 @@ def at_level(
     return {"n": n, "at_support_count": at_support, "at_resistance_count": at_resistance}
 
 
+# The six-stage cycle a name's own price structure cycles through, in order.
+# "Peak" and "Euphoria/Peak" are adjacent, not synonyms: Euphoria/Peak is the
+# blow-off top still accelerating into an extreme; Peak is that same top once
+# momentum has visibly rolled over. The loop closes Euphoria/Peak -> Peak.
+CYCLE_STAGES = ("Peak", "Correction", "Bottoming", "Recovery", "Extended/Uptrend", "Euphoria/Peak")
+
+# Thresholds behind the euphoria/peak split. Named so they can be tuned without
+# hunting through the rule body; there is no universally agreed number here,
+# only a reasonable, disclosed one.
+EUPHORIA_RSI = 70.0
+EUPHORIA_EXTENSION_PCT = 15.0          # % above SMA50
+EUPHORIA_NEAR_HIGH_PCT = 5.0           # within this % of the 20-session high
+PEAK_NEAR_HIGH_PCT = 10.0              # within this % of the 20-session high
+SMA50_SLOPE_LOOKBACK = 10              # sessions back, for "is SMA50 rising"
+
+
+def _name_cycle_stage(bars: list[dict], a: dict) -> str | None:
+    """One name's stage, from its own price structure alone -- no benchmark.
+
+    This is a classification, not a measurement: a rule-based read of where
+    price sits relative to its own trend (Weinstein-style stage analysis: SMA50
+    vs SMA200 position, whether SMA50 itself is rising, momentum extremity via
+    RSI, and proximity to its recent high), not a forecast of what happens
+    next. Every threshold is a named constant above, not a magic number here.
+
+    Returns None when there isn't enough history to read all of SMA50, SMA200,
+    RSI14, and a 20-session high -- an unclassified name, not a guessed one.
+    """
+    closes = _closes(bars)
+    if len(closes) < 20 + SMA50_SLOPE_LOOKBACK:
+        return None
+    last = closes[-1]
+    sma50_series, sma200_series, rsi_series = a["sma50"], a["sma200"], a["rsi14"]
+    sma50, sma200, rsi = _last(sma50_series), _last(sma200_series), _last(rsi_series)
+    if sma50 is None or sma200 is None or rsi is None:
+        return None
+    sma50_then = sma50_series[-1 - SMA50_SLOPE_LOOKBACK]
+    if sma50_then is None:
+        return None
+    sma50_rising = sma50 > sma50_then
+
+    high_20d = max(closes[-20:])
+    pct_from_high = (last / high_20d - 1.0) * 100.0       # <= 0
+    pct_above_sma50 = (last / sma50 - 1.0) * 100.0
+
+    above_50, above_200 = last > sma50, last > sma200
+
+    if above_50 and above_200:
+        if (sma50_rising and (rsi >= EUPHORIA_RSI or pct_above_sma50 >= EUPHORIA_EXTENSION_PCT)
+                and pct_from_high >= -EUPHORIA_NEAR_HIGH_PCT):
+            return "Euphoria/Peak"
+        if not sma50_rising and pct_from_high >= -PEAK_NEAR_HIGH_PCT:
+            return "Peak"
+        return "Extended/Uptrend"
+    if above_50 and not above_200:
+        return "Recovery"
+    if not above_50 and above_200:
+        return "Correction"
+    return "Bottoming"                                     # below both
+
+
+def cycle_stages(bars_by_symbol: dict[str, list[dict]], indicators_by_symbol: dict[str, dict]) -> dict:
+    """Per-name cycle stage, a count per stage, and the group's own label.
+
+    The group label is the stage the most names sit in. A tie is reported as a
+    tie -- `"A / B"` -- rather than an arbitrary tie-break invented to force a
+    single answer nobody actually observed.
+    """
+    by_symbol: dict[str, str | None] = {}
+    for symbol, bars in bars_by_symbol.items():
+        by_symbol[symbol] = _name_cycle_stage(bars, indicators_by_symbol[symbol])
+
+    counts = {stage: 0 for stage in CYCLE_STAGES}
+    unclassified = []
+    for symbol, stage in by_symbol.items():
+        if stage is None:
+            unclassified.append(symbol)
+        else:
+            counts[stage] += 1
+
+    classified = sum(counts.values())
+    if classified == 0:
+        group_label = None
+    else:
+        # `classified > 0` already guarantees `max(counts.values()) >= 1`, so
+        # every stage this comprehension can match has a genuinely positive
+        # count -- no separate `> 0` guard needed on top of it.
+        top = max(counts.values())
+        leaders = [s for s in CYCLE_STAGES if counts[s] == top]
+        group_label = " / ".join(leaders)
+
+    return {
+        "by_symbol": by_symbol,
+        "counts": counts,
+        "unclassified": sorted(unclassified),
+        "group_label": group_label,
+        "n_classified": classified,
+    }
+
+
 def compute_sector_scorecard(
     bars_by_symbol: dict[str, list[dict]],
     benchmark_bars: list[dict] | None,
@@ -320,4 +420,5 @@ def compute_sector_scorecard(
         "volatility": volatility_regime(usable, indicators_by_symbol),
         "dispersion": dispersion(usable),
         "at_level": at_level(usable, indicators_by_symbol, level_proximity_atr),
+        "cycle_stages": cycle_stages(usable, indicators_by_symbol),
     }
