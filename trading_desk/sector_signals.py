@@ -296,10 +296,21 @@ def at_level(
 
 
 # The six-stage cycle a name's own price structure cycles through, in order.
-# "Peak" and "Euphoria/Peak" are adjacent, not synonyms: Euphoria/Peak is the
-# blow-off top still accelerating into an extreme; Peak is that same top once
-# momentum has visibly rolled over. The loop closes Euphoria/Peak -> Peak.
-CYCLE_STAGES = ("Peak", "Correction", "Bottoming", "Recovery", "Extended/Uptrend", "Euphoria/Peak")
+# "Local Peak" and "Local Euphoria/Peak" are adjacent, not synonyms: Local
+# Euphoria/Peak is the blow-off top still accelerating into an extreme; Local
+# Peak is that same top once momentum has visibly rolled over. The loop closes
+# Local Euphoria/Peak -> Local Peak.
+#
+# Named "Local" deliberately: both are read off a 20-session (~1 month) high,
+# not a 52-week one. A name can be a Local Peak while sitting 30%+ below its
+# own 52-week high -- it made a real high months ago, corrected hard, and is
+# now stalling inside a much smaller recent range. That is a real, useful
+# thing to know, but "Peak" alone reads as "at its high", which is the
+# opposite of true in that case. `cycle_stages()` reports each name's distance
+# from its own 52-week (or longest-available) high alongside the stage
+# specifically so a "Local Peak" 30% under its 52-week high cannot be
+# mistaken for one sitting at an actual multi-month high.
+CYCLE_STAGES = ("Local Peak", "Correction", "Bottoming", "Recovery", "Extended/Uptrend", "Local Euphoria/Peak")
 
 # Thresholds behind the euphoria/peak split. Named so they can be tuned without
 # hunting through the rule body; there is no universally agreed number here,
@@ -309,9 +320,10 @@ EUPHORIA_EXTENSION_PCT = 15.0          # % above SMA50
 EUPHORIA_NEAR_HIGH_PCT = 5.0           # within this % of the 20-session high
 PEAK_NEAR_HIGH_PCT = 10.0              # within this % of the 20-session high
 SMA50_SLOPE_LOOKBACK = 10              # sessions back, for "is SMA50 rising"
+LONG_HIGH_WINDOW_SESSIONS = 252        # ~52 weeks, for the context alongside the stage
 
 
-def _name_cycle_stage(bars: list[dict], a: dict) -> str | None:
+def _name_cycle_stage(closes: list[float], a: dict) -> str | None:
     """One name's stage, from its own price structure alone -- no benchmark.
 
     This is a classification, not a measurement: a rule-based read of where
@@ -322,8 +334,12 @@ def _name_cycle_stage(bars: list[dict], a: dict) -> str | None:
 
     Returns None when there isn't enough history to read all of SMA50, SMA200,
     RSI14, and a 20-session high -- an unclassified name, not a guessed one.
+
+    Takes already-computed `closes` rather than raw bars -- nothing here reads
+    highs, lows, or volume, so `cycle_stages()` derives the close series once
+    per symbol and shares it with `_long_high_context` instead of each
+    function repeating `_closes(bars)` independently.
     """
-    closes = _closes(bars)
     if len(closes) < 20 + SMA50_SLOPE_LOOKBACK:
         return None
     last = closes[-1]
@@ -345,15 +361,40 @@ def _name_cycle_stage(bars: list[dict], a: dict) -> str | None:
     if above_50 and above_200:
         if (sma50_rising and (rsi >= EUPHORIA_RSI or pct_above_sma50 >= EUPHORIA_EXTENSION_PCT)
                 and pct_from_high >= -EUPHORIA_NEAR_HIGH_PCT):
-            return "Euphoria/Peak"
+            return "Local Euphoria/Peak"
         if not sma50_rising and pct_from_high >= -PEAK_NEAR_HIGH_PCT:
-            return "Peak"
+            return "Local Peak"
         return "Extended/Uptrend"
     if above_50 and not above_200:
         return "Recovery"
     if not above_50 and above_200:
         return "Correction"
     return "Bottoming"                                     # below both
+
+
+def _long_high_context(closes: list[float]) -> dict | None:
+    """Distance from this name's own longest-available high (up to 52 weeks).
+
+    Exists specifically so a `Local Peak` or `Local Euphoria/Peak` -- both read
+    off a 20-session high -- cannot be mistaken for a name at an actual
+    multi-month high. `window_sessions` is the real number of sessions the high
+    was taken over: fewer than `LONG_HIGH_WINDOW_SESSIONS` for a name without a
+    full 52 weeks of history, reported honestly rather than silently claiming
+    "52-week" for a shorter window.
+
+    Takes already-computed `closes` rather than raw bars: `cycle_stages()`
+    calls this right beside `_name_cycle_stage`, and both ultimately need the
+    same close series, so the caller derives it once per symbol instead of
+    each function repeating `_closes(bars)` independently.
+    """
+    if len(closes) < DEFAULT_LOOKBACK_SESSIONS:
+        return None
+    window = min(len(closes), LONG_HIGH_WINDOW_SESSIONS)
+    high = max(closes[-window:])
+    return {
+        "pct_from_high": (closes[-1] / high - 1.0) * 100.0,   # <= 0
+        "window_sessions": window,
+    }
 
 
 def cycle_stages(bars_by_symbol: dict[str, list[dict]], indicators_by_symbol: dict[str, dict]) -> dict:
@@ -364,8 +405,11 @@ def cycle_stages(bars_by_symbol: dict[str, list[dict]], indicators_by_symbol: di
     single answer nobody actually observed.
     """
     by_symbol: dict[str, str | None] = {}
+    long_high: dict[str, dict | None] = {}
     for symbol, bars in bars_by_symbol.items():
-        by_symbol[symbol] = _name_cycle_stage(bars, indicators_by_symbol[symbol])
+        closes = _closes(bars)
+        by_symbol[symbol] = _name_cycle_stage(closes, indicators_by_symbol[symbol])
+        long_high[symbol] = _long_high_context(closes)
 
     counts = {stage: 0 for stage in CYCLE_STAGES}
     unclassified = []
@@ -388,6 +432,7 @@ def cycle_stages(bars_by_symbol: dict[str, list[dict]], indicators_by_symbol: di
 
     return {
         "by_symbol": by_symbol,
+        "long_high": long_high,
         "counts": counts,
         "unclassified": sorted(unclassified),
         "group_label": group_label,

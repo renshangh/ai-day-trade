@@ -964,14 +964,33 @@ function renderSector() {
     + 'recent price and volume history \u2014 not a signal, not a ranking, not a call on direction.';
 }
 
-// The cycle-stage order the wheel actually turns in -- Peak, once momentum has
-// visibly rolled over, gives way to Correction, then Bottoming, then Recovery,
-// then an established Extended/Uptrend, which can run into Euphoria/Peak before
-// closing the loop back into Peak. Used for both the breakdown's display order
-// and CYCLE_STAGES on the server -- if these ever drift apart the breakdown
-// would silently reorder itself relative to the server's own count keys, so
-// keep this list identical to sector_signals.CYCLE_STAGES.
-const CYCLE_STAGE_ORDER = ['Peak', 'Correction', 'Bottoming', 'Recovery', 'Extended/Uptrend', 'Euphoria/Peak'];
+// The cycle-stage order the wheel actually turns in -- Local Peak, once
+// momentum has visibly rolled over, gives way to Correction, then Bottoming,
+// then Recovery, then an established Extended/Uptrend, which can run into
+// Local Euphoria/Peak before closing the loop back into Local Peak. Used for
+// both the breakdown's display order and CYCLE_STAGES on the server -- if
+// these ever drift apart the breakdown would silently reorder itself relative
+// to the server's own count keys, so keep this list identical to
+// sector_signals.CYCLE_STAGES.
+const CYCLE_STAGE_ORDER = ['Local Peak', 'Correction', 'Bottoming', 'Recovery', 'Extended/Uptrend', 'Local Euphoria/Peak'];
+// Must match sector_signals.LONG_HIGH_WINDOW_SESSIONS -- a `long_high.window_sessions`
+// equal to this means the full window was available, so the label can honestly
+// say "52w high" rather than "Nd high".
+const LONG_HIGH_WINDOW_SESSIONS = 252;
+
+// "Local Peak" and "Local Euphoria/Peak" are read off a 20-session high --
+// a name can carry either label while sitting well below where it actually
+// traded months ago (it peaked for real, corrected hard, and is now stalling
+// in a smaller recent range). Every name in the breakdown gets its distance
+// from its own longest-available high appended for exactly this reason,
+// not only the two stages the confusion is about -- Bottoming and Correction
+// deserve the same honesty about which high they are, or are not, near.
+function nameWithLongHigh(symbol, longHigh) {
+  const ctx = longHigh && longHigh[symbol];
+  if (!ctx || ctx.pct_from_high == null) return esc(symbol);
+  const w = ctx.window_sessions === LONG_HIGH_WINDOW_SESSIONS ? '52w' : `${ctx.window_sessions}d`;
+  return `${esc(symbol)} (${fmtPct(ctx.pct_from_high)} vs ${w} high)`;
+}
 
 function renderCycleStagePanel(d) {
   const cs = d.cycle_stages;
@@ -984,6 +1003,7 @@ function renderCycleStagePanel(d) {
 
   const counts = cs.counts || {};
   const bySymbol = cs.by_symbol || {};
+  const longHigh = cs.long_high || {};
   // Defensive, not decorative: if the server ever adds or renames a stage
   // without this list being updated to match, a silently-dropped stage would
   // look like "the group has fewer stages now" rather than "this display list
@@ -994,7 +1014,9 @@ function renderCycleStagePanel(d) {
     const names = Object.keys(bySymbol)
       .filter(s => bySymbol[s] === stage)
       .sort();
-    const nameList = names.length ? esc(names.join(', ')) : '<span class="lvl-meta">none</span>';
+    const nameList = names.length
+      ? names.map(s => nameWithLongHigh(s, longHigh)).join(', ')
+      : '<span class="lvl-meta">none</span>';
     return `<div class="cyc-stage-row${n ? '' : ' cyc-stage-row-empty'}">`
       + `<span class="cyc-stage-name">${esc(stage)}</span>`
       + `<span class="cyc-stage-count">${n}</span>`
@@ -1023,7 +1045,10 @@ function renderCycleStagePanel(d) {
       average, whether the 50-day average itself is rising, momentum, and distance from its recent
       high -- not a forecast of what happens next and not specific to this group's theme. The group
       label is whichever stage the most names currently sit in; a tie between stages is shown as a
-      tie, not resolved arbitrarily.</p>
+      tie, not resolved arbitrarily. "Local Peak" and "Local Euphoria/Peak" are read off a
+      20-session high, not a 52-week one -- the percentage beside each name is its distance from
+      its own longest-available high, so a name stalling near a recent high that is itself far
+      below where it traded months ago reads as exactly that, not as "at its high".</p>
   </div>`;
 }
 
