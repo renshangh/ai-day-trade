@@ -4,7 +4,7 @@ Local dashboard that screens sectors and themes over short horizons — for mome
 or for reversals — and charts the resulting movers with the standard technical
 indicator set.
 
-**Last Updated:** 2026-09-10
+**Last Updated:** 2026-09-11
 **Status:** Active
 **Audience:** Both
 
@@ -736,7 +736,14 @@ already have in the industry:
 | **20%** off the peak | Past this is a **bear market** | Same convention |
 | **+20%** off the trough | What starts a **new bull market** | The other half of the same convention ([U.S. Bank](https://www.usbank.com/financialiq/invest-your-money/market-perspectives/bull-market-to-bear-market.html)) |
 
-The rule, in order, over four numbers taken straight off closing prices
+**Read off weekly closes, not daily ones.** A stage is a trend-level call, and
+weekly is the resolution that convention was itself defined against -- daily
+closes carry a week's worth of noise a stage classification has no business
+reacting to. Each name's daily bars are collapsed to one close per ISO
+calendar week (the week's last available close) before any of the numbers
+below are taken.
+
+The rule, in order, over four numbers taken straight off those weekly closes
 (drawdown from the name's own peak, rally off its own trough, which extreme
 came last, and its return over the last month):
 
@@ -774,10 +781,10 @@ Design notes worth keeping:
 - **The group label is the most common stage, and a tie is reported as a tie.**
   Six stages have no numeric mean; forcing a winner out of 4 `Correction` and 4
   `Bottoming` would assert a consensus that does not exist.
-- **A name needs enough history to classify** (`RECENT_MOVE_WINDOW_SESSIONS + 1`
-  sessions) and is otherwise reported unclassified, never guessed. The window
-  the peak and trough come from is reported per name, so a name without a full
-  52 weeks does not silently claim one.
+- **A name needs enough history to classify** (`RECENT_MOVE_WINDOW_WEEKS + 1`
+  weeks) and is otherwise reported unclassified, never guessed. The window the
+  peak and trough come from is reported per name (`window_weeks`), so a name
+  without a full 52 weeks does not silently claim one.
 - **Still not a forecast.** `Bottoming` says a name is well off its peak and no
   longer falling -- where it is, not that it turns up from here.
 

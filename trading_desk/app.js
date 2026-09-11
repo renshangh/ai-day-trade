@@ -973,10 +973,6 @@ function renderSector() {
 // to the server's own count keys, so keep this list identical to
 // sector_signals.CYCLE_STAGES.
 const CYCLE_STAGE_ORDER = ['Local Peak', 'Correction', 'Markdown', 'Bottoming', 'Recovery', 'Extended/Uptrend', 'Local Euphoria/Peak'];
-// Must match sector_signals.LONG_HIGH_WINDOW_SESSIONS -- a `context.window_sessions`
-// equal to this means the full window was available, so the label can honestly
-// say "52w" rather than "Nd".
-const LONG_HIGH_WINDOW_SESSIONS = 252;
 
 // The stage is defined by how far a name sits below its own peak (10-20% is a
 // correction, past 20% is a bear market by the standard definitions), so that
@@ -984,11 +980,14 @@ const LONG_HIGH_WINDOW_SESSIONS = 252;
 // for the label, not decoration. Shown for all six stages, not just the two
 // peak ones: a Bottoming name 45% under its peak and a Correction name 11%
 // under are describing very different situations under adjacent words.
+// `window_weeks` is already in weeks (the server reads weekly closes, not
+// daily ones), so there is no session-count-to-weeks conversion to do here --
+// unlike the old `window_sessions`, this needs no client-side constant to
+// compare against.
 function nameWithDrawdown(symbol, context) {
   const ctx = context && context[symbol];
   if (!ctx || ctx.drawdown_pct == null) return esc(symbol);
-  const w = ctx.window_sessions === LONG_HIGH_WINDOW_SESSIONS ? '52w' : `${ctx.window_sessions}d`;
-  return `${esc(symbol)} (${fmtPct(ctx.drawdown_pct)} vs ${w} peak)`;
+  return `${esc(symbol)} (${fmtPct(ctx.drawdown_pct)} vs ${ctx.window_weeks}w peak)`;
 }
 
 function renderCycleStagePanel(d) {

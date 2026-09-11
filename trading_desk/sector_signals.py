@@ -17,6 +17,7 @@ agreement, energy, and room the group has *right now*.
 from __future__ import annotations
 
 import statistics
+from datetime import date
 
 import indicators
 
@@ -304,6 +305,15 @@ def at_level(
 # closing prices against a name's own peak and trough, plus which direction it
 # is currently moving.
 #
+# Read from weekly closes, not daily ones. A stage is a call about the
+# underlying trend, and a weekly chart is where that trend actually reads
+# clearly -- daily closes carry a week's worth of open/high/low/close noise
+# that a stage classification has no business reacting to, and it is the
+# resolution the "correction" / "bear market" convention below was itself
+# defined against. `_weekly_closes` collapses each name's daily bars down to
+# one close per ISO calendar week (the week's last available close) before
+# `_cycle_context` ever sees them.
+#
 # "Local Peak" and "Local Euphoria/Peak" are adjacent, not synonyms: Local
 # Euphoria/Peak is a name at a fresh peak and still advancing hard into it;
 # Local Peak is a name within 10% of its peak whose advance has stalled --
@@ -331,8 +341,8 @@ BEAR_DRAWDOWN_PCT = 20.0               # standard: beyond 20% off the peak is a 
 # https://www.usbank.com/financialiq/invest-your-money/market-perspectives/bull-market-to-bear-market.html
 NEW_BULL_OFF_LOW_PCT = 20.0            # standard: +20% off the low starts a new bull market
 
-LONG_HIGH_WINDOW_SESSIONS = 252        # ~52 weeks: the window the peak and trough are taken from
-RECENT_MOVE_WINDOW_SESSIONS = 20       # ~1 month: the window recent direction is judged over
+LONG_HIGH_WINDOW_WEEKS = 52            # the window the peak and trough are taken from
+RECENT_MOVE_WINDOW_WEEKS = 4           # ~1 month: the window recent direction is judged over
 
 # These have no industry standard. Research describes the distribution
 # (topping) phase qualitatively -- "sideways and range-bound after an extended
@@ -344,8 +354,34 @@ EUPHORIA_MOVE_PCT = 15.0               # at a fresh peak AND up this much = the 
 EUPHORIA_PEAK_TOLERANCE_PCT = 2.0      # "at a fresh peak" allows this much pullback from the exact high
 
 
+def _weekly_closes(bars: list[dict]) -> list[float]:
+    """Daily bars collapsed to one close per ISO calendar week, oldest first.
+
+    The week's close is its last available daily close -- whatever bar the
+    week happens to end on, not necessarily a Friday (a holiday-shortened week,
+    or the current, still-open week). Grouping by each bar's own ISO (year,
+    week) rather than chunking every five bars keeps every group a real
+    calendar week regardless of holidays or half sessions, and survives a
+    year boundary (ISO week 52 of one year and week 1 of the next are simply
+    different keys) without special-casing it.
+
+    `bars` must already be in chronological order, as every other function in
+    this module assumes; this does not re-sort them.
+    """
+    weekly: list[float] = []
+    cur_key: tuple[int, int] | None = None
+    for b in bars:
+        key = date.fromisoformat(b["t"][:10]).isocalendar()[:2]
+        if key != cur_key:
+            weekly.append(float(b["c"]))
+            cur_key = key
+        else:
+            weekly[-1] = float(b["c"])
+    return weekly
+
+
 def _cycle_context(closes: list[float]) -> dict | None:
-    """The four numbers the stage is read from, all straight off closing prices.
+    """The four numbers the stage is read from, all straight off weekly closes.
 
     `drawdown_pct` is how far below its own peak the name is (<= 0) -- the
     number the standard correction/bear thresholds are defined against.
@@ -355,19 +391,22 @@ def _cycle_context(closes: list[float]) -> dict | None:
     40% gap with the trough more recent means it already bottomed and is
     climbing -- the two are opposite situations and the drawdown alone cannot
     tell them apart. `move_pct` is the simple return over
-    `RECENT_MOVE_WINDOW_SESSIONS` sessions.
+    `RECENT_MOVE_WINDOW_WEEKS` weekly closes.
 
-    `window_sessions` is the real number of sessions the peak and trough were
-    taken from: fewer than `LONG_HIGH_WINDOW_SESSIONS` for a name without a
-    full 52 weeks of history, reported honestly rather than claiming
-    "52-week" for a shorter window.
+    `window_weeks` is the real number of weeks the peak and trough were taken
+    from: fewer than `LONG_HIGH_WINDOW_WEEKS` for a name without a full 52
+    weeks of history, reported honestly rather than claiming "52-week" for a
+    shorter window.
 
-    Returns None below `RECENT_MOVE_WINDOW_SESSIONS + 1` sessions -- an
-    unclassified name, not a guessed one.
+    `closes` is expected to already be weekly (see `_weekly_closes`), but this
+    function itself only knows "a sequence of closes" -- it takes whatever it
+    is given a week at a time. Returns None below
+    `RECENT_MOVE_WINDOW_WEEKS + 1` weeks -- an unclassified name, not a
+    guessed one.
     """
-    if len(closes) < RECENT_MOVE_WINDOW_SESSIONS + 1:
+    if len(closes) < RECENT_MOVE_WINDOW_WEEKS + 1:
         return None
-    window = min(len(closes), LONG_HIGH_WINDOW_SESSIONS)
+    window = min(len(closes), LONG_HIGH_WINDOW_WEEKS)
     recent = closes[-window:]
     last = closes[-1]
 
@@ -395,12 +434,12 @@ def _cycle_context(closes: list[float]) -> dict | None:
         "drawdown_pct": (last / peak - 1.0) * 100.0,      # <= 0
         "off_low_pct": (last / trough - 1.0) * 100.0,      # >= 0
         "trough_is_newer": trough_at > peak_at,
-        "move_pct": (last / closes[-1 - RECENT_MOVE_WINDOW_SESSIONS] - 1.0) * 100.0,
-        # `last` is inside `recent`, so this is true only when today's close is
-        # the window's highest -- or within EUPHORIA_PEAK_TOLERANCE_PCT of it,
-        # so that one day's pullback from a blow-off top does not disqualify it.
+        "move_pct": (last / closes[-1 - RECENT_MOVE_WINDOW_WEEKS] - 1.0) * 100.0,
+        # `last` is inside `recent`, so this is true only when this week's close
+        # is the window's highest -- or within EUPHORIA_PEAK_TOLERANCE_PCT of it,
+        # so that one week's pullback from a blow-off top does not disqualify it.
         "at_peak": last >= peak * (1.0 - EUPHORIA_PEAK_TOLERANCE_PCT / 100.0),
-        "window_sessions": window,
+        "window_weeks": window,
     }
 
 
@@ -466,7 +505,7 @@ def cycle_stages(bars_by_symbol: dict[str, list[dict]]) -> dict:
     by_symbol: dict[str, str | None] = {}
     context: dict[str, dict | None] = {}
     for symbol, bars in bars_by_symbol.items():
-        ctx = _cycle_context(_closes(bars))
+        ctx = _cycle_context(_weekly_closes(bars))
         context[symbol] = ctx
         by_symbol[symbol] = _name_cycle_stage(ctx) if ctx else None
 
