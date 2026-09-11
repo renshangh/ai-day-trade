@@ -696,12 +696,26 @@ to have.
 
 #### Cycle stage -- the one exception, and why it is handled differently
 
-Below the tiles is a panel classifying each constituent into one of six cycle
+Below the tiles is a panel classifying each constituent into one of seven cycle
 stages, in the order the wheel turns:
 
 ```
-Local Peak -> Correction -> Bottoming -> Recovery -> Extended/Uptrend -> Local Euphoria/Peak -> (back to Local Peak)
+Local Peak -> Correction -> Markdown -> Bottoming -> Recovery -> Extended/Uptrend -> Local Euphoria/Peak -> (back to Local Peak)
 ```
+
+**Why seven and not six.** The taxonomy started at six, with one `Correction`
+stage covering every decline. That put `AXTI` at -54% and `ANET` at -10% under
+the same word -- and it contradicted the very convention the thresholds below
+come from, which reserves *correction* for a 10-20% decline and calls anything
+past 20% a *bear market*. `Markdown` (Wyckoff's term for that leg, and one that
+does not imply anything about the whole market) is that seventh stage.
+
+Measured on `AI Optical / Interconnect` the day the split landed (figures are
+that snapshot, not current state): 10 of 13 names read "Correction" before,
+2 after, with 8 moving to `Markdown` and the group label changing from
+`Correction` to `Markdown`. The point does not depend on those numbers -- one
+label spanning -10% to -54% is the problem regardless of how many names sit
+at each end on any given day.
 
 This **is** a classification, not a raw measurement -- it turns several numbers
 into one label. That is a real departure from every other number on this view,
@@ -733,7 +747,7 @@ came last, and its return over the last month):
 | Within 10% of its peak, still advancing | `Extended/Uptrend` |
 | 10-20% off its peak | `Correction` |
 | Past 20% off its peak, but +20% off a **newer** trough | `Recovery` |
-| Past 20% off its peak, still falling hard | `Correction` |
+| Past 20% off its peak, still falling hard | `Markdown` |
 | Past 20% off its peak, no longer falling | `Bottoming` |
 
 Design notes worth keeping:
@@ -867,7 +881,7 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `research/split_study.py` | Split-event counts and pre-split return study (see Split events) |
-| `sector_signals.py` | Sector scorecard math: relative strength, breadth, new highs/lows, participation, volatility, dispersion, level proximity, six-stage cycle classification. Pure functions over bars, no I/O |
+| `sector_signals.py` | Sector scorecard math: relative strength, breadth, new highs/lows, participation, volatility, dispersion, level proximity, seven-stage cycle classification. Pure functions over bars, no I/O |
 | `cycle.py` | Cycle score log: read, validate and write `cycle-score.csv`; parse the framework document for the rubric |
 | `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | The framework the Cycle view scores against: eight 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
 | `tests/test_reversal.py` | Reversal qualification regression tests |

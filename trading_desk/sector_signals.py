@@ -295,7 +295,7 @@ def at_level(
     return {"n": n, "at_support_count": at_support, "at_resistance_count": at_resistance}
 
 
-# The six-stage cycle a name's own price cycles through, in order.
+# The seven-stage cycle a name's own price cycles through, in order.
 #
 # Built on the standard definitions of these words rather than on indicators:
 # how far a name sits below its own peak (10-20% is a correction, past 20% is
@@ -309,7 +309,15 @@ def at_level(
 # Local Peak is a name within 10% of its peak whose advance has stalled --
 # what the literature calls the distribution phase, "sideways and range-bound
 # after an extended uptrend". The loop closes Local Euphoria/Peak -> Local Peak.
-CYCLE_STAGES = ("Local Peak", "Correction", "Bottoming", "Recovery", "Extended/Uptrend", "Local Euphoria/Peak")
+#
+# "Correction" and "Markdown" are likewise distinct, for a reason the standard
+# is explicit about: a 10-20% decline is a *correction*, past 20% is a *bear
+# market*. One label covering both would put a name easing off its high and one
+# that had halved under the same word. "Markdown" is Wyckoff's term for that
+# leg and avoids implying anything about the whole market. The worked example
+# behind the split is in README.md under "Cycle stage".
+CYCLE_STAGES = ("Local Peak", "Correction", "Markdown", "Bottoming", "Recovery",
+                "Extended/Uptrend", "Local Euphoria/Peak")
 
 # Thresholds. The three that carry the classification are the industry-standard
 # ones, not numbers invented here. The 10/20 split traces to Alan Shaw at Smith
@@ -411,12 +419,23 @@ def _name_cycle_stage(ctx: dict) -> str:
       - within 10% of its peak, still advancing                 -> Extended/Uptrend
       - 10-20% off its peak                                     -> Correction
       - past 20% off its peak, but +20% off a *newer* trough     -> Recovery
-      - past 20% off its peak, still falling hard                -> Correction
+      - past 20% off its peak, still falling hard                -> Markdown
       - past 20% off its peak, no longer falling                 -> Bottoming
 
-    The last two are the split the old moving-average version got wrong: a
-    name down 45% and still dropping 29% in a month is mid-decline, not
-    "bottoming", however close to its low it happens to sit.
+    Correction stops at 20% on purpose: past that the standard calls it a bear
+    market, and letting one label cover -10% through -50% hid the difference
+    between a name easing off its high and one that had halved.
+
+    Note the deliberate asymmetry: recent direction only splits stages *past*
+    the 20% threshold (Markdown vs Bottoming). Inside the 10-20% band every
+    name reads Correction whether it is stabilizing or collapsing, because the
+    standard defines that band by depth alone. A name down 19% and falling fast
+    is still a correction by the convention; it becomes Markdown when it
+    crosses 20%, not when it speeds up.
+
+    Markdown vs Bottoming is the other split, the one the old moving-average
+    version got wrong: a name down 45% and still dropping 29% in a month is
+    mid-decline, not "bottoming", however close to its low it happens to sit.
     """
     drawdown = ctx["drawdown_pct"]
     move = ctx["move_pct"]
@@ -433,7 +452,7 @@ def _name_cycle_stage(ctx: dict) -> str:
     if off_low >= NEW_BULL_OFF_LOW_PCT and trough_is_newer:
         return "Recovery"
     if move <= -STILL_FALLING_PCT:
-        return "Correction"
+        return "Markdown"
     return "Bottoming"
 
 

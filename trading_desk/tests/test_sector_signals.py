@@ -397,10 +397,46 @@ def test_stage_just_inside_ten_percent_is_not_yet_a_correction():
     assert _stage_of(peak=100, trough=50, last=95, move_pct=-1) == "Local Peak"
 
 
-def test_stage_past_twenty_percent_off_the_peak_and_still_falling_is_a_correction():
+def test_stage_past_twenty_percent_off_the_peak_and_still_falling_is_a_markdown():
     """The read the moving-average version got wrong for FN: down 45% and
-    still dropping 29% in a month is mid-decline, not a base forming."""
-    assert _stage_of(peak=100, trough=50, last=55, move_pct=-29) == "Correction"
+    still dropping 29% in a month is mid-decline, not a base forming.
+
+    Markdown, not Correction: the standard reserves "correction" for a 10-20%
+    decline, and one label spanning -10% to -54% put AXTI and ANET under the
+    same word."""
+    assert _stage_of(peak=100, trough=50, last=55, move_pct=-29) == "Markdown"
+
+
+def test_correction_and_markdown_are_split_at_the_bear_market_threshold():
+    """The distinction that motivated the seventh stage: either side of -20%
+    gets a different word, exactly as the convention draws it.
+
+    `trough_first=True` is passed explicitly rather than relied on as a
+    default: the -21% case sits +58% above its trough, so if that trough were
+    the newer extreme the Recovery branch would take it before the Markdown
+    check ever ran, and the test would be proving something else.
+    """
+    assert _stage_of(peak=100, trough=50, last=81, move_pct=-12,
+                     trough_first=True) == "Correction"   # -19%, inside the band
+    assert _stage_of(peak=100, trough=50, last=79, move_pct=-12,
+                     trough_first=True) == "Markdown"     # -21%, past the threshold
+
+
+def test_direction_does_not_split_stages_inside_the_correction_band():
+    """The asymmetry, pinned: past -20% the recent move separates Markdown from
+    Bottoming, but inside the 10-20% band it does not separate anything. Both
+    of these are Correction because the standard defines that band by depth
+    alone -- falling steadily and drifting sideways read the same there.
+
+    The two moves are -14% and 0% rather than something more dramatic because
+    the drawdown caps how fast a name inside this band can have fallen: at 15%
+    off its peak it cannot also be down 30% over the recent window, since
+    whatever level it fell 30% *from* would itself be the peak. The fixture
+    enforces that -- a move steep enough to push the anchor above `peak`
+    silently redefines the peak, which is how this test failed the first time.
+    """
+    assert _stage_of(peak=100, trough=50, last=85, move_pct=-14) == "Correction"
+    assert _stage_of(peak=100, trough=50, last=85, move_pct=0) == "Correction"
 
 
 def test_stage_past_twenty_percent_off_the_peak_and_no_longer_falling_is_bottoming():
@@ -601,6 +637,30 @@ def test_compute_sector_scorecard_includes_cycle_stages():
     group = {"A": _bars_for(100, 50, 85, -5)}
     out = ss.compute_sector_scorecard(group, _trend(100, 0.1, 260))
     assert out["cycle_stages"]["group_label"] == "Correction"
+
+
+def test_client_stage_order_matches_the_server_list_exactly():
+    """app.js's CYCLE_STAGE_ORDER must equal sector_signals.CYCLE_STAGES.
+
+    Both files carry a comment saying so, but nothing enforced it -- and the
+    list has now changed once (six stages to seven, edited by hand in both
+    places), which is exactly when the two drift. A mismatch makes the client
+    render the breakdown in a different order than the server's counts, or drop
+    a stage from the display entirely.
+
+    `tests/test_ports.py` sets the precedent for this kind of cross-file check
+    in this repo: it parses `.claude/launch.json` and the `.command` launcher
+    and asserts they agree with `server.py`'s constants.
+    """
+    import re
+    app_js = (HERE.parent / "app.js").read_text()
+    m = re.search(r"const CYCLE_STAGE_ORDER = \[(.*?)\];", app_js, re.S)
+    assert m, "CYCLE_STAGE_ORDER not found in app.js -- was it renamed?"
+    client = [s.strip().strip("'\"") for s in m.group(1).split(",") if s.strip()]
+    assert client == list(ss.CYCLE_STAGES), (
+        f"client and server stage lists have drifted:\n"
+        f"  app.js          : {client}\n"
+        f"  sector_signals  : {list(ss.CYCLE_STAGES)}")
 
 
 def _main() -> int:
