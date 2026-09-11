@@ -7,6 +7,7 @@ python3 trading_desk/tests/test_sector_signals.py
 from __future__ import annotations
 
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -16,14 +17,21 @@ import sector_signals as ss  # noqa: E402
 
 
 def _bars(closes: list[float], *, highs=None, lows=None, vols=None) -> list[dict]:
-    """Daily bars from a close series. h/l default to the close (no wick)."""
+    """Daily bars from a close series. h/l default to the close (no wick).
+
+    Real, sequential calendar dates -- `f"2026-01-{i+1:02d}"` produced
+    unparseable strings like "2026-01-45" past 31 bars. Nothing read `t` as a
+    date until `_weekly_closes` did, so it went unnoticed; fixed here rather
+    than left as a trap for the next thing that parses it.
+    """
     n = len(closes)
     highs = highs or closes
     lows = lows or closes
     vols = vols or [1_000_000.0] * n
+    start = date(2024, 1, 1)
     return [
-        {"t": f"2026-01-{i+1:02d}", "o": closes[i], "h": highs[i], "l": lows[i],
-         "c": closes[i], "v": vols[i]}
+        {"t": (start + timedelta(days=i)).isoformat(), "o": closes[i], "h": highs[i],
+         "l": lows[i], "c": closes[i], "v": vols[i]}
         for i in range(n)
     ]
 
@@ -343,15 +351,20 @@ def _noisy_trend(start: float, drift_pct: float, amp_pct: float, n: int) -> list
 # tested at its real threshold.
 
 def _cycle_closes(peak: float, trough: float, last: float, move_pct: float,
-                  trough_first: bool = True, total_len: int = 252) -> list[float]:
+                  trough_first: bool = True, total_len: int = 52) -> list[float]:
     """A close series with an exact peak, trough, final close, and recent move.
+
+    One value per week now, not per day -- `total_len` defaults to
+    `LONG_HIGH_WINDOW_WEEKS` (52) so the whole series sits inside the window
+    `_cycle_context` actually looks at, the same relationship the old
+    252-default had to its 252-session cap.
 
     `trough_first` puts the trough earlier in the window than the peak (the
     normal "ran up, then fell" shape); False puts the peak first, so the
     trough is the more recent extreme -- the shape that separates a name
     recovering off a fresh bottom from one still sliding away from an old top.
     """
-    tail_len = ss.RECENT_MOVE_WINDOW_SESSIONS + 1
+    tail_len = ss.RECENT_MOVE_WINDOW_WEEKS + 1
     anchor = last / (1 + move_pct / 100.0)          # becomes closes[-1 - window]
     tail = [anchor + (last - anchor) * i / (tail_len - 1) for i in range(tail_len)]
     extremes = [trough, peak] if trough_first else [peak, trough]
@@ -472,8 +485,8 @@ def test_recency_uses_the_last_occurrence_of_each_extreme():
     `_cycle_closes` seed each extreme exactly once, so they cannot reach this
     -- hence the hand-built double bottom.
     """
-    closes = ([50.0, 100.0] + [75.0] * 180 + [50.0] * 5
-              + [55.0 + i * 0.5 for i in range(1, 22)])
+    closes = ([50.0, 100.0] + [75.0] * 43 + [50.0] * 2
+              + [55.0 + i * 2.0 for i in range(1, 6)])
     ctx = ss._cycle_context(closes)
     assert ctx["trough_is_newer"] is True, "the retested low is the newer extreme"
     # Deep drawdown plus a real rally off that newer low is a Recovery, not a base.
@@ -485,8 +498,8 @@ def test_recency_uses_the_last_occurrence_of_each_extreme():
 def test_recency_holds_when_the_peak_is_the_repeated_extreme():
     """The mirror case: a peak set early, retested late, with the trough
     between them -- the peak is the newer extreme and must not read as older."""
-    closes = ([100.0, 50.0] + [75.0] * 180 + [100.0] * 5
-              + [95.0 - i * 0.2 for i in range(1, 22)])
+    closes = ([100.0, 50.0] + [75.0] * 43 + [100.0] * 2
+              + [95.0 - i * 2.0 for i in range(1, 6)])
     ctx = ss._cycle_context(closes)
     assert ctx["trough_is_newer"] is False
 
@@ -556,16 +569,16 @@ def test_cycle_context_tracks_which_extreme_came_last():
 
 def test_cycle_context_reports_the_full_window_when_history_allows():
     ctx = ss._cycle_context(_cycle_closes(100, 50, 75, 0, total_len=300))
-    assert ctx["window_sessions"] == ss.LONG_HIGH_WINDOW_SESSIONS
+    assert ctx["window_weeks"] == ss.LONG_HIGH_WINDOW_WEEKS
 
 
 def test_cycle_context_uses_whatever_history_is_actually_available():
     """A name with less than 52 weeks of history must not silently claim one."""
-    assert ss._cycle_context([100.0] * 40)["window_sessions"] == 40
+    assert ss._cycle_context([100.0] * 40)["window_weeks"] == 40
 
 
 def test_cycle_context_is_none_below_the_minimum_history():
-    assert ss._cycle_context([100.0] * ss.RECENT_MOVE_WINDOW_SESSIONS) is None
+    assert ss._cycle_context([100.0] * ss.RECENT_MOVE_WINDOW_WEEKS) is None
 
 
 def test_cycle_context_on_a_flat_series_is_all_zeroes_not_a_crash():
@@ -579,7 +592,22 @@ def test_cycle_context_on_a_flat_series_is_all_zeroes_not_a_crash():
 
 def _bars_for(peak: float, trough: float, last: float, move_pct: float,
               trough_first: bool = True) -> list[dict]:
-    return _bars(_cycle_closes(peak, trough, last, move_pct, trough_first))
+    """Bars for `cycle_stages()`, one per ISO week.
+
+    `cycle_stages` collapses bars to weekly closes before classifying, so a
+    fixture spaced one calendar day apart would coarsen under that collapse --
+    several bars folding into one week's close, changing the very peak/trough/
+    move `_cycle_closes` was built to have. Spacing every bar exactly one week
+    apart makes the collapse an identity: each bar is already its own week, so
+    `_weekly_closes` hands `_cycle_context` back exactly the closes below.
+    """
+    closes = _cycle_closes(peak, trough, last, move_pct, trough_first)
+    start = date(2020, 1, 6)   # a Monday; the weekday itself does not matter
+    return [
+        {"t": (start + timedelta(weeks=i)).isoformat(), "o": c, "h": c, "l": c,
+         "c": c, "v": 1_000_000.0}
+        for i, c in enumerate(closes)
+    ]
 
 
 def test_cycle_stages_group_label_is_the_most_common_stage():
@@ -612,7 +640,7 @@ def test_cycle_stages_includes_context_per_symbol():
     out = ss.cycle_stages(group)
     assert "context" in out
     assert abs(out["context"]["A"]["drawdown_pct"] - (-25.0)) < 1e-6
-    assert out["context"]["A"]["window_sessions"] == ss.LONG_HIGH_WINDOW_SESSIONS
+    assert out["context"]["A"]["window_weeks"] == ss.LONG_HIGH_WINDOW_WEEKS
 
 
 def test_cycle_stages_excludes_short_history_names_from_the_label():
