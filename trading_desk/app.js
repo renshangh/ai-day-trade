@@ -935,7 +935,28 @@ function renderSector() {
   const disp = d.dispersion || {};
   const lvl = d.at_level || {};
 
+  // Pain = the Ulcer Index of the group's own equal-weight index, so it is
+  // comparable like-for-like against the benchmark's. The benchmark figure sits
+  // in the sub-line on purpose: "this group is hurting while the market is not"
+  // is the comparison the tile exists to make, and it is unreadable if the two
+  // numbers are on different rows. The percentile is deliberately not turned
+  // into a band -- see _percentile_of_last in sector_signals.py.
+  const painWindows = (d.pain || {}).windows || {};
+  const painRow = (label, key) => {
+    const x = painWindows[key];
+    if (!x) return '';
+    const parts = [];
+    parts.push(`${esc(d.benchmark)} ${x.benchmark_ulcer == null ? '—' : x.benchmark_ulcer.toFixed(1)}`);
+    if (x.percentile_of_own_history != null) {
+      parts.push(`above ${x.percentile_of_own_history.toFixed(0)}% of its own ${x.history_n} prior readings`);
+    }
+    return sectorTile(label, x.group_ulcer == null ? '—' : x.group_ulcer.toFixed(1),
+      parts.join(' · '));
+  };
+
   const tiles = [
+    painRow('Pain now (Ulcer Index, 14d)', 'short'),
+    painRow('Pain, trailing year (Ulcer Index, 252d)', 'long'),
     rsRow('Relative strength, 5d', '5'),
     rsRow('Relative strength, 21d', '21'),
     rsRow('Relative strength, 63d', '63'),

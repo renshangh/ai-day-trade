@@ -6,6 +6,7 @@ python3 trading_desk/tests/test_sector_signals.py
 
 from __future__ import annotations
 
+import statistics
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -13,6 +14,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
+import indicators  # noqa: E402
 import sector_signals as ss  # noqa: E402
 
 
@@ -255,6 +257,129 @@ def test_volatility_regime_treats_a_genuinely_zero_atr_as_a_value_not_missing():
     assert out["avg_atr_pct_now"] == 0.0
 
 
+# ---- pain (Ulcer Index) ----------------------------------------------------------
+
+def test_ulcer_index_is_zero_while_a_series_keeps_making_new_highs():
+    """No drawdown means no pain. An advance is not volatility to be penalised
+    -- that is the whole difference between this and ATR or stdev."""
+    rising = [100.0 * (1.02 ** i) for i in range(30)]
+    assert indicators.ulcer_index(rising, 14)[-1] == 0.0
+
+
+def test_ulcer_index_warmup_is_none_not_zero():
+    """Undefined is not 'no pain' -- zero is a real reading meaning 'at highs',
+    so back-filling warmup with it would invert the meaning (RULE #1)."""
+    series = indicators.ulcer_index([100.0] * 20, 14)
+    assert series[12] is None
+    assert series[13] == 0.0
+
+
+def test_ulcer_index_rises_with_the_duration_of_a_drawdown_not_only_its_depth():
+    """The property that makes this 'pain' rather than 'loss'. Both series end
+    20% below their peak; the one that has been there for seven sessions hurts
+    more than the one that fell yesterday, and no single-point drawdown figure
+    can tell them apart."""
+    fell_yesterday = [100.0] * 13 + [80.0]
+    under_water_a_week = [100.0] * 7 + [80.0] * 7
+    brief = indicators.ulcer_index(fell_yesterday, 14)[-1]
+    sustained = indicators.ulcer_index(under_water_a_week, 14)[-1]
+    assert sustained > brief * 2, f"duration barely registered: {brief=} {sustained=}"
+
+
+def test_ulcer_index_rises_with_depth_at_equal_duration():
+    shallow = indicators.ulcer_index([100.0] * 7 + [90.0] * 7, 14)[-1]
+    deep = indicators.ulcer_index([100.0] * 7 + [80.0] * 7, 14)[-1]
+    assert deep > shallow
+
+
+def test_ulcer_index_reports_a_window_containing_a_bad_close_as_undefined():
+    """A zero close is a feed defect, not a 100% drawdown."""
+    assert indicators.ulcer_index([100.0] * 13 + [0.0], 14)[-1] is None
+
+
+def test_pain_measures_the_group_index_not_the_average_constituent():
+    """The correctness property behind comparing a group to a benchmark at all.
+
+    Two names swinging hard in opposite directions leave the *basket* flat.
+    Averaging their individual Ulcer Indices would report heavy pain and make
+    the group look worse than any index benchmark -- which is how this metric
+    would have read 'sector in fear' permanently, on nothing but the fact that
+    single stocks are more volatile than indices.
+    """
+    n = 60
+    swings_down_first = _bars([100.0 if i % 2 else 90.0 for i in range(n)])
+    swings_up_first = _bars([100.0 if i % 2 else 110.0 for i in range(n)])
+    group = {"A": swings_down_first, "B": swings_up_first}
+
+    out = ss.pain(group, None)
+    group_ulcer = out["windows"]["short"]["group_ulcer"]
+    per_name_avg = statistics.fmean(
+        indicators.ulcer_index([float(b["c"]) for b in bars], ss.PAIN_SHORT_SESSIONS)[-1]
+        for bars in group.values())
+
+    assert group_ulcer < per_name_avg / 2, (
+        f"group pain tracked the constituents' own swings instead of the basket's: "
+        f"{group_ulcer=} {per_name_avg=}")
+
+
+def test_pain_separates_a_falling_group_from_a_calm_benchmark():
+    """Ren's case: the broad market is fine, one sector is not. The excess is
+    what carries that, so it has to be positive and large here."""
+    falling = _bars([100.0 - i for i in range(60)])
+    flat_market = _flat(400, 60)
+    out = ss.pain({"A": falling}, flat_market)
+    short = out["windows"]["short"]
+
+    assert short["benchmark_ulcer"] == 0.0
+    assert short["group_ulcer"] > 5.0
+    assert short["excess"] == short["group_ulcer"] - short["benchmark_ulcer"]
+
+
+def test_pain_percentile_puts_the_worst_reading_on_record_at_100():
+    """A quiet year then a crash: today should read as the worst it has been,
+    which is the 'how unusual is this for them' answer the tile shows."""
+    closes = [100.0] * 300 + [100.0 - i * 2 for i in range(30)]
+    out = ss.pain({"A": _bars(closes)}, None)
+    short = out["windows"]["short"]
+    assert short["percentile_of_own_history"] == 100.0
+    assert short["history_n"] > 0
+
+
+def test_pain_percentile_is_none_rather_than_a_guess_on_a_thin_sample():
+    """Two readings cannot place today in a distribution. The percentile is
+    withheld, but the honest count of what history exists still comes back --
+    and the long window, with no readings at all, stays undefined rather than
+    defaulting to a comfortable zero."""
+    out = ss.pain({"A": _flat(100, 16)}, None)
+    short = out["windows"]["short"]
+    assert short["group_ulcer"] == 0.0
+    assert short["percentile_of_own_history"] is None
+    assert 0 < short["history_n"] < ss.PAIN_MIN_HISTORY
+    assert out["windows"]["long"]["group_ulcer"] is None
+
+
+def test_pain_equal_weight_index_keeps_names_with_unequal_history():
+    """A name added mid-window joins the index at its second bar instead of
+    truncating every other constituent back to its start date."""
+    long_name = _bars([100.0] * 60)
+    short_name = _bars([50.0] * 10)
+    series = ss._equal_weight_index({"A": long_name, "B": short_name})
+    assert len(series) == 60, f"history was truncated to the shortest name: {len(series)}"
+
+
+def test_pain_is_reported_as_a_number_and_never_as_a_band():
+    """No 'Extreme Fear' label. The Ulcer Index has no published thresholds, so
+    any band would be invented here and then read as a standard -- the mistake
+    the cycle classifier was rewritten to remove. The percentile against the
+    group's own history is the honest substitute, and it is a measurement."""
+    out = ss.pain({"A": _bars([100.0 - i * 0.5 for i in range(300)])}, _flat(400, 300))
+    for window in out["windows"].values():
+        for key, value in window.items():
+            assert not isinstance(value, str), f"pain window carries a label in {key!r}: {value!r}"
+        for banned in ("label", "band", "status", "verdict", "level", "rating"):
+            assert banned not in window, f"pain window carries a verdict key {banned!r}"
+
+
 # ---- dispersion ------------------------------------------------------------------
 
 def test_dispersion_is_zero_when_every_name_moves_identically():
@@ -313,7 +438,7 @@ def test_scorecard_has_every_documented_top_level_key():
     group = {"A": _trend(100, 0.2, 70)}
     out = ss.compute_sector_scorecard(group, _trend(100, 0.2, 70))
     for key in ("relative_strength", "breadth", "new_highs_lows", "participation",
-                "volatility", "dispersion", "at_level", "cycle_stages"):
+                "volatility", "pain", "dispersion", "at_level", "cycle_stages"):
         assert key in out, key
 
 
