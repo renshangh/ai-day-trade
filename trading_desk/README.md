@@ -4,7 +4,7 @@ Local dashboard that screens sectors and themes over short horizons — for mome
 or for reversals — and charts the resulting movers with the standard technical
 indicator set.
 
-**Last Updated:** 2026-09-11
+**Last Updated:** 2026-09-14
 **Status:** Active
 **Audience:** Both
 
@@ -153,7 +153,7 @@ need a browser reload.
 | Earnings timing | Upcoming prints (including today's, before they land) with an uncertainty window, expected timing, 1-day and 1-week reaction stats, and held-position alerts. |
 | Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, and the journal's own recorded gaps. |
 | Cycle | The monthly AI data center cycle score: the latest GREEN / YELLOW / RED reading and total, the eight indicator scores against the criteria they were scored on, a trend of past reviews, the history table, and the form that writes the next review to the log. |
-| Sector | A scorecard of measured facts about one universe.py group's own recent price/volume history -- relative strength vs its benchmark (and whether that excess is widening or narrowing), breadth above its own moving averages, new highs/lows, participation, volatility, dispersion, and how many constituents sit near a level. Any group is selectable; nothing here is scored, banded, or turned into a call. See Sector scorecard below. |
+| Sector | A scorecard of measured facts about one universe.py group's own recent price/volume history -- relative strength vs its benchmark (and whether that excess is widening or narrowing), breadth above its own moving averages, new highs/lows, participation, volatility, pain (how deep and how prolonged its drawdown is, against the benchmark's own), dispersion, and how many constituents sit near a level. Any group is selectable; nothing here is scored, banded, or turned into a call. See Sector scorecard below. |
 | Ranking table | The same board in text form — every value readable without color. |
 
 ### Company detail
@@ -664,6 +664,10 @@ label):
   name cannot be swamped by a cheap, heavily-traded one in the sum.
 - **Volatility** -- average ATR% now against 20 sessions ago. Expansion
   precedes a resolution without saying which way it resolves.
+- **Pain** -- the Ulcer Index of the group at 14 and 252 sessions, each against
+  the benchmark's own and against the group's own history. How far under water
+  the group is and how long it has been there. See
+  [Pain](#pain----how-much-it-hurts-to-hold-this-group) below.
 - **Dispersion** -- how much constituents moved together *today* versus their
   own trailing-20-session norm, not against a fixed universal threshold. A
   ratio under 1 means today was driven by something shared across the whole
@@ -693,6 +697,85 @@ history, not a score, a rank, or a call on direction.** A dashboard that
 combined relative strength, breadth, and dispersion into one number would be
 manufacturing a composite edge none of these measurements individually claims
 to have.
+
+#### Pain -- how much it hurts to hold this group
+
+The question the other tiles cannot answer: *the broad market is calm, but is
+this particular sector in trouble?* Volatility counts a violent rally the same
+as a violent decline; relative strength over a window reads flat for a group
+that fell early and then stabilised. Neither says how far under water a group
+is, or how long it has been there.
+
+The measure is the **Ulcer Index** (Peter Martin, 1989): the root-mean-square
+drawdown from the running peak over a window, in percent. It is 0 when the
+series makes a new high every bar, and it rises with **both** the depth of a
+decline and its **duration** -- squaring the drawdowns is what makes a
+three-month slump score worse than a one-week dip of the same depth. That
+duration term is the whole reason it is the right measure for "pain" rather
+than a plain drawdown number: a 20% loss recovered in a week and a 20% loss sat
+on for a quarter are not the same experience for whoever is holding it.
+
+Two windows, because they answer different questions -- the same reason the
+earnings view shows a 1-day and a 1-week reaction:
+
+| Window | Reads |
+|---|---|
+| **14 sessions** | Acute stress. How much the group is hurting *right now*. |
+| **252 sessions** | Accumulated damage over a trading year, the daily-bar equivalent of the 52 weeks the cycle stage uses. |
+
+A group that halved six months ago and has flatlined since reads near zero on
+the short window and high on the long one. Both are true, and a single number
+would have to hide one of them.
+
+**The group is measured as an index, not as an average of its names.** The
+constituents' daily returns are equal-weighted and chained into one series
+first, and the Ulcer Index is taken from that. Averaging each name's own Ulcer
+Index would compare a basket of single stocks against SPY, and single stocks
+are more volatile than any index nearly by construction -- so the group would
+have read as more painful than the benchmark essentially always, including in
+the months when it plainly was not. Chaining first makes both sides of the
+comparison the same kind of object.
+`test_pain_measures_the_group_index_not_the_average_constituent` pins this.
+
+**There is no "Extreme Fear" band.** The Ulcer Index has no published
+thresholds, so any cutoff would be invented here and then displayed with the
+authority of a standard -- precisely the mistake the moving-average cycle
+classifier was rewritten to remove. Instead each reading is ranked against the
+group's **own** prior readings ("above 75% of its own 506 prior readings"),
+which invents nothing and answers the question "is this unusually bad *for
+them*" directly. Ties count as half, the conventional percentile rank -- a
+group that sat at its highs all year has every reading at exactly 0.0, and
+counting only values strictly below would rank it last while it is tied with
+everything.
+
+**The percentile is gated on independent spans, not on readings.** Consecutive
+Ulcer Index readings share all but one bar of their window, so counting them is
+self-deception: the ~520 bars this view fetches yield 268 UI(252) readings that
+span only `520 / 252 = 1.07` independent years. Quoting "above 52% of its own
+268 prior readings" off that states a distribution which does not exist -- the
+same failure as inventing a band, wearing a sample size instead of a label. So
+a percentile is quoted only where the history covers
+`PAIN_MIN_INDEPENDENT_SPANS` (20) non-overlapping windows. In practice the
+**14-session window gets a percentile** (36 spans available) and the
+**252-session window does not**, reporting its level and its honest reading
+count with no rank attached.
+
+Measured on 2026-09-14, which is the case this was built for:
+
+| Group | 14d | benchmark | 252d | benchmark |
+|---|---:|---:|---:|---:|
+| AI Optical / Interconnect | 6.31 | SPY 0.96 | 9.92 | 2.12 |
+| AI Power / Datacenter Buildout | 3.60 | SPY 0.96 | 10.99 | 2.12 |
+| Technology | 2.07 | XLK 1.41 | 6.20 | 6.23 |
+| Utilities | 1.59 | XLU 1.91 | 5.18 | 5.19 |
+
+The broad market was not in distress and AI Optical was, at roughly 6.5x SPY's
+reading -- while Utilities sat *below* its own benchmark. That separation is
+the entire point of the tile.
+
+**Still not a signal.** A high reading says a group is deep in a drawdown and
+has been for a while. It does not say the group is cheap, that the decline is
+over, or that anything should be bought or sold.
 
 #### Cycle stage -- the one exception, and why it is handled differently
 
@@ -837,6 +920,7 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/cycle` | The cycle log (every review, oldest first, totals derived from the scores), the rubric parsed from the framework document, the bands, and any file warnings. Never cached. |
 | `POST /api/cycle` | Write one review (JSON: `review_date`, `scores`, `core_question`, `assumption_changed`, `notes`), replacing a row with the same date. Returns the rebuilt payload, or 400 with the reason. |
 | `GET /api/sector?group=X&benchmark=Y` | Leading-indicator scorecard for one universe.py group (`X` defaults to `DEFAULT_SECTOR_GROUP`; `benchmark` defaults to the group's own `etf`, then `SPY`). Cached like `/api/stock`; `?force=1` bypasses it. Unknown group returns `error` plus `available_groups`. |
+| — | The same response carries `pain`: the group's Ulcer Index at 14 and 252 sessions, each with the benchmark's own reading, the excess, and the percentile against the group's own history. See Sector scorecard → Pain. |
 | — | The same response also carries `cycle_stages`: per-name cycle stage, each name's drawdown from its own peak, rally off its own trough, which extreme came last, and recent move (`context`), a count per stage, and the group's majority label (ties reported as ties). See Sector scorecard → Cycle stage. |
 | `GET /api/health` | Credential and cache status. |
 
@@ -888,13 +972,13 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `research/split_study.py` | Split-event counts and pre-split return study (see Split events) |
-| `sector_signals.py` | Sector scorecard math: relative strength, breadth, new highs/lows, participation, volatility, dispersion, level proximity, seven-stage cycle classification. Pure functions over bars, no I/O |
+| `sector_signals.py` | Sector scorecard math: relative strength, breadth, new highs/lows, participation, volatility, pain (Ulcer Index of the group's equal-weight index), dispersion, level proximity, seven-stage cycle classification. Pure functions over bars, no I/O |
 | `cycle.py` | Cycle score log: read, validate and write `cycle-score.csv`; parse the framework document for the rubric |
 | `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | The framework the Cycle view scores against: eight 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
 | `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
 | `tests/test_cycle.py` | Cycle log rules (blank stays blank, strict writes, tolerant reads), document/template/code agreement, POST validation |
-| `tests/test_sector_signals.py` | Sector scorecard math on synthetic bars: relative strength, breadth, new highs/lows, participation, volatility, dispersion, level proximity |
+| `tests/test_sector_signals.py` | Sector scorecard math on synthetic bars: relative strength, breadth, new highs/lows, participation, volatility, pain (Ulcer Index depth/duration, index-not-average, percentile), dispersion, level proximity |
 | `tests/test_sector_route.py` | `/api/sector` benchmark resolution (own etf, fallback, override), missing-constituent handling, cache keying and TTL, error-not-raised |
 | `tests/test_ports.py` | Per-branch port mapping, HEAD parsing, launcher agreement, stale-server detection |
 

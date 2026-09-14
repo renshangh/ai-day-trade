@@ -27,6 +27,39 @@ import indicators
 # between the four, not four defaults that happen to agree today by accident.
 DEFAULT_LOOKBACK_SESSIONS = 20
 
+# The two horizons the Ulcer Index is read over. Deliberately not
+# DEFAULT_LOOKBACK_SESSIONS: these are not "the lookback this module happens to
+# use", they are the two spans that answer the two different questions below,
+# and 14 is the published parameter for the indicator itself (the same reason
+# ATR and RSI are 14 in indicators.py rather than 20).
+#
+#   short -- how much the group is hurting *now*. Acute stress.
+#   long  -- how much damage this group has taken and held onto over a trading
+#            year. A group that halved six months ago and has flatlined since
+#            reads near zero on the short window and very high on the long one,
+#            and both of those are true statements about a holder's position.
+#
+# 252 sessions is one trading year, the daily-bar equivalent of the 52 weeks
+# LONG_HIGH_WINDOW_WEEKS uses, so the pain tile and the cycle stage are talking
+# about the same stretch of history rather than two unrelated ones.
+PAIN_SHORT_SESSIONS = 14
+PAIN_LONG_SESSIONS = 252
+
+# How much history a percentile has to be measured against before it is worth
+# quoting, counted in *non-overlapping* spans rather than in readings. No
+# published standard; this desk's own floor, and disclosed as one.
+#
+# Counting readings would be self-deception. Consecutive Ulcer Index readings
+# share all but one bar of their window, so the 268 UI(252) readings available
+# from this view's ~520 bars are not 268 observations of anything -- they span
+# 520/252 = 1.07 independent years. Printing "above 52% of its own 268 prior
+# readings" off that would state a distribution that does not exist, which is
+# the same failure as inventing a "Extreme Fear" band, only wearing a sample
+# size instead of a label. Requiring independent spans means the 14-session
+# window (36 spans available) keeps its percentile and the 252-session window
+# correctly reports none until the desk holds decades of bars.
+PAIN_MIN_INDEPENDENT_SPANS = 20
+
 
 def _closes(bars: list[dict]) -> list[float]:
     return [float(b["c"]) for b in bars]
@@ -222,6 +255,131 @@ def volatility_regime(
         "avg_atr_pct_20d_ago": past_avg,
         "expansion_pct_points": expansion,
     }
+
+
+def _equal_weight_index(bars_by_symbol: dict[str, list[dict]]) -> list[float]:
+    """The group as one price series: daily equal-weight constituent returns, chained.
+
+    This exists so the group's pain can be compared against a benchmark's
+    *honestly*. Averaging each constituent's own Ulcer Index and setting that
+    beside SPY's would compare a basket of single stocks to an index -- single
+    stocks are more volatile than any index almost by construction, so the
+    group would read as more painful than the benchmark essentially always,
+    including in the months it was not. Chaining the returns first makes both
+    sides of the comparison the same kind of object: an index.
+
+    Returns are averaged per *date* across whichever names have a return for
+    that date, so constituents with different amounts of history do not have to
+    be truncated to the shortest one, and a name listed mid-window simply joins
+    the index at its second bar. Starts at an arbitrary 100.0: only the shape
+    matters, since every number taken off this series is a ratio.
+
+    Note this deliberately does *not* take `participation`'s guard of dropping
+    names without full history. That guard exists because participation sums
+    dollar volume, so its total moves with the number of contributors whether
+    or not volume changed. A mean of returns has no such roster effect, and
+    admitting a name from its second bar is how equal-weight indices normally
+    handle an addition.
+    """
+    returns_by_date: dict[str, list[float]] = {}
+    for bars in bars_by_symbol.values():
+        for prev, cur in zip(bars, bars[1:]):
+            prev_close, close = float(prev["c"]), float(cur["c"])
+            # Both sides must be real prices. Guarding only the divisor leaves a
+            # non-positive *current* close to post a -100% return, which pins the
+            # chained level at 0 for the rest of the series -- every later
+            # session destroyed by one bad bar -- and, in a multi-name group,
+            # posts a drop no constituent actually had. Either way the index
+            # would be showing movement the market did not make (RULE #1), so a
+            # defective bar costs that name that one day and nothing more.
+            if prev_close > 0 and close > 0:
+                returns_by_date.setdefault(str(cur["t"])[:10], []).append(close / prev_close - 1.0)
+    if not returns_by_date:
+        return []
+    level = 100.0
+    series = [level]
+    for day in sorted(returns_by_date):
+        level *= 1.0 + statistics.fmean(returns_by_date[day])
+        series.append(level)
+    return series
+
+
+def _percentile_of_last(series: indicators.Series, period: int) -> tuple[float | None, int]:
+    """Where the latest defined value sits against every earlier one, in percent.
+
+    The honest alternative to banding the Ulcer Index into "Fear / Extreme
+    Fear". Those bands do not exist -- the indicator has no published
+    thresholds, so any cutoff would be invented here and then displayed with
+    the authority of a standard, which is exactly the mistake the moving-average
+    cycle classifier made before it was rewritten onto published definitions.
+    A percentile invents nothing: it says how today's reading compares to this
+    group's own past, which is a measured fact and the question "is this
+    unusually bad for *them*" actually asks.
+
+    `period` is the window those readings were taken over, and is needed
+    because consecutive readings overlap by `period - 1` bars: the sample is
+    ranked only when the history covers `PAIN_MIN_INDEPENDENT_SPANS` spans of
+    that length, not merely that many readings.
+
+    Returns `(percentile, n)` where `n` is how many earlier readings it was
+    measured against -- a percentile from 300 readings deserves less weight
+    than one from 3000, and hiding the sample size would conceal that. When the
+    history is too short the percentile is None while `n` still reports the real
+    count: too thin to rank against is a different statement from no history.
+
+    Ties count as half, the conventional percentile rank. Counting only values
+    strictly below would report a group that has sat at its highs all year --
+    every reading exactly 0.0 -- as "above 0% of its history", ranking it last
+    when it is tied with everything.
+    """
+    values = [v for v in series if v is not None]
+    if len(values) < 2:
+        return None, 0
+    latest, earlier = values[-1], values[:-1]
+    if len(earlier) < PAIN_MIN_INDEPENDENT_SPANS * period:
+        return None, len(earlier)
+    below = sum(1 for v in earlier if v < latest)
+    tied = sum(1 for v in earlier if v == latest)
+    return (below + tied / 2.0) / len(earlier) * 100.0, len(earlier)
+
+
+def pain(bars_by_symbol: dict[str, list[dict]], benchmark_bars: list[dict] | None) -> dict:
+    """How much it currently hurts to hold this group, versus the benchmark.
+
+    The Ulcer Index (see `indicators.ulcer_index`) of the group's own
+    equal-weight index, at two horizons, each set against the same measurement
+    of the benchmark and against the group's own history.
+
+    This is the one thing on the scorecard the other metrics genuinely cannot
+    say. Volatility reports how wide the daily range has become, which counts a
+    violent rally as equal to a violent decline; relative strength reports a
+    difference in returns over a window, which a group that fell early and then
+    stabilised will show as flat. Neither answers "how far under water is this
+    group, and for how long" -- which is the question behind noticing that the
+    broad market is calm while one sector is not.
+
+    Still a measurement, not a verdict: nothing here says a painful group is
+    cheap, finished falling, or worth buying.
+    """
+    group_closes = _equal_weight_index(bars_by_symbol)
+    bench_closes = _closes(benchmark_bars) if benchmark_bars else None
+
+    windows: dict[str, dict] = {}
+    for label, period in (("short", PAIN_SHORT_SESSIONS), ("long", PAIN_LONG_SESSIONS)):
+        group_series = indicators.ulcer_index(group_closes, period)
+        group_now = _last(group_series)
+        bench_now = _last(indicators.ulcer_index(bench_closes, period)) if bench_closes else None
+        percentile, history_n = _percentile_of_last(group_series, period)
+        windows[label] = {
+            "sessions": period,
+            "group_ulcer": group_now,
+            "benchmark_ulcer": bench_now,
+            "excess": (group_now - bench_now)
+                      if (group_now is not None and bench_now is not None) else None,
+            "percentile_of_own_history": percentile,
+            "history_n": history_n,
+        }
+    return {"windows": windows, "index_sessions": len(group_closes)}
 
 
 def dispersion(bars_by_symbol: dict[str, list[dict]], lookback: int = DEFAULT_LOOKBACK_SESSIONS) -> dict:
@@ -561,6 +719,7 @@ def compute_sector_scorecard(
         "new_highs_lows": new_highs_lows(usable),
         "participation": participation(usable),
         "volatility": volatility_regime(usable, indicators_by_symbol),
+        "pain": pain(usable, benchmark_bars),
         "dispersion": dispersion(usable),
         "at_level": at_level(usable, indicators_by_symbol, level_proximity_atr),
         "cycle_stages": cycle_stages(usable),
