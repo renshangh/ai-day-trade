@@ -45,13 +45,20 @@ DEFAULT_LOOKBACK_SESSIONS = 20
 PAIN_SHORT_SESSIONS = 14
 PAIN_LONG_SESSIONS = 252
 
-# How many prior readings a percentile has to be measured against before it is
-# worth quoting. No published standard; this desk's own floor, and disclosed as
-# one. A percentile can only resolve 1/n, so ranking today against three
-# readings and printing "above 67% of its own history" states a precision the
-# sample cannot support. Twenty is a trading month of readings -- enough that
-# the number moves in single-digit steps rather than thirds.
-PAIN_MIN_HISTORY = 20
+# How much history a percentile has to be measured against before it is worth
+# quoting, counted in *non-overlapping* spans rather than in readings. No
+# published standard; this desk's own floor, and disclosed as one.
+#
+# Counting readings would be self-deception. Consecutive Ulcer Index readings
+# share all but one bar of their window, so the 268 UI(252) readings available
+# from this view's ~520 bars are not 268 observations of anything -- they span
+# 520/252 = 1.07 independent years. Printing "above 52% of its own 268 prior
+# readings" off that would state a distribution that does not exist, which is
+# the same failure as inventing a "Extreme Fear" band, only wearing a sample
+# size instead of a label. Requiring independent spans means the 14-session
+# window (36 spans available) keeps its percentile and the 252-session window
+# correctly reports none until the desk holds decades of bars.
+PAIN_MIN_INDEPENDENT_SPANS = 20
 
 
 def _closes(bars: list[dict]) -> list[float]:
@@ -266,15 +273,26 @@ def _equal_weight_index(bars_by_symbol: dict[str, list[dict]]) -> list[float]:
     be truncated to the shortest one, and a name listed mid-window simply joins
     the index at its second bar. Starts at an arbitrary 100.0: only the shape
     matters, since every number taken off this series is a ratio.
+
+    Note this deliberately does *not* take `participation`'s guard of dropping
+    names without full history. That guard exists because participation sums
+    dollar volume, so its total moves with the number of contributors whether
+    or not volume changed. A mean of returns has no such roster effect, and
+    admitting a name from its second bar is how equal-weight indices normally
+    handle an addition.
     """
     returns_by_date: dict[str, list[float]] = {}
     for bars in bars_by_symbol.values():
         for prev, cur in zip(bars, bars[1:]):
             prev_close, close = float(prev["c"]), float(cur["c"])
-            # A non-positive prior close is a feed defect, not a price; the day
-            # is skipped for that name rather than contributing a fabricated
-            # return to the group's index (AGENTS.md RULE #1).
-            if prev_close > 0:
+            # Both sides must be real prices. Guarding only the divisor leaves a
+            # non-positive *current* close to post a -100% return, which pins the
+            # chained level at 0 for the rest of the series -- every later
+            # session destroyed by one bad bar -- and, in a multi-name group,
+            # posts a drop no constituent actually had. Either way the index
+            # would be showing movement the market did not make (RULE #1), so a
+            # defective bar costs that name that one day and nothing more.
+            if prev_close > 0 and close > 0:
                 returns_by_date.setdefault(str(cur["t"])[:10], []).append(close / prev_close - 1.0)
     if not returns_by_date:
         return []
@@ -286,7 +304,7 @@ def _equal_weight_index(bars_by_symbol: dict[str, list[dict]]) -> list[float]:
     return series
 
 
-def _percentile_of_last(series: list) -> tuple[float | None, int]:
+def _percentile_of_last(series: indicators.Series, period: int) -> tuple[float | None, int]:
     """Where the latest defined value sits against every earlier one, in percent.
 
     The honest alternative to banding the Ulcer Index into "Fear / Extreme
@@ -298,21 +316,31 @@ def _percentile_of_last(series: list) -> tuple[float | None, int]:
     group's own past, which is a measured fact and the question "is this
     unusually bad for *them*" actually asks.
 
+    `period` is the window those readings were taken over, and is needed
+    because consecutive readings overlap by `period - 1` bars: the sample is
+    ranked only when the history covers `PAIN_MIN_INDEPENDENT_SPANS` spans of
+    that length, not merely that many readings.
+
     Returns `(percentile, n)` where `n` is how many earlier readings it was
-    measured against -- a percentile from 25 observations deserves less weight
-    than one from 500, and hiding the sample size would conceal that. Below
-    `PAIN_MIN_HISTORY` the percentile is None while `n` still reports the real
-    count: the sample is too thin to rank against, and saying so is different
-    from claiming there was no history at all.
+    measured against -- a percentile from 300 readings deserves less weight
+    than one from 3000, and hiding the sample size would conceal that. When the
+    history is too short the percentile is None while `n` still reports the real
+    count: too thin to rank against is a different statement from no history.
+
+    Ties count as half, the conventional percentile rank. Counting only values
+    strictly below would report a group that has sat at its highs all year --
+    every reading exactly 0.0 -- as "above 0% of its history", ranking it last
+    when it is tied with everything.
     """
     values = [v for v in series if v is not None]
     if len(values) < 2:
         return None, 0
     latest, earlier = values[-1], values[:-1]
-    if len(earlier) < PAIN_MIN_HISTORY:
+    if len(earlier) < PAIN_MIN_INDEPENDENT_SPANS * period:
         return None, len(earlier)
     below = sum(1 for v in earlier if v < latest)
-    return below / len(earlier) * 100.0, len(earlier)
+    tied = sum(1 for v in earlier if v == latest)
+    return (below + tied / 2.0) / len(earlier) * 100.0, len(earlier)
 
 
 def pain(bars_by_symbol: dict[str, list[dict]], benchmark_bars: list[dict] | None) -> dict:
@@ -341,7 +369,7 @@ def pain(bars_by_symbol: dict[str, list[dict]], benchmark_bars: list[dict] | Non
         group_series = indicators.ulcer_index(group_closes, period)
         group_now = _last(group_series)
         bench_now = _last(indicators.ulcer_index(bench_closes, period)) if bench_closes else None
-        percentile, history_n = _percentile_of_last(group_series)
+        percentile, history_n = _percentile_of_last(group_series, period)
         windows[label] = {
             "sessions": period,
             "group_ulcer": group_now,

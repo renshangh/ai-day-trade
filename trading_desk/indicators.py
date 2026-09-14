@@ -193,15 +193,15 @@ def ulcer_index(closes: list[float], period: int = 14) -> Series:
     for i in range(period - 1, len(closes)):
         peak = 0.0
         squares = 0.0
-        broken = False
         for c in closes[i - period + 1 : i + 1]:
             if c <= 0:
-                broken = True
                 break
             peak = max(peak, c)
             drawdown = (c / peak - 1.0) * 100.0  # <= 0
             squares += drawdown * drawdown
-        if not broken:
+        else:
+            # Only reached when no bar in the window broke out above, i.e. every
+            # close in it was a real price.
             out[i] = (squares / period) ** 0.5
     return out
 

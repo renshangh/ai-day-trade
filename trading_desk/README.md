@@ -743,9 +743,22 @@ authority of a standard -- precisely the mistake the moving-average cycle
 classifier was rewritten to remove. Instead each reading is ranked against the
 group's **own** prior readings ("above 75% of its own 506 prior readings"),
 which invents nothing and answers the question "is this unusually bad *for
-them*" directly. Below `PAIN_MIN_HISTORY` (20) prior readings the percentile is
-withheld rather than quoted off a sample too thin to support it; the real count
-is still reported.
+them*" directly. Ties count as half, the conventional percentile rank -- a
+group that sat at its highs all year has every reading at exactly 0.0, and
+counting only values strictly below would rank it last while it is tied with
+everything.
+
+**The percentile is gated on independent spans, not on readings.** Consecutive
+Ulcer Index readings share all but one bar of their window, so counting them is
+self-deception: the ~520 bars this view fetches yield 268 UI(252) readings that
+span only `520 / 252 = 1.07` independent years. Quoting "above 52% of its own
+268 prior readings" off that states a distribution which does not exist -- the
+same failure as inventing a band, wearing a sample size instead of a label. So
+a percentile is quoted only where the history covers
+`PAIN_MIN_INDEPENDENT_SPANS` (20) non-overlapping windows. In practice the
+**14-session window gets a percentile** (36 spans available) and the
+**252-session window does not**, reporting its level and its honest reading
+count with no rank attached.
 
 Measured on 2026-09-14, which is the case this was built for:
 

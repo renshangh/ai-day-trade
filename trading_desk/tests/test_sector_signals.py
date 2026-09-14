@@ -354,8 +354,52 @@ def test_pain_percentile_is_none_rather_than_a_guess_on_a_thin_sample():
     short = out["windows"]["short"]
     assert short["group_ulcer"] == 0.0
     assert short["percentile_of_own_history"] is None
-    assert 0 < short["history_n"] < ss.PAIN_MIN_HISTORY
+    assert 0 < short["history_n"] < ss.PAIN_MIN_INDEPENDENT_SPANS * ss.PAIN_SHORT_SESSIONS
     assert out["windows"]["long"]["group_ulcer"] is None
+
+
+def test_pain_percentile_counts_independent_spans_not_overlapping_readings():
+    """Consecutive Ulcer Index readings share all but one bar of their window,
+    so a count of readings wildly overstates the sample. At the ~2 years of
+    bars this view actually fetches the 252-session window has ~268 readings
+    but barely one independent year behind it -- enough to look like a
+    distribution and not enough to be one, so no percentile is quoted. The
+    14-session window, with real independent spans, still gets one."""
+    two_years = _bars([100.0 + (i % 40) for i in range(520)])
+    out = ss.pain({"A": two_years}, None)
+
+    long_window = out["windows"]["long"]
+    assert long_window["group_ulcer"] is not None, "the reading itself should still be reported"
+    assert long_window["percentile_of_own_history"] is None, (
+        f"quoted a percentile off {long_window['history_n']} overlapping readings "
+        f"spanning only {long_window['history_n'] / ss.PAIN_LONG_SESSIONS:.2f} independent windows")
+    assert long_window["history_n"] > 0, "the real count is still reported"
+    assert out["windows"]["short"]["percentile_of_own_history"] is not None
+
+
+def test_pain_percentile_splits_ties_instead_of_ranking_them_last():
+    """A group at its highs all year has every reading at exactly 0.0. Counting
+    only values strictly below would call that 'above 0% of its history' --
+    ranked last while tied with everything. Conventional percentile rank gives
+    ties half credit, so it reads as the midpoint."""
+    flat = ss._percentile_of_last([0.0] * 400, 1)
+    assert flat[0] == 50.0, f"tied readings were ranked last: {flat}"
+
+
+def test_pain_index_is_not_destroyed_by_one_defective_close():
+    """A zero close is a feed defect, not a -100% session. Guarding only the
+    divisor let it through as a real return, and because the index is chained
+    the level stayed pinned at 0 for every session after it -- one bad bar
+    silently wiping out the rest of the series, and in a multi-name group
+    posting a drop no constituent had (RULE #1). The name loses that one day
+    and nothing else."""
+    closes = [100.0] * 10
+    closes[5] = 0.0
+    series = ss._equal_weight_index({"A": _bars(closes)})
+
+    assert all(level > 0 for level in series), f"a defect zeroed the index: {series}"
+    assert series[-1] == series[0], (
+        f"a skipped bar moved a flat index: {series[0]} -> {series[-1]}")
 
 
 def test_pain_equal_weight_index_keeps_names_with_unequal_history():

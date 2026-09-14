@@ -945,13 +945,18 @@ function renderSector() {
   const painRow = (label, key) => {
     const x = painWindows[key];
     if (!x) return '';
+    // With no reading of its own the tile has nothing to say, so it says that
+    // rather than printing the benchmark's number underneath a dash -- on a
+    // card titled "Pain" the only visible figure reads as the group's.
+    if (x.group_ulcer == null) {
+      return sectorTile(label, '—', `fewer than ${x.sessions} sessions of history`);
+    }
     const parts = [];
     parts.push(`${esc(d.benchmark)} ${x.benchmark_ulcer == null ? '—' : x.benchmark_ulcer.toFixed(1)}`);
     if (x.percentile_of_own_history != null) {
       parts.push(`above ${x.percentile_of_own_history.toFixed(0)}% of its own ${x.history_n} prior readings`);
     }
-    return sectorTile(label, x.group_ulcer == null ? '—' : x.group_ulcer.toFixed(1),
-      parts.join(' · '));
+    return sectorTile(label, x.group_ulcer.toFixed(1), parts.join(' · '));
   };
 
   const tiles = [
