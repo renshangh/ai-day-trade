@@ -343,6 +343,30 @@ def _percentile_of_last(series: indicators.Series, period: int) -> tuple[float |
     return (below + tied / 2.0) / len(earlier) * 100.0, len(earlier)
 
 
+def symbol_pain(closes: list[float]) -> dict:
+    """One name's Ulcer Index at the desk's two pain horizons.
+
+    The per-position counterpart to `pain`, which measures a whole group. Both
+    go through these same two constants deliberately: the Sector view and the
+    Daily review put the same word on the page, and horizons that drifted apart
+    would leave "pain" meaning one span on one view and another span on the
+    next, with nothing on either page to show it.
+
+    No benchmark leg and no percentile. A group is an index and can be set
+    against another index honestly; a single name against SPY is the
+    apples-to-oranges comparison `_equal_weight_index` exists to avoid, and a
+    per-name percentile would carry the same overlapping-window problem
+    `_percentile_of_last` refuses to quote through. The number itself is
+    comparable across a book, which is what the review needs.
+    """
+    return {
+        "short_sessions": PAIN_SHORT_SESSIONS,
+        "long_sessions": PAIN_LONG_SESSIONS,
+        "short": _last(indicators.ulcer_index(closes, PAIN_SHORT_SESSIONS)),
+        "long": _last(indicators.ulcer_index(closes, PAIN_LONG_SESSIONS)),
+    }
+
+
 def pain(bars_by_symbol: dict[str, list[dict]], benchmark_bars: list[dict] | None) -> dict:
     """How much it currently hurts to hold this group, versus the benchmark.
 

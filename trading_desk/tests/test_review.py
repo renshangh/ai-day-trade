@@ -119,6 +119,39 @@ def test_no_support_below_price_reports_absence_rather_than_a_guess():
     assert "no_support" in keys
 
 
+def test_pain_measures_the_name_s_own_drawdown_not_the_position_s_pnl():
+    """The reason this column earns its place beside `Unrealised`.
+
+    `pnl_pct` is measured from whenever this desk happened to buy, so a name
+    deep in its own drawdown can still show a profit. Here the position is up
+    200% and the name is 25% below the peak it set two weeks ago; both facts
+    are true and the review reports them separately rather than letting the
+    entry price decide whether a decline gets mentioned.
+    """
+    closes = [100.0] * 20 + [200.0] + [150.0] * 13
+    held = {"qty": 10.0, "cost": 500.0, "avg_entry": 50.0, "lots": 1}
+    e = review_one(stub_stock(closes, []), held)
+
+    assert e["pnl_pct"] > 100.0, "fixture should be well in profit"
+    assert e["pain"]["short"] > 10.0, (
+        f"a 25% drawdown inside the window read as {e['pain']['short']}")
+    assert e["pain"]["short_sessions"] == 14
+
+
+def test_pain_long_window_is_undefined_on_a_short_history():
+    """34 bars is not a trailing year. The column reports nothing for that
+    window rather than quietly showing the 14-session figure in its place."""
+    e = review_one(stub_stock([100.0] * 34, []), HELD)
+    assert e["pain"]["short"] is not None
+    assert e["pain"]["long"] is None
+
+
+def test_pain_survives_a_name_sitting_at_its_highs():
+    """Zero is a real reading -- at highs, no drawdown -- not a missing one."""
+    e = review_one(stub_stock([100.0 + i for i in range(30)], []), HELD)
+    assert e["pain"]["short"] == 0.0
+
+
 def test_journal_gaps_are_counted_per_lot():
     lots = [
         {"symbol": "TEST", "stop": "", "thesis": "", "setup": "momentum"},
