@@ -411,6 +411,34 @@ def test_pain_equal_weight_index_keeps_names_with_unequal_history():
     assert len(series) == 60, f"history was truncated to the shortest name: {len(series)}"
 
 
+def test_symbol_pain_reads_the_same_two_horizons_as_the_group_metric():
+    """The Sector view and the Daily review both put the word "pain" on the
+    page. If their windows drifted apart the same word would mean two different
+    spans with nothing on either page to show it, so both read these constants."""
+    out = ss.symbol_pain([100.0] * 300)
+    assert out["short_sessions"] == ss.PAIN_SHORT_SESSIONS
+    assert out["long_sessions"] == ss.PAIN_LONG_SESSIONS
+    assert out["short"] == 0.0 and out["long"] == 0.0
+
+
+def test_symbol_pain_long_window_is_undefined_below_its_own_span():
+    """A name without a trading year of bars has no trailing-year reading, and
+    says so rather than reporting the short window's number twice."""
+    out = ss.symbol_pain([100.0] * 100)
+    assert out["short"] == 0.0
+    assert out["long"] is None
+
+
+def test_symbol_pain_carries_no_benchmark_or_percentile():
+    """Both survive the group case and neither survives the single-name one: a
+    lone stock against SPY is the apples-to-oranges comparison the equal-weight
+    index exists to avoid, and a per-name percentile inherits the overlapping-
+    window problem. Absent beats present-and-misleading."""
+    out = ss.symbol_pain([100.0] * 300)
+    for banned in ("benchmark_ulcer", "excess", "percentile_of_own_history"):
+        assert banned not in out, f"symbol_pain leaked a group-only field: {banned}"
+
+
 def test_pain_is_reported_as_a_number_and_never_as_a_band():
     """No 'Extreme Fear' label. The Ulcer Index has no published thresholds, so
     any band would be invented here and then read as a standard -- the mistake

@@ -888,6 +888,16 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
         "rsi14": _last_of(ind.get("rsi14")),
         "atr14": atr,
         "atr_pct": (atr / last * 100.0) if (atr and last) else None,
+        # Depth and duration of this name's own drawdown, the same measure and
+        # the same two horizons the Sector view's pain tile uses. It answers a
+        # question none of the columns beside it can: `pnl_pct` is measured from
+        # whenever this desk happened to buy, so a name 40% off its own peak and
+        # grinding can show a profit, and a name that only dipped this week can
+        # show a loss. Not routed through compute_all -- the 252-session window
+        # costs far more than the 14-20 session ones there, and it would then be
+        # paid on every constituent of every sector scorecard to serve a handful
+        # of held names.
+        "pain": sector_signals.symbol_pain([float(b["c"]) for b in bars]),
         "stale": bool(stock.get("stale")),
     })
     if entry["avg_entry"]:

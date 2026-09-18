@@ -151,7 +151,7 @@ need a browser reload.
 | Detail chart | Candlesticks + overlays, with volume, RSI and MACD panes on a shared crosshair. |
 | Company detail | Market cap, trailing P/E, 52-week range, volatility, SEC filings, news, research links. |
 | Earnings timing | Upcoming prints (including today's, before they land) with an uncertainty window, expected timing, 1-day and 1-week reaction stats, and held-position alerts. |
-| Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, and the journal's own recorded gaps. |
+| Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, how deep and prolonged each name's own drawdown is, and the journal's own recorded gaps. |
 | Cycle | The monthly AI data center cycle score: the latest GREEN / YELLOW / RED reading and total, the eight indicator scores against the criteria they were scored on, a trend of past reviews, the history table, and the form that writes the next review to the log. |
 | Sector | A scorecard of measured facts about one universe.py group's own recent price/volume history -- relative strength vs its benchmark (and whether that excess is widening or narrowing), breadth above its own moving averages, new highs/lows, participation, volatility, pain (how deep and how prolonged its drawdown is, against the benchmark's own), dispersion, and how many constituents sit near a level. Any group is selectable; nothing here is scored, banded, or turned into a call. See Sector scorecard below. |
 | Ranking table | The same board in text form — every value readable without color. |
@@ -440,6 +440,7 @@ there is no second, subtly different calculation to reconcile.
 | `% book` | Share of the reviewed book **plus** excluded holdings, at market value. Cash is not included, so this is position weight, not account weight. |
 | `Resistance above` / `Support below` | Nearest level on each side, with distance in percent **and in ATR**. |
 | `To support` | Dollars between today's price and the nearest support. |
+| `Pain` | This name's own Ulcer Index over 14 sessions, with the 252-session reading beneath it. Same measure and same horizons as the Sector view's [Pain](#pain----how-much-it-hurts-to-hold-this-group) tile. |
 | `Earnings` | Days to the next projected print. Red inside the 21-day swing window. |
 
 Rows sort by **distance to support in ATR**, closest first — that is the
@@ -451,6 +452,30 @@ Distance is reported in ATR as well as percent because percent alone is not
 comparable across the book. AXTI at 14% ATR and POWL at 6% are not equally close
 to a level 5% away; in ATR terms the first is a third of a day's move and the
 second is nearly a full one.
+
+#### Pain is not the same fact as unrealised P&L
+
+The two columns sit close together and disagree on purpose. `Unrealised` is
+measured from whatever this desk happened to pay; `Pain` is measured from the
+name's **own** peak and knows nothing about the entry. So a position bought
+cheaply can show a healthy profit while the stock is 25% below its high and
+grinding sideways, and a name that merely dipped this week can show a loss. The
+entry price is a fact about the desk, not about the stock, and it should not be
+what decides whether a drawdown gets mentioned.
+
+There is no benchmark column and no percentile here, unlike the Sector view's
+tile. Both of those survive at group level and neither survives the move to a
+single name: a lone stock set against SPY is the apples-to-oranges comparison
+the group's equal-weight index exists to avoid, and a per-name percentile
+inherits the same overlapping-window problem that suppresses the group's
+252-session rank. The raw number is comparable across the book, which is what
+the review needs it for.
+
+The same two horizons drive both views, from `PAIN_SHORT_SESSIONS` and
+`PAIN_LONG_SESSIONS` in `sector_signals.py`, via `symbol_pain()`.
+`test_symbol_pain_reads_the_same_two_horizons_as_the_group_metric` pins it —
+the word "pain" meaning one span on the Sector view and another on the review,
+with nothing on either page to show it, is the failure worth a test.
 
 #### Downside to support is not risk taken
 
@@ -916,7 +941,7 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/stock?symbol=X` | ~2 years of daily bars plus every indicator series. |
 | `GET /api/detail?symbol=X` | Fundamentals, price stats, news, and research links. |
 | `GET /api/earnings?horizon=N` | Projected prints within N days (1-400, default 30), nearest first, with held-position flags. |
-| `GET /api/review` | Per-holding review: levels, downside to support, risk to the managed stop, theme exposure, journal gaps, up to three headlines per reviewed holding, and the latest hand-entered cycle score. `?force=1` rebuilds. |
+| `GET /api/review` | Per-holding review: levels, downside to support, risk to the managed stop, `pain` (that name's own Ulcer Index at both horizons), theme exposure, journal gaps, up to three headlines per reviewed holding, and the latest hand-entered cycle score. `?force=1` rebuilds. |
 | `GET /api/cycle` | The cycle log (every review, oldest first, totals derived from the scores), the rubric parsed from the framework document, the bands, and any file warnings. Never cached. |
 | `POST /api/cycle` | Write one review (JSON: `review_date`, `scores`, `core_question`, `assumption_changed`, `notes`), replacing a row with the same date. Returns the rebuilt payload, or 400 with the reason. |
 | `GET /api/sector?group=X&benchmark=Y` | Leading-indicator scorecard for one universe.py group (`X` defaults to `DEFAULT_SECTOR_GROUP`; `benchmark` defaults to the group's own `etf`, then `SPY`). Cached like `/api/stock`; `?force=1` bypasses it. Unknown group returns `error` plus `available_groups`. |

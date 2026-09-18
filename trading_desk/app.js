@@ -454,6 +454,20 @@ function revLevelCell(l) {
        + `${fmtPx(l.level)}<span class="lvl-meta">${fmtPct(l.distance_pct)}${atr}</span></td>`;
 }
 
+// Ulcer Index for one held name: acute reading on top, the trailing-year one
+// beneath it. Same measure and same two horizons as the Sector view's pain
+// tile, so a position's number can be read straight against its theme's.
+// Deliberately no benchmark and no percentile here -- see symbol_pain in
+// sector_signals.py for why neither survives the move to a single name.
+function revPainCell(p) {
+  if (!p || p.short == null) return '<td class="muted">—</td>';
+  const long = p.long == null ? '—' : p.long.toFixed(1);
+  return `<td title="Ulcer Index: root-mean-square drawdown from the running peak.`
+       + ` Rises with how deep a decline is and how long it lasts.">`
+       + `${p.short.toFixed(1)}`
+       + `<span class="lvl-meta">${long} over ${p.long_sessions}d</span></td>`;
+}
+
 // Sizing worksheet state. Module-level so a re-render (or the 5-minute review
 // refresh) does not wipe what is typed mid-edit.
 const sizing = { symbol: null, dollars: 10000, riskPct: 1.0,
@@ -635,7 +649,7 @@ function renderReview() {
     const rows = d.positions.map(e => {
       if (e.error) {
         return `<tr class="rev-row" data-sym="${e.symbol}"><td><b>${e.symbol}</b></td>`
-             + `<td colspan="12" class="neg">${e.error}</td></tr>`;
+             + `<td colspan="13" class="neg">${e.error}</td></tr>`;
       }
       const w = e.book_weight_pct;
       const earn = e.earnings && e.earnings.days_until != null
@@ -655,6 +669,7 @@ function renderReview() {
         <td>${e.risk_to_stop == null ? '—' : fmtMoney0(e.risk_to_stop)}</td>
         <td>${e.rsi14 == null ? '—' : e.rsi14.toFixed(0)}</td>
         <td>${e.atr_pct == null ? '—' : e.atr_pct.toFixed(1) + '%'}</td>
+        ${revPainCell(e.pain)}
         <td class="${earnCls}">${earn}</td>
       </tr>`;
     }).join('');
@@ -663,7 +678,7 @@ function renderReview() {
         <th>Symbol</th><th>Last</th><th>Avg entry</th><th>Unrealised</th><th>% book</th>
         <th>Resistance above</th><th>Support below</th><th>To support</th>
         <th>Stop</th><th>To stop</th>
-        <th>RSI</th><th>ATR%</th><th>Earnings</th>
+        <th>RSI</th><th>ATR%</th><th>Pain</th><th>Earnings</th>
       </tr></thead><tbody>${rows}</tbody></table>`;
     // Clicking a row charts that symbol, same affordance as the calendar rows.
     $('rev-table').querySelectorAll('.rev-row').forEach(tr => {
