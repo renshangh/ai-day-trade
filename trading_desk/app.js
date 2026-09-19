@@ -454,6 +454,25 @@ function revLevelCell(l) {
        + `${fmtPx(l.level)}<span class="lvl-meta">${fmtPct(l.distance_pct)}${atr}</span></td>`;
 }
 
+// Ulcer Index for one held name: acute reading on top, the trailing-year one
+// beneath it. Same measure and same two horizons as the Sector view's pain
+// tile, so a position's number can be read straight against its theme's.
+// Deliberately no benchmark and no percentile here -- see symbol_pain in
+// sector_signals.py for why neither survives the move to a single name.
+function revPainCell(p) {
+  if (!p || p.short == null) return '<td class="muted">—</td>';
+  // "30.6 over 252d" gets read as "30.6 days out of 252". It is neither a count
+  // nor days: it is a percentage-scale drawdown figure over a 252-session
+  // window. The unit carries that, and naming the window first stops the two
+  // numbers reading as a ratio.
+  const long = p.long == null ? '—' : `${p.long.toFixed(1)}%`;
+  return `<td title="Ulcer Index: root-mean-square drawdown from the running peak,`
+       + ` in percent — not a count of days. Rises with how deep a decline is and`
+       + ` how long it lasts.">`
+       + `${p.short.toFixed(1)}%`
+       + `<span class="lvl-meta">${p.long_sessions}d: ${long}</span></td>`;
+}
+
 // Sizing worksheet state. Module-level so a re-render (or the 5-minute review
 // refresh) does not wipe what is typed mid-edit.
 const sizing = { symbol: null, dollars: 10000, riskPct: 1.0,
@@ -635,7 +654,7 @@ function renderReview() {
     const rows = d.positions.map(e => {
       if (e.error) {
         return `<tr class="rev-row" data-sym="${e.symbol}"><td><b>${e.symbol}</b></td>`
-             + `<td colspan="12" class="neg">${e.error}</td></tr>`;
+             + `<td colspan="13" class="neg">${e.error}</td></tr>`;
       }
       const w = e.book_weight_pct;
       const earn = e.earnings && e.earnings.days_until != null
@@ -647,6 +666,7 @@ function renderReview() {
         <td>${fmtPx(e.last)}<span class="lvl-meta ${signClass(e.day_pct)}">${fmtPct(e.day_pct)}</span></td>
         <td>${fmtPx(e.avg_entry)}</td>
         <td class="${signClass(e.pnl)}">${fmtMoney0(e.pnl)}<span class="lvl-meta ${signClass(e.pnl_pct)}">${fmtPct(e.pnl_pct)}</span></td>
+        ${revPainCell(e.pain)}
         <td>${w == null ? '—' : w.toFixed(1) + '%'}</td>
         ${revLevelCell(e.nearest_resistance)}
         ${revLevelCell(e.nearest_support)}
@@ -660,7 +680,7 @@ function renderReview() {
     }).join('');
     $('rev-table').innerHTML = `<table class="rev-tbl">
       <thead><tr>
-        <th>Symbol</th><th>Last</th><th>Avg entry</th><th>Unrealised</th><th>% book</th>
+        <th>Symbol</th><th>Last</th><th>Avg entry</th><th>Unrealised</th><th>Pain</th><th>% book</th>
         <th>Resistance above</th><th>Support below</th><th>To support</th>
         <th>Stop</th><th>To stop</th>
         <th>RSI</th><th>ATR%</th><th>Earnings</th>
@@ -935,7 +955,33 @@ function renderSector() {
   const disp = d.dispersion || {};
   const lvl = d.at_level || {};
 
+  // Pain = the Ulcer Index of the group's own equal-weight index, so it is
+  // comparable like-for-like against the benchmark's. The benchmark figure sits
+  // in the sub-line on purpose: "this group is hurting while the market is not"
+  // is the comparison the tile exists to make, and it is unreadable if the two
+  // numbers are on different rows. The percentile is deliberately not turned
+  // into a band -- see _percentile_of_last in sector_signals.py.
+  const painWindows = (d.pain || {}).windows || {};
+  const painRow = (label, key) => {
+    const x = painWindows[key];
+    if (!x) return '';
+    // With no reading of its own the tile has nothing to say, so it says that
+    // rather than printing the benchmark's number underneath a dash -- on a
+    // card titled "Pain" the only visible figure reads as the group's.
+    if (x.group_ulcer == null) {
+      return sectorTile(label, '—', `fewer than ${x.sessions} sessions of history`);
+    }
+    const parts = [];
+    parts.push(`${esc(d.benchmark)} ${x.benchmark_ulcer == null ? '—' : x.benchmark_ulcer.toFixed(1) + '%'}`);
+    if (x.percentile_of_own_history != null) {
+      parts.push(`above ${x.percentile_of_own_history.toFixed(0)}% of its own ${x.history_n} prior readings`);
+    }
+    return sectorTile(label, `${x.group_ulcer.toFixed(1)}%`, parts.join(' · '));
+  };
+
   const tiles = [
+    painRow('Pain now (Ulcer Index, 14d)', 'short'),
+    painRow('Pain, trailing year (Ulcer Index, 252d)', 'long'),
     rsRow('Relative strength, 5d', '5'),
     rsRow('Relative strength, 21d', '21'),
     rsRow('Relative strength, 63d', '63'),
@@ -958,9 +1004,97 @@ function renderSector() {
       `of ${lvl.n || 0} names, within ${LEVEL_PROXIMITY_ATR} ATR`),
   ];
   $('sec-tiles').innerHTML = tiles.join('');
+  renderCycleStagePanel(d);
 
   $('sec-disclaimer').textContent = 'Every number above is a measured fact about this group\'s own '
     + 'recent price and volume history \u2014 not a signal, not a ranking, not a call on direction.';
+}
+
+// The cycle-stage order the wheel actually turns in -- Local Peak, once
+// momentum has visibly rolled over, gives way to Correction, then Bottoming,
+// then Recovery, then an established Extended/Uptrend, which can run into
+// Local Euphoria/Peak before closing the loop back into Local Peak. Used for
+// both the breakdown's display order and CYCLE_STAGES on the server -- if
+// these ever drift apart the breakdown would silently reorder itself relative
+// to the server's own count keys, so keep this list identical to
+// sector_signals.CYCLE_STAGES.
+const CYCLE_STAGE_ORDER = ['Local Peak', 'Correction', 'Markdown', 'Bottoming', 'Recovery', 'Extended/Uptrend', 'Local Euphoria/Peak'];
+
+// The stage is defined by how far a name sits below its own peak (10-20% is a
+// correction, past 20% is a bear market by the standard definitions), so that
+// drawdown is the number worth showing beside every name -- it is the reason
+// for the label, not decoration. Shown for all six stages, not just the two
+// peak ones: a Bottoming name 45% under its peak and a Correction name 11%
+// under are describing very different situations under adjacent words.
+// `window_weeks` is already in weeks (the server reads weekly closes, not
+// daily ones), so there is no session-count-to-weeks conversion to do here --
+// unlike the old `window_sessions`, this needs no client-side constant to
+// compare against.
+function nameWithDrawdown(symbol, context) {
+  const ctx = context && context[symbol];
+  if (!ctx || ctx.drawdown_pct == null) return esc(symbol);
+  return `${esc(symbol)} (${fmtPct(ctx.drawdown_pct)} vs ${ctx.window_weeks}w peak)`;
+}
+
+function renderCycleStagePanel(d) {
+  const cs = d.cycle_stages;
+  const box = $('sec-cycle');
+  if (!cs) { box.innerHTML = ''; return; }
+
+  const label = cs.group_label
+    ? esc(cs.group_label)
+    : '<span class="lvl-meta">not enough history to classify any constituent</span>';
+
+  const counts = cs.counts || {};
+  const bySymbol = cs.by_symbol || {};
+  const context = cs.context || {};
+  // Defensive, not decorative: if the server ever adds or renames a stage
+  // without this list being updated to match, a silently-dropped stage would
+  // look like "the group has fewer stages now" rather than "this display list
+  // is stale" -- surfaced instead of hidden.
+  const unknownStages = Object.keys(counts).filter(s => !CYCLE_STAGE_ORDER.includes(s) && counts[s] > 0);
+  const rows = CYCLE_STAGE_ORDER.map(stage => {
+    const n = counts[stage] || 0;
+    const names = Object.keys(bySymbol)
+      .filter(s => bySymbol[s] === stage)
+      .sort();
+    const nameList = names.length
+      ? names.map(s => nameWithDrawdown(s, context)).join(', ')
+      : '<span class="lvl-meta">none</span>';
+    return `<div class="cyc-stage-row${n ? '' : ' cyc-stage-row-empty'}">`
+      + `<span class="cyc-stage-name">${esc(stage)}</span>`
+      + `<span class="cyc-stage-count">${n}</span>`
+      + `<span class="cyc-stage-names">${nameList}</span></div>`;
+  }).join('');
+
+  const unclassified = cs.unclassified || [];
+  const unclassifiedNote = unclassified.length
+    ? `<p class="sub">${unclassified.length} not enough history to classify: ${esc(unclassified.join(', '))}</p>`
+    : '';
+  const unknownStageNote = unknownStages.length
+    ? `<p class="sub cyc-stage-warn">Server reports ${unknownStages.length} stage(s) this view cannot `
+      + `display (${esc(unknownStages.join(', '))}) -- not counted above.</p>`
+    : '';
+
+  box.innerHTML = `<div class="cyc-stage-panel">
+    <div class="cyc-stage-head">
+      <span class="cyc-stage-label-k">Cycle stage</span>
+      <span class="cyc-stage-label-v">${label}</span>
+      <span class="lvl-meta">${cs.n_classified || 0} of ${(cs.n_classified || 0) + unclassified.length} classified</span>
+    </div>
+    <div class="cyc-stage-rows">${rows}</div>
+    ${unclassifiedNote}
+    ${unknownStageNote}
+    <p class="sub">Built on the standard definitions of these words, not on indicators: a decline of
+      10&ndash;20% from a name's own peak is a <em>correction</em>, past 20% is a <em>bear market</em>,
+      and a rally of 20%+ off its own trough is what starts a <em>new bull market</em>. No moving
+      averages, no oscillators, no benchmark &mdash; closing prices against each name's own peak and
+      trough, plus which way it has moved over the last month. The percentage beside each name is
+      its drawdown from that peak, since that is the number the label is actually derived from.
+      "Local Peak" means within 10% of the peak with the advance stalled &mdash; the distribution
+      phase &mdash; not a claim about an all-time high. The group label is whichever stage the most
+      names sit in, with ties shown as ties. None of it forecasts what happens next.</p>
+  </div>`;
 }
 
 

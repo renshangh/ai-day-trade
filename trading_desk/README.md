@@ -4,7 +4,7 @@ Local dashboard that screens sectors and themes over short horizons — for mome
 or for reversals — and charts the resulting movers with the standard technical
 indicator set.
 
-**Last Updated:** 2026-09-10
+**Last Updated:** 2026-09-14
 **Status:** Active
 **Audience:** Both
 
@@ -151,9 +151,9 @@ need a browser reload.
 | Detail chart | Candlesticks + overlays, with volume, RSI and MACD panes on a shared crosshair. |
 | Company detail | Market cap, trailing P/E, 52-week range, volatility, SEC filings, news, research links. |
 | Earnings timing | Upcoming prints (including today's, before they land) with an uncertainty window, expected timing, 1-day and 1-week reaction stats, and held-position alerts. |
-| Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, and the journal's own recorded gaps. |
+| Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, how deep and prolonged each name's own drawdown is, and the journal's own recorded gaps. |
 | Cycle | The monthly AI data center cycle score: the latest GREEN / YELLOW / RED reading and total, the eight indicator scores against the criteria they were scored on, a trend of past reviews, the history table, and the form that writes the next review to the log. |
-| Sector | A scorecard of measured facts about one universe.py group's own recent price/volume history -- relative strength vs its benchmark (and whether that excess is widening or narrowing), breadth above its own moving averages, new highs/lows, participation, volatility, dispersion, and how many constituents sit near a level. Any group is selectable; nothing here is scored, banded, or turned into a call. See Sector scorecard below. |
+| Sector | A scorecard of measured facts about one universe.py group's own recent price/volume history -- relative strength vs its benchmark (and whether that excess is widening or narrowing), breadth above its own moving averages, new highs/lows, participation, volatility, pain (how deep and how prolonged its drawdown is, against the benchmark's own), dispersion, and how many constituents sit near a level. Any group is selectable; nothing here is scored, banded, or turned into a call. See Sector scorecard below. |
 | Ranking table | The same board in text form — every value readable without color. |
 
 ### Company detail
@@ -437,6 +437,7 @@ there is no second, subtly different calculation to reconcile.
 | `Last` | Latest close, with the day's change beneath it. |
 | `Avg entry` | Cost basis across all open lots in that symbol. |
 | `Unrealised` | Dollars and percent against that basis. |
+| `Pain` | This name's own Ulcer Index over 14 sessions, with the 252-session reading beneath it. Both are **percentages, not counts of days** — the RMS distance below the name's own running peak across that window. Same measure and horizons as the Sector view's [Pain](#pain----how-much-it-hurts-to-hold-this-group) tile. |
 | `% book` | Share of the reviewed book **plus** excluded holdings, at market value. Cash is not included, so this is position weight, not account weight. |
 | `Resistance above` / `Support below` | Nearest level on each side, with distance in percent **and in ATR**. |
 | `To support` | Dollars between today's price and the nearest support. |
@@ -451,6 +452,30 @@ Distance is reported in ATR as well as percent because percent alone is not
 comparable across the book. AXTI at 14% ATR and POWL at 6% are not equally close
 to a level 5% away; in ATR terms the first is a third of a day's move and the
 second is nearly a full one.
+
+#### Pain is not the same fact as unrealised P&L
+
+The two columns sit close together and disagree on purpose. `Unrealised` is
+measured from whatever this desk happened to pay; `Pain` is measured from the
+name's **own** peak and knows nothing about the entry. So a position bought
+cheaply can show a healthy profit while the stock is 25% below its high and
+grinding sideways, and a name that merely dipped this week can show a loss. The
+entry price is a fact about the desk, not about the stock, and it should not be
+what decides whether a drawdown gets mentioned.
+
+There is no benchmark column and no percentile here, unlike the Sector view's
+tile. Both of those survive at group level and neither survives the move to a
+single name: a lone stock set against SPY is the apples-to-oranges comparison
+the group's equal-weight index exists to avoid, and a per-name percentile
+inherits the same overlapping-window problem that suppresses the group's
+252-session rank. The raw number is comparable across the book, which is what
+the review needs it for.
+
+The same two horizons drive both views, from `PAIN_SHORT_SESSIONS` and
+`PAIN_LONG_SESSIONS` in `sector_signals.py`, via `symbol_pain()`.
+`test_symbol_pain_reads_the_same_two_horizons_as_the_group_metric` pins it —
+the word "pain" meaning one span on the Sector view and another on the review,
+with nothing on either page to show it, is the failure worth a test.
 
 #### Downside to support is not risk taken
 
@@ -664,6 +689,10 @@ label):
   name cannot be swamped by a cheap, heavily-traded one in the sum.
 - **Volatility** -- average ATR% now against 20 sessions ago. Expansion
   precedes a resolution without saying which way it resolves.
+- **Pain** -- the Ulcer Index of the group at 14 and 252 sessions, each against
+  the benchmark's own and against the group's own history. How far under water
+  the group is and how long it has been there. See
+  [Pain](#pain----how-much-it-hurts-to-hold-this-group) below.
 - **Dispersion** -- how much constituents moved together *today* versus their
   own trailing-20-session norm, not against a fixed universal threshold. A
   ratio under 1 means today was driven by something shared across the whole
@@ -693,6 +722,180 @@ history, not a score, a rank, or a call on direction.** A dashboard that
 combined relative strength, breadth, and dispersion into one number would be
 manufacturing a composite edge none of these measurements individually claims
 to have.
+
+#### Pain -- how much it hurts to hold this group
+
+The question the other tiles cannot answer: *the broad market is calm, but is
+this particular sector in trouble?* Volatility counts a violent rally the same
+as a violent decline; relative strength over a window reads flat for a group
+that fell early and then stabilised. Neither says how far under water a group
+is, or how long it has been there.
+
+The measure is the **Ulcer Index** (Peter Martin, 1989): the root-mean-square
+drawdown from the running peak over a window, in percent. It is 0 when the
+series makes a new high every bar, and it rises with **both** the depth of a
+decline and its **duration** -- squaring the drawdowns is what makes a
+three-month slump score worse than a one-week dip of the same depth. That
+duration term is the whole reason it is the right measure for "pain" rather
+than a plain drawdown number: a 20% loss recovered in a week and a 20% loss sat
+on for a quarter are not the same experience for whoever is holding it.
+
+Two windows, because they answer different questions -- the same reason the
+earnings view shows a 1-day and a 1-week reaction:
+
+| Window | Reads |
+|---|---|
+| **14 sessions** | Acute stress. How much the group is hurting *right now*. |
+| **252 sessions** | Accumulated damage over a trading year, the daily-bar equivalent of the 52 weeks the cycle stage uses. |
+
+A group that halved six months ago and has flatlined since reads near zero on
+the short window and high on the long one. Both are true, and a single number
+would have to hide one of them.
+
+**The group is measured as an index, not as an average of its names.** The
+constituents' daily returns are equal-weighted and chained into one series
+first, and the Ulcer Index is taken from that. Averaging each name's own Ulcer
+Index would compare a basket of single stocks against SPY, and single stocks
+are more volatile than any index nearly by construction -- so the group would
+have read as more painful than the benchmark essentially always, including in
+the months when it plainly was not. Chaining first makes both sides of the
+comparison the same kind of object.
+`test_pain_measures_the_group_index_not_the_average_constituent` pins this.
+
+**There is no "Extreme Fear" band.** The Ulcer Index has no published
+thresholds, so any cutoff would be invented here and then displayed with the
+authority of a standard -- precisely the mistake the moving-average cycle
+classifier was rewritten to remove. Instead each reading is ranked against the
+group's **own** prior readings ("above 75% of its own 506 prior readings"),
+which invents nothing and answers the question "is this unusually bad *for
+them*" directly. Ties count as half, the conventional percentile rank -- a
+group that sat at its highs all year has every reading at exactly 0.0, and
+counting only values strictly below would rank it last while it is tied with
+everything.
+
+**The percentile is gated on independent spans, not on readings.** Consecutive
+Ulcer Index readings share all but one bar of their window, so counting them is
+self-deception: the ~520 bars this view fetches yield 268 UI(252) readings that
+span only `520 / 252 = 1.07` independent years. Quoting "above 52% of its own
+268 prior readings" off that states a distribution which does not exist -- the
+same failure as inventing a band, wearing a sample size instead of a label. So
+a percentile is quoted only where the history covers
+`PAIN_MIN_INDEPENDENT_SPANS` (20) non-overlapping windows. In practice the
+**14-session window gets a percentile** (36 spans available) and the
+**252-session window does not**, reporting its level and its honest reading
+count with no rank attached.
+
+Measured on 2026-09-14, which is the case this was built for:
+
+| Group | 14d | benchmark | 252d | benchmark |
+|---|---:|---:|---:|---:|
+| AI Optical / Interconnect | 6.31 | SPY 0.96 | 9.92 | 2.12 |
+| AI Power / Datacenter Buildout | 3.60 | SPY 0.96 | 10.99 | 2.12 |
+| Technology | 2.07 | XLK 1.41 | 6.20 | 6.23 |
+| Utilities | 1.59 | XLU 1.91 | 5.18 | 5.19 |
+
+The broad market was not in distress and AI Optical was, at roughly 6.5x SPY's
+reading -- while Utilities sat *below* its own benchmark. That separation is
+the entire point of the tile.
+
+**Still not a signal.** A high reading says a group is deep in a drawdown and
+has been for a while. It does not say the group is cheap, that the decline is
+over, or that anything should be bought or sold.
+
+#### Cycle stage -- the one exception, and why it is handled differently
+
+Below the tiles is a panel classifying each constituent into one of seven cycle
+stages, in the order the wheel turns:
+
+```
+Local Peak -> Correction -> Markdown -> Bottoming -> Recovery -> Extended/Uptrend -> Local Euphoria/Peak -> (back to Local Peak)
+```
+
+**Why seven and not six.** The taxonomy started at six, with one `Correction`
+stage covering every decline. That put `AXTI` at -54% and `ANET` at -10% under
+the same word -- and it contradicted the very convention the thresholds below
+come from, which reserves *correction* for a 10-20% decline and calls anything
+past 20% a *bear market*. `Markdown` (Wyckoff's term for that leg, and one that
+does not imply anything about the whole market) is that seventh stage.
+
+Measured on `AI Optical / Interconnect` the day the split landed (figures are
+that snapshot, not current state): 10 of 13 names read "Correction" before,
+2 after, with 8 moving to `Markdown` and the group label changing from
+`Correction` to `Markdown`. The point does not depend on those numbers -- one
+label spanning -10% to -54% is the problem regardless of how many names sit
+at each end on any given day.
+
+This **is** a classification, not a raw measurement -- it turns several numbers
+into one label. That is a real departure from every other number on this view,
+so it earns different treatment rather than being dressed up as another fact
+tile.
+
+**The thresholds are the published ones, not numbers this desk invented.** An
+earlier version of this classifier used moving-average positions (price vs
+SMA50/SMA200, whether SMA50 was rising) with hand-picked cutoffs. It produced
+a genuinely wrong read -- `GLW`, sitting 36% below the high it set three months
+earlier, was labelled a "Peak" -- and the cutoffs behind it were defensible-
+sounding but arbitrary. The rule now rests on the definitions these words
+already have in the industry:
+
+| Threshold | Meaning | Source |
+|---|---|---|
+| **10%** off the peak | Below this is noise; 10-20% is a **correction** | The 10/20 split traces to Alan Shaw at Smith Barney; still the definition used by [Morningstar](https://www.morningstar.com/markets/whats-difference-between-bear-market-correction), [Schwab](https://www.schwab.com/learn/story/market-correction-what-does-it-mean), and [Fisher](https://www.fisherinvestments.com/en-us/resource-library/market-cycles/bear-markets) |
+| **20%** off the peak | Past this is a **bear market** | Same convention |
+| **+20%** off the trough | What starts a **new bull market** | The other half of the same convention ([U.S. Bank](https://www.usbank.com/financialiq/invest-your-money/market-perspectives/bull-market-to-bear-market.html)) |
+
+**Read off weekly closes, not daily ones.** A stage is a trend-level call, and
+weekly is the resolution that convention was itself defined against -- daily
+closes carry a week's worth of noise a stage classification has no business
+reacting to. Each name's daily bars are collapsed to one close per ISO
+calendar week (the week's last available close) before any of the numbers
+below are taken.
+
+The rule, in order, over four numbers taken straight off those weekly closes
+(drawdown from the name's own peak, rally off its own trough, which extreme
+came last, and its return over the last month):
+
+| Condition | Stage |
+|---|---|
+| Within 10% of its peak, at a fresh peak, up 15%+ in a month | `Local Euphoria/Peak` |
+| Within 10% of its peak, advance stalled | `Local Peak` |
+| Within 10% of its peak, still advancing | `Extended/Uptrend` |
+| 10-20% off its peak | `Correction` |
+| Past 20% off its peak, but +20% off a **newer** trough | `Recovery` |
+| Past 20% off its peak, still falling hard | `Markdown` |
+| Past 20% off its peak, no longer falling | `Bottoming` |
+
+Design notes worth keeping:
+
+- **No moving averages, no oscillators, no benchmark.** Only closing prices
+  against a name's own peak and trough. `test_stage_rule_uses_no_moving_averages_or_oscillators`
+  asserts this by inspecting the rule's own source, so an indicator cannot
+  quietly reappear in it.
+- **Which extreme came last matters.** A name 40% below a peak set last month
+  is falling; the same 40% gap with the trough more recent means it already
+  bottomed and is climbing. The drawdown alone cannot tell those apart, so
+  `Recovery` additionally requires the trough to be the newer extreme --
+  without that, `GLW`, up 120% off a year-old low while 36% below its peak,
+  would read as "Recovery".
+- **"Still falling" beats "near the low".** A name down 45% and still dropping
+  29% in a month is mid-decline, not a base forming, however close to its low
+  it sits. This is the split the moving-average version got wrong for `FN`.
+- **Two numbers have no published standard**, and are labelled as such in the
+  code: what counts as a stalled advance near a peak (`STALL_MOVE_PCT`) and
+  what counts as still falling (`STILL_FALLING_PCT`). The literature describes
+  the distribution phase only qualitatively -- "sideways and range-bound after
+  an extended uptrend" -- so these are this desk's operationalization of that
+  sentence rather than a convention anyone else shares.
+- **The group label is the most common stage, and a tie is reported as a tie.**
+  Six stages have no numeric mean; forcing a winner out of 4 `Correction` and 4
+  `Bottoming` would assert a consensus that does not exist.
+- **A name needs enough history to classify** (`RECENT_MOVE_WINDOW_WEEKS + 1`
+  weeks) and is otherwise reported unclassified, never guessed. The window the
+  peak and trough come from is reported per name (`window_weeks`), so a name
+  without a full 52 weeks does not silently claim one.
+- **Still not a forecast.** `Bottoming` says a name is well off its peak and no
+  longer falling -- where it is, not that it turns up from here.
+
 
 ### Indicators
 
@@ -738,10 +941,12 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/stock?symbol=X` | ~2 years of daily bars plus every indicator series. |
 | `GET /api/detail?symbol=X` | Fundamentals, price stats, news, and research links. |
 | `GET /api/earnings?horizon=N` | Projected prints within N days (1-400, default 30), nearest first, with held-position flags. |
-| `GET /api/review` | Per-holding review: levels, downside to support, risk to the managed stop, theme exposure, journal gaps, up to three headlines per reviewed holding, and the latest hand-entered cycle score. `?force=1` rebuilds. |
+| `GET /api/review` | Per-holding review: levels, downside to support, risk to the managed stop, `pain` (that name's own Ulcer Index at both horizons), theme exposure, journal gaps, up to three headlines per reviewed holding, and the latest hand-entered cycle score. `?force=1` rebuilds. |
 | `GET /api/cycle` | The cycle log (every review, oldest first, totals derived from the scores), the rubric parsed from the framework document, the bands, and any file warnings. Never cached. |
 | `POST /api/cycle` | Write one review (JSON: `review_date`, `scores`, `core_question`, `assumption_changed`, `notes`), replacing a row with the same date. Returns the rebuilt payload, or 400 with the reason. |
 | `GET /api/sector?group=X&benchmark=Y` | Leading-indicator scorecard for one universe.py group (`X` defaults to `DEFAULT_SECTOR_GROUP`; `benchmark` defaults to the group's own `etf`, then `SPY`). Cached like `/api/stock`; `?force=1` bypasses it. Unknown group returns `error` plus `available_groups`. |
+| — | The same response carries `pain`: the group's Ulcer Index at 14 and 252 sessions, each with the benchmark's own reading, the excess, and the percentile against the group's own history. See Sector scorecard → Pain. |
+| — | The same response also carries `cycle_stages`: per-name cycle stage, each name's drawdown from its own peak, rally off its own trough, which extreme came last, and recent move (`context`), a count per stage, and the group's majority label (ties reported as ties). See Sector scorecard → Cycle stage. |
 | `GET /api/health` | Credential and cache status. |
 
 Board and per-symbol routes cache for 5 minutes; the review caches for 2 (it reuses
@@ -792,13 +997,13 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
 | `research/split_study.py` | Split-event counts and pre-split return study (see Split events) |
-| `sector_signals.py` | Sector scorecard math: relative strength, breadth, new highs/lows, participation, volatility, dispersion, level proximity. Pure functions over bars, no I/O |
+| `sector_signals.py` | Sector scorecard math: relative strength, breadth, new highs/lows, participation, volatility, pain (Ulcer Index of the group's equal-weight index), dispersion, level proximity, seven-stage cycle classification. Pure functions over bars, no I/O |
 | `cycle.py` | Cycle score log: read, validate and write `cycle-score.csv`; parse the framework document for the rubric |
 | `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | The framework the Cycle view scores against: eight 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
 | `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
 | `tests/test_cycle.py` | Cycle log rules (blank stays blank, strict writes, tolerant reads), document/template/code agreement, POST validation |
-| `tests/test_sector_signals.py` | Sector scorecard math on synthetic bars: relative strength, breadth, new highs/lows, participation, volatility, dispersion, level proximity |
+| `tests/test_sector_signals.py` | Sector scorecard math on synthetic bars: relative strength, breadth, new highs/lows, participation, volatility, pain (Ulcer Index depth/duration, index-not-average, percentile), dispersion, level proximity |
 | `tests/test_sector_route.py` | `/api/sector` benchmark resolution (own etf, fallback, override), missing-constituent handling, cache keying and TTL, error-not-raised |
 | `tests/test_ports.py` | Per-branch port mapping, HEAD parsing, launcher agreement, stale-server detection |
 

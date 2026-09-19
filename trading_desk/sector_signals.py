@@ -17,6 +17,7 @@ agreement, energy, and room the group has *right now*.
 from __future__ import annotations
 
 import statistics
+from datetime import date
 
 import indicators
 
@@ -25,6 +26,39 @@ import indicators
 # to widen or narrow the window is a single edit with an explicit relationship
 # between the four, not four defaults that happen to agree today by accident.
 DEFAULT_LOOKBACK_SESSIONS = 20
+
+# The two horizons the Ulcer Index is read over. Deliberately not
+# DEFAULT_LOOKBACK_SESSIONS: these are not "the lookback this module happens to
+# use", they are the two spans that answer the two different questions below,
+# and 14 is the published parameter for the indicator itself (the same reason
+# ATR and RSI are 14 in indicators.py rather than 20).
+#
+#   short -- how much the group is hurting *now*. Acute stress.
+#   long  -- how much damage this group has taken and held onto over a trading
+#            year. A group that halved six months ago and has flatlined since
+#            reads near zero on the short window and very high on the long one,
+#            and both of those are true statements about a holder's position.
+#
+# 252 sessions is one trading year, the daily-bar equivalent of the 52 weeks
+# LONG_HIGH_WINDOW_WEEKS uses, so the pain tile and the cycle stage are talking
+# about the same stretch of history rather than two unrelated ones.
+PAIN_SHORT_SESSIONS = 14
+PAIN_LONG_SESSIONS = 252
+
+# How much history a percentile has to be measured against before it is worth
+# quoting, counted in *non-overlapping* spans rather than in readings. No
+# published standard; this desk's own floor, and disclosed as one.
+#
+# Counting readings would be self-deception. Consecutive Ulcer Index readings
+# share all but one bar of their window, so the 268 UI(252) readings available
+# from this view's ~520 bars are not 268 observations of anything -- they span
+# 520/252 = 1.07 independent years. Printing "above 52% of its own 268 prior
+# readings" off that would state a distribution that does not exist, which is
+# the same failure as inventing a "Extreme Fear" band, only wearing a sample
+# size instead of a label. Requiring independent spans means the 14-session
+# window (36 spans available) keeps its percentile and the 252-session window
+# correctly reports none until the desk holds decades of bars.
+PAIN_MIN_INDEPENDENT_SPANS = 20
 
 
 def _closes(bars: list[dict]) -> list[float]:
@@ -223,6 +257,155 @@ def volatility_regime(
     }
 
 
+def _equal_weight_index(bars_by_symbol: dict[str, list[dict]]) -> list[float]:
+    """The group as one price series: daily equal-weight constituent returns, chained.
+
+    This exists so the group's pain can be compared against a benchmark's
+    *honestly*. Averaging each constituent's own Ulcer Index and setting that
+    beside SPY's would compare a basket of single stocks to an index -- single
+    stocks are more volatile than any index almost by construction, so the
+    group would read as more painful than the benchmark essentially always,
+    including in the months it was not. Chaining the returns first makes both
+    sides of the comparison the same kind of object: an index.
+
+    Returns are averaged per *date* across whichever names have a return for
+    that date, so constituents with different amounts of history do not have to
+    be truncated to the shortest one, and a name listed mid-window simply joins
+    the index at its second bar. Starts at an arbitrary 100.0: only the shape
+    matters, since every number taken off this series is a ratio.
+
+    Note this deliberately does *not* take `participation`'s guard of dropping
+    names without full history. That guard exists because participation sums
+    dollar volume, so its total moves with the number of contributors whether
+    or not volume changed. A mean of returns has no such roster effect, and
+    admitting a name from its second bar is how equal-weight indices normally
+    handle an addition.
+    """
+    returns_by_date: dict[str, list[float]] = {}
+    for bars in bars_by_symbol.values():
+        for prev, cur in zip(bars, bars[1:]):
+            prev_close, close = float(prev["c"]), float(cur["c"])
+            # Both sides must be real prices. Guarding only the divisor leaves a
+            # non-positive *current* close to post a -100% return, which pins the
+            # chained level at 0 for the rest of the series -- every later
+            # session destroyed by one bad bar -- and, in a multi-name group,
+            # posts a drop no constituent actually had. Either way the index
+            # would be showing movement the market did not make (RULE #1), so a
+            # defective bar costs that name that one day and nothing more.
+            if prev_close > 0 and close > 0:
+                returns_by_date.setdefault(str(cur["t"])[:10], []).append(close / prev_close - 1.0)
+    if not returns_by_date:
+        return []
+    level = 100.0
+    series = [level]
+    for day in sorted(returns_by_date):
+        level *= 1.0 + statistics.fmean(returns_by_date[day])
+        series.append(level)
+    return series
+
+
+def _percentile_of_last(series: indicators.Series, period: int) -> tuple[float | None, int]:
+    """Where the latest defined value sits against every earlier one, in percent.
+
+    The honest alternative to banding the Ulcer Index into "Fear / Extreme
+    Fear". Those bands do not exist -- the indicator has no published
+    thresholds, so any cutoff would be invented here and then displayed with
+    the authority of a standard, which is exactly the mistake the moving-average
+    cycle classifier made before it was rewritten onto published definitions.
+    A percentile invents nothing: it says how today's reading compares to this
+    group's own past, which is a measured fact and the question "is this
+    unusually bad for *them*" actually asks.
+
+    `period` is the window those readings were taken over, and is needed
+    because consecutive readings overlap by `period - 1` bars: the sample is
+    ranked only when the history covers `PAIN_MIN_INDEPENDENT_SPANS` spans of
+    that length, not merely that many readings.
+
+    Returns `(percentile, n)` where `n` is how many earlier readings it was
+    measured against -- a percentile from 300 readings deserves less weight
+    than one from 3000, and hiding the sample size would conceal that. When the
+    history is too short the percentile is None while `n` still reports the real
+    count: too thin to rank against is a different statement from no history.
+
+    Ties count as half, the conventional percentile rank. Counting only values
+    strictly below would report a group that has sat at its highs all year --
+    every reading exactly 0.0 -- as "above 0% of its history", ranking it last
+    when it is tied with everything.
+    """
+    values = [v for v in series if v is not None]
+    if len(values) < 2:
+        return None, 0
+    latest, earlier = values[-1], values[:-1]
+    if len(earlier) < PAIN_MIN_INDEPENDENT_SPANS * period:
+        return None, len(earlier)
+    below = sum(1 for v in earlier if v < latest)
+    tied = sum(1 for v in earlier if v == latest)
+    return (below + tied / 2.0) / len(earlier) * 100.0, len(earlier)
+
+
+def symbol_pain(closes: list[float]) -> dict:
+    """One name's Ulcer Index at the desk's two pain horizons.
+
+    The per-position counterpart to `pain`, which measures a whole group. Both
+    go through these same two constants deliberately: the Sector view and the
+    Daily review put the same word on the page, and horizons that drifted apart
+    would leave "pain" meaning one span on one view and another span on the
+    next, with nothing on either page to show it.
+
+    No benchmark leg and no percentile. A group is an index and can be set
+    against another index honestly; a single name against SPY is the
+    apples-to-oranges comparison `_equal_weight_index` exists to avoid, and a
+    per-name percentile would carry the same overlapping-window problem
+    `_percentile_of_last` refuses to quote through. The number itself is
+    comparable across a book, which is what the review needs.
+    """
+    return {
+        "short_sessions": PAIN_SHORT_SESSIONS,
+        "long_sessions": PAIN_LONG_SESSIONS,
+        "short": _last(indicators.ulcer_index(closes, PAIN_SHORT_SESSIONS)),
+        "long": _last(indicators.ulcer_index(closes, PAIN_LONG_SESSIONS)),
+    }
+
+
+def pain(bars_by_symbol: dict[str, list[dict]], benchmark_bars: list[dict] | None) -> dict:
+    """How much it currently hurts to hold this group, versus the benchmark.
+
+    The Ulcer Index (see `indicators.ulcer_index`) of the group's own
+    equal-weight index, at two horizons, each set against the same measurement
+    of the benchmark and against the group's own history.
+
+    This is the one thing on the scorecard the other metrics genuinely cannot
+    say. Volatility reports how wide the daily range has become, which counts a
+    violent rally as equal to a violent decline; relative strength reports a
+    difference in returns over a window, which a group that fell early and then
+    stabilised will show as flat. Neither answers "how far under water is this
+    group, and for how long" -- which is the question behind noticing that the
+    broad market is calm while one sector is not.
+
+    Still a measurement, not a verdict: nothing here says a painful group is
+    cheap, finished falling, or worth buying.
+    """
+    group_closes = _equal_weight_index(bars_by_symbol)
+    bench_closes = _closes(benchmark_bars) if benchmark_bars else None
+
+    windows: dict[str, dict] = {}
+    for label, period in (("short", PAIN_SHORT_SESSIONS), ("long", PAIN_LONG_SESSIONS)):
+        group_series = indicators.ulcer_index(group_closes, period)
+        group_now = _last(group_series)
+        bench_now = _last(indicators.ulcer_index(bench_closes, period)) if bench_closes else None
+        percentile, history_n = _percentile_of_last(group_series, period)
+        windows[label] = {
+            "sessions": period,
+            "group_ulcer": group_now,
+            "benchmark_ulcer": bench_now,
+            "excess": (group_now - bench_now)
+                      if (group_now is not None and bench_now is not None) else None,
+            "percentile_of_own_history": percentile,
+            "history_n": history_n,
+        }
+    return {"windows": windows, "index_sessions": len(group_closes)}
+
+
 def dispersion(bars_by_symbol: dict[str, list[dict]], lookback: int = DEFAULT_LOOKBACK_SESSIONS) -> dict:
     """How much constituents moved together today versus their own recent norm.
 
@@ -295,6 +478,248 @@ def at_level(
     return {"n": n, "at_support_count": at_support, "at_resistance_count": at_resistance}
 
 
+# The seven-stage cycle a name's own price cycles through, in order.
+#
+# Built on the standard definitions of these words rather than on indicators:
+# how far a name sits below its own peak (10-20% is a correction, past 20% is
+# a bear market) and how far it has rallied off its own trough (+20% starts a
+# new bull market). No moving averages, no oscillators, no benchmark -- just
+# closing prices against a name's own peak and trough, plus which direction it
+# is currently moving.
+#
+# Read from weekly closes, not daily ones. A stage is a call about the
+# underlying trend, and a weekly chart is where that trend actually reads
+# clearly -- daily closes carry a week's worth of open/high/low/close noise
+# that a stage classification has no business reacting to, and it is the
+# resolution the "correction" / "bear market" convention below was itself
+# defined against. `_weekly_closes` collapses each name's daily bars down to
+# one close per ISO calendar week (the week's last available close) before
+# `_cycle_context` ever sees them.
+#
+# "Local Peak" and "Local Euphoria/Peak" are adjacent, not synonyms: Local
+# Euphoria/Peak is a name at a fresh peak and still advancing hard into it;
+# Local Peak is a name within 10% of its peak whose advance has stalled --
+# what the literature calls the distribution phase, "sideways and range-bound
+# after an extended uptrend". The loop closes Local Euphoria/Peak -> Local Peak.
+#
+# "Correction" and "Markdown" are likewise distinct, for a reason the standard
+# is explicit about: a 10-20% decline is a *correction*, past 20% is a *bear
+# market*. One label covering both would put a name easing off its high and one
+# that had halved under the same word. "Markdown" is Wyckoff's term for that
+# leg and avoids implying anything about the whole market. The worked example
+# behind the split is in README.md under "Cycle stage".
+CYCLE_STAGES = ("Local Peak", "Correction", "Markdown", "Bottoming", "Recovery",
+                "Extended/Uptrend", "Local Euphoria/Peak")
+
+# Thresholds. The three that carry the classification are the industry-standard
+# ones, not numbers invented here. The 10/20 split traces to Alan Shaw at Smith
+# Barney; citations are inline so the attribution stays checkable where the
+# numbers are defined rather than only in the README.
+#
+# https://www.morningstar.com/markets/whats-difference-between-bear-market-correction
+CORRECTION_DRAWDOWN_PCT = 10.0         # standard: 10-20% off the peak is a correction
+# https://www.schwab.com/learn/story/market-correction-what-does-it-mean
+BEAR_DRAWDOWN_PCT = 20.0               # standard: beyond 20% off the peak is a bear market
+# https://www.usbank.com/financialiq/invest-your-money/market-perspectives/bull-market-to-bear-market.html
+NEW_BULL_OFF_LOW_PCT = 20.0            # standard: +20% off the low starts a new bull market
+
+LONG_HIGH_WINDOW_WEEKS = 52            # the window the peak and trough are taken from
+RECENT_MOVE_WINDOW_WEEKS = 4           # ~1 month: the window recent direction is judged over
+
+# These have no industry standard. Research describes the distribution
+# (topping) phase qualitatively -- "sideways and range-bound after an extended
+# uptrend" -- so these are this desk's operationalization of that sentence, not
+# a convention anyone else shares. Named and disclosed rather than buried.
+STALL_MOVE_PCT = 3.0                   # near the peak and within this of flat = stalling, not advancing
+STILL_FALLING_PCT = 8.0                # a decline this steep over the recent window = still falling
+EUPHORIA_MOVE_PCT = 15.0               # at a fresh peak AND up this much = the near-vertical advance
+EUPHORIA_PEAK_TOLERANCE_PCT = 2.0      # "at a fresh peak" allows this much pullback from the exact high
+
+
+def _weekly_closes(bars: list[dict]) -> list[float]:
+    """Daily bars collapsed to one close per ISO calendar week, oldest first.
+
+    The week's close is its last available daily close -- whatever bar the
+    week happens to end on, not necessarily a Friday (a holiday-shortened week,
+    or the current, still-open week). Grouping by each bar's own ISO (year,
+    week) rather than chunking every five bars keeps every group a real
+    calendar week regardless of holidays or half sessions, and survives a
+    year boundary (ISO week 52 of one year and week 1 of the next are simply
+    different keys) without special-casing it.
+
+    `bars` must already be in chronological order, as every other function in
+    this module assumes; this does not re-sort them.
+    """
+    weekly: list[float] = []
+    cur_key: tuple[int, int] | None = None
+    for b in bars:
+        key = date.fromisoformat(b["t"][:10]).isocalendar()[:2]
+        if key != cur_key:
+            weekly.append(float(b["c"]))
+            cur_key = key
+        else:
+            weekly[-1] = float(b["c"])
+    return weekly
+
+
+def _cycle_context(closes: list[float]) -> dict | None:
+    """The four numbers the stage is read from, all straight off weekly closes.
+
+    `drawdown_pct` is how far below its own peak the name is (<= 0) -- the
+    number the standard correction/bear thresholds are defined against.
+    `off_low_pct` is how far it has rallied off its own trough (>= 0), the
+    other half of that convention. `trough_is_newer` says which extreme came
+    last: a name 40% below a peak set last month is falling, while the same
+    40% gap with the trough more recent means it already bottomed and is
+    climbing -- the two are opposite situations and the drawdown alone cannot
+    tell them apart. `move_pct` is the simple return over
+    `RECENT_MOVE_WINDOW_WEEKS` weekly closes.
+
+    `window_weeks` is the real number of weeks the peak and trough were taken
+    from: fewer than `LONG_HIGH_WINDOW_WEEKS` for a name without a full 52
+    weeks of history, reported honestly rather than claiming "52-week" for a
+    shorter window.
+
+    `closes` is expected to already be weekly (see `_weekly_closes`), but this
+    function itself only knows "a sequence of closes" -- it takes whatever it
+    is given a week at a time. Returns None below
+    `RECENT_MOVE_WINDOW_WEEKS + 1` weeks -- an unclassified name, not a
+    guessed one.
+    """
+    if len(closes) < RECENT_MOVE_WINDOW_WEEKS + 1:
+        return None
+    window = min(len(closes), LONG_HIGH_WINDOW_WEEKS)
+    recent = closes[-window:]
+    last = closes[-1]
+
+    # One pass, tracking the LAST occurrence of each extreme rather than the
+    # first. `list.index()` finds the earliest match, which is the wrong
+    # semantic for "which extreme came last": a name that put in its low,
+    # rallied to a peak, then retested that same low would report the trough as
+    # the older extreme and lose its Recovery classification. Using `>=` keeps
+    # the latest index for repeated values.
+    peak = trough = recent[0]
+    peak_at = trough_at = 0
+    for i, close in enumerate(recent):
+        if close >= peak:
+            peak, peak_at = close, i
+        if close <= trough:
+            trough, trough_at = close, i
+
+    if trough <= 0:
+        # A zero or negative close is a feed defect, not a price. Reporting the
+        # name unclassified beats dividing by it and failing the whole group's
+        # scorecard with a ZeroDivisionError.
+        return None
+
+    return {
+        "drawdown_pct": (last / peak - 1.0) * 100.0,      # <= 0
+        "off_low_pct": (last / trough - 1.0) * 100.0,      # >= 0
+        "trough_is_newer": trough_at > peak_at,
+        "move_pct": (last / closes[-1 - RECENT_MOVE_WINDOW_WEEKS] - 1.0) * 100.0,
+        # `last` is inside `recent`, so this is true only when this week's close
+        # is the window's highest -- or within EUPHORIA_PEAK_TOLERANCE_PCT of it,
+        # so that one week's pullback from a blow-off top does not disqualify it.
+        "at_peak": last >= peak * (1.0 - EUPHORIA_PEAK_TOLERANCE_PCT / 100.0),
+        "window_weeks": window,
+    }
+
+
+def _name_cycle_stage(ctx: dict) -> str:
+    """One name's stage, from how far it sits off its own peak and trough.
+
+    A pure decision table over `_cycle_context`'s numbers -- no moving
+    averages, no oscillators, no benchmark. The three thresholds that carry it
+    are the standard ones (10% off the peak is a correction, 20% is a bear
+    market, 20% off the low starts a new bull); the rest is direction.
+
+    In order:
+
+      - within 10% of its peak, at a fresh high, advancing hard -> Local Euphoria/Peak
+      - within 10% of its peak, recent move stalled             -> Local Peak
+      - within 10% of its peak, still advancing                 -> Extended/Uptrend
+      - 10-20% off its peak                                     -> Correction
+      - past 20% off its peak, but +20% off a *newer* trough     -> Recovery
+      - past 20% off its peak, still falling hard                -> Markdown
+      - past 20% off its peak, no longer falling                 -> Bottoming
+
+    Correction stops at 20% on purpose: past that the standard calls it a bear
+    market, and letting one label cover -10% through -50% hid the difference
+    between a name easing off its high and one that had halved.
+
+    Note the deliberate asymmetry: recent direction only splits stages *past*
+    the 20% threshold (Markdown vs Bottoming). Inside the 10-20% band every
+    name reads Correction whether it is stabilizing or collapsing, because the
+    standard defines that band by depth alone. A name down 19% and falling fast
+    is still a correction by the convention; it becomes Markdown when it
+    crosses 20%, not when it speeds up.
+
+    Markdown vs Bottoming is the other split, the one the old moving-average
+    version got wrong: a name down 45% and still dropping 29% in a month is
+    mid-decline, not "bottoming", however close to its low it happens to sit.
+    """
+    drawdown = ctx["drawdown_pct"]
+    move = ctx["move_pct"]
+    off_low = ctx["off_low_pct"]
+    at_peak = ctx["at_peak"]
+    trough_is_newer = ctx["trough_is_newer"]
+
+    if drawdown > -CORRECTION_DRAWDOWN_PCT:
+        if at_peak and move >= EUPHORIA_MOVE_PCT:
+            return "Local Euphoria/Peak"
+        return "Local Peak" if move <= STALL_MOVE_PCT else "Extended/Uptrend"
+    if drawdown > -BEAR_DRAWDOWN_PCT:
+        return "Correction"
+    if off_low >= NEW_BULL_OFF_LOW_PCT and trough_is_newer:
+        return "Recovery"
+    if move <= -STILL_FALLING_PCT:
+        return "Markdown"
+    return "Bottoming"
+
+
+def cycle_stages(bars_by_symbol: dict[str, list[dict]]) -> dict:
+    """Per-name cycle stage, a count per stage, and the group's own label.
+
+    The group label is the stage the most names sit in. A tie is reported as a
+    tie -- `"A / B"` -- rather than an arbitrary tie-break invented to force a
+    single answer nobody actually observed.
+    """
+    by_symbol: dict[str, str | None] = {}
+    context: dict[str, dict | None] = {}
+    for symbol, bars in bars_by_symbol.items():
+        ctx = _cycle_context(_weekly_closes(bars))
+        context[symbol] = ctx
+        by_symbol[symbol] = _name_cycle_stage(ctx) if ctx else None
+
+    counts = {stage: 0 for stage in CYCLE_STAGES}
+    unclassified = []
+    for symbol, stage in by_symbol.items():
+        if stage is None:
+            unclassified.append(symbol)
+        else:
+            counts[stage] += 1
+
+    classified = sum(counts.values())
+    if classified == 0:
+        group_label = None
+    else:
+        # `classified > 0` already guarantees `max(counts.values()) >= 1`, so
+        # every stage this comprehension can match has a genuinely positive
+        # count -- no separate `> 0` guard needed on top of it.
+        top = max(counts.values())
+        leaders = [s for s in CYCLE_STAGES if counts[s] == top]
+        group_label = " / ".join(leaders)
+
+    return {
+        "by_symbol": by_symbol,
+        "context": context,
+        "counts": counts,
+        "unclassified": sorted(unclassified),
+        "group_label": group_label,
+        "n_classified": classified,
+    }
+
+
 def compute_sector_scorecard(
     bars_by_symbol: dict[str, list[dict]],
     benchmark_bars: list[dict] | None,
@@ -318,6 +743,8 @@ def compute_sector_scorecard(
         "new_highs_lows": new_highs_lows(usable),
         "participation": participation(usable),
         "volatility": volatility_regime(usable, indicators_by_symbol),
+        "pain": pain(usable, benchmark_bars),
         "dispersion": dispersion(usable),
         "at_level": at_level(usable, indicators_by_symbol, level_proximity_atr),
+        "cycle_stages": cycle_stages(usable),
     }

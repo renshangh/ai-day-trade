@@ -6,24 +6,34 @@ python3 trading_desk/tests/test_sector_signals.py
 
 from __future__ import annotations
 
+import statistics
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
+import indicators  # noqa: E402
 import sector_signals as ss  # noqa: E402
 
 
 def _bars(closes: list[float], *, highs=None, lows=None, vols=None) -> list[dict]:
-    """Daily bars from a close series. h/l default to the close (no wick)."""
+    """Daily bars from a close series. h/l default to the close (no wick).
+
+    Real, sequential calendar dates -- `f"2026-01-{i+1:02d}"` produced
+    unparseable strings like "2026-01-45" past 31 bars. Nothing read `t` as a
+    date until `_weekly_closes` did, so it went unnoticed; fixed here rather
+    than left as a trap for the next thing that parses it.
+    """
     n = len(closes)
     highs = highs or closes
     lows = lows or closes
     vols = vols or [1_000_000.0] * n
+    start = date(2024, 1, 1)
     return [
-        {"t": f"2026-01-{i+1:02d}", "o": closes[i], "h": highs[i], "l": lows[i],
-         "c": closes[i], "v": vols[i]}
+        {"t": (start + timedelta(days=i)).isoformat(), "o": closes[i], "h": highs[i],
+         "l": lows[i], "c": closes[i], "v": vols[i]}
         for i in range(n)
     ]
 
@@ -247,6 +257,201 @@ def test_volatility_regime_treats_a_genuinely_zero_atr_as_a_value_not_missing():
     assert out["avg_atr_pct_now"] == 0.0
 
 
+# ---- pain (Ulcer Index) ----------------------------------------------------------
+
+def test_ulcer_index_is_zero_while_a_series_keeps_making_new_highs():
+    """No drawdown means no pain. An advance is not volatility to be penalised
+    -- that is the whole difference between this and ATR or stdev."""
+    rising = [100.0 * (1.02 ** i) for i in range(30)]
+    assert indicators.ulcer_index(rising, 14)[-1] == 0.0
+
+
+def test_ulcer_index_warmup_is_none_not_zero():
+    """Undefined is not 'no pain' -- zero is a real reading meaning 'at highs',
+    so back-filling warmup with it would invert the meaning (RULE #1)."""
+    series = indicators.ulcer_index([100.0] * 20, 14)
+    assert series[12] is None
+    assert series[13] == 0.0
+
+
+def test_ulcer_index_rises_with_the_duration_of_a_drawdown_not_only_its_depth():
+    """The property that makes this 'pain' rather than 'loss'. Both series end
+    20% below their peak; the one that has been there for seven sessions hurts
+    more than the one that fell yesterday, and no single-point drawdown figure
+    can tell them apart."""
+    fell_yesterday = [100.0] * 13 + [80.0]
+    under_water_a_week = [100.0] * 7 + [80.0] * 7
+    brief = indicators.ulcer_index(fell_yesterday, 14)[-1]
+    sustained = indicators.ulcer_index(under_water_a_week, 14)[-1]
+    assert sustained > brief * 2, f"duration barely registered: {brief=} {sustained=}"
+
+
+def test_ulcer_index_rises_with_depth_at_equal_duration():
+    shallow = indicators.ulcer_index([100.0] * 7 + [90.0] * 7, 14)[-1]
+    deep = indicators.ulcer_index([100.0] * 7 + [80.0] * 7, 14)[-1]
+    assert deep > shallow
+
+
+def test_ulcer_index_reports_a_window_containing_a_bad_close_as_undefined():
+    """A zero close is a feed defect, not a 100% drawdown."""
+    assert indicators.ulcer_index([100.0] * 13 + [0.0], 14)[-1] is None
+
+
+def test_pain_measures_the_group_index_not_the_average_constituent():
+    """The correctness property behind comparing a group to a benchmark at all.
+
+    Two names swinging hard in opposite directions leave the *basket* flat.
+    Averaging their individual Ulcer Indices would report heavy pain and make
+    the group look worse than any index benchmark -- which is how this metric
+    would have read 'sector in fear' permanently, on nothing but the fact that
+    single stocks are more volatile than indices.
+    """
+    n = 60
+    swings_down_first = _bars([100.0 if i % 2 else 90.0 for i in range(n)])
+    swings_up_first = _bars([100.0 if i % 2 else 110.0 for i in range(n)])
+    group = {"A": swings_down_first, "B": swings_up_first}
+
+    out = ss.pain(group, None)
+    group_ulcer = out["windows"]["short"]["group_ulcer"]
+    per_name_avg = statistics.fmean(
+        indicators.ulcer_index([float(b["c"]) for b in bars], ss.PAIN_SHORT_SESSIONS)[-1]
+        for bars in group.values())
+
+    assert group_ulcer < per_name_avg / 2, (
+        f"group pain tracked the constituents' own swings instead of the basket's: "
+        f"{group_ulcer=} {per_name_avg=}")
+
+
+def test_pain_separates_a_falling_group_from_a_calm_benchmark():
+    """Ren's case: the broad market is fine, one sector is not. The excess is
+    what carries that, so it has to be positive and large here."""
+    falling = _bars([100.0 - i for i in range(60)])
+    flat_market = _flat(400, 60)
+    out = ss.pain({"A": falling}, flat_market)
+    short = out["windows"]["short"]
+
+    assert short["benchmark_ulcer"] == 0.0
+    assert short["group_ulcer"] > 5.0
+    assert short["excess"] == short["group_ulcer"] - short["benchmark_ulcer"]
+
+
+def test_pain_percentile_puts_the_worst_reading_on_record_at_100():
+    """A quiet year then a crash: today should read as the worst it has been,
+    which is the 'how unusual is this for them' answer the tile shows."""
+    closes = [100.0] * 300 + [100.0 - i * 2 for i in range(30)]
+    out = ss.pain({"A": _bars(closes)}, None)
+    short = out["windows"]["short"]
+    assert short["percentile_of_own_history"] == 100.0
+    assert short["history_n"] > 0
+
+
+def test_pain_percentile_is_none_rather_than_a_guess_on_a_thin_sample():
+    """Two readings cannot place today in a distribution. The percentile is
+    withheld, but the honest count of what history exists still comes back --
+    and the long window, with no readings at all, stays undefined rather than
+    defaulting to a comfortable zero."""
+    out = ss.pain({"A": _flat(100, 16)}, None)
+    short = out["windows"]["short"]
+    assert short["group_ulcer"] == 0.0
+    assert short["percentile_of_own_history"] is None
+    assert 0 < short["history_n"] < ss.PAIN_MIN_INDEPENDENT_SPANS * ss.PAIN_SHORT_SESSIONS
+    assert out["windows"]["long"]["group_ulcer"] is None
+
+
+def test_pain_percentile_counts_independent_spans_not_overlapping_readings():
+    """Consecutive Ulcer Index readings share all but one bar of their window,
+    so a count of readings wildly overstates the sample. At the ~2 years of
+    bars this view actually fetches the 252-session window has ~268 readings
+    but barely one independent year behind it -- enough to look like a
+    distribution and not enough to be one, so no percentile is quoted. The
+    14-session window, with real independent spans, still gets one."""
+    two_years = _bars([100.0 + (i % 40) for i in range(520)])
+    out = ss.pain({"A": two_years}, None)
+
+    long_window = out["windows"]["long"]
+    assert long_window["group_ulcer"] is not None, "the reading itself should still be reported"
+    assert long_window["percentile_of_own_history"] is None, (
+        f"quoted a percentile off {long_window['history_n']} overlapping readings "
+        f"spanning only {long_window['history_n'] / ss.PAIN_LONG_SESSIONS:.2f} independent windows")
+    assert long_window["history_n"] > 0, "the real count is still reported"
+    assert out["windows"]["short"]["percentile_of_own_history"] is not None
+
+
+def test_pain_percentile_splits_ties_instead_of_ranking_them_last():
+    """A group at its highs all year has every reading at exactly 0.0. Counting
+    only values strictly below would call that 'above 0% of its history' --
+    ranked last while tied with everything. Conventional percentile rank gives
+    ties half credit, so it reads as the midpoint."""
+    flat = ss._percentile_of_last([0.0] * 400, 1)
+    assert flat[0] == 50.0, f"tied readings were ranked last: {flat}"
+
+
+def test_pain_index_is_not_destroyed_by_one_defective_close():
+    """A zero close is a feed defect, not a -100% session. Guarding only the
+    divisor let it through as a real return, and because the index is chained
+    the level stayed pinned at 0 for every session after it -- one bad bar
+    silently wiping out the rest of the series, and in a multi-name group
+    posting a drop no constituent had (RULE #1). The name loses that one day
+    and nothing else."""
+    closes = [100.0] * 10
+    closes[5] = 0.0
+    series = ss._equal_weight_index({"A": _bars(closes)})
+
+    assert all(level > 0 for level in series), f"a defect zeroed the index: {series}"
+    assert series[-1] == series[0], (
+        f"a skipped bar moved a flat index: {series[0]} -> {series[-1]}")
+
+
+def test_pain_equal_weight_index_keeps_names_with_unequal_history():
+    """A name added mid-window joins the index at its second bar instead of
+    truncating every other constituent back to its start date."""
+    long_name = _bars([100.0] * 60)
+    short_name = _bars([50.0] * 10)
+    series = ss._equal_weight_index({"A": long_name, "B": short_name})
+    assert len(series) == 60, f"history was truncated to the shortest name: {len(series)}"
+
+
+def test_symbol_pain_reads_the_same_two_horizons_as_the_group_metric():
+    """The Sector view and the Daily review both put the word "pain" on the
+    page. If their windows drifted apart the same word would mean two different
+    spans with nothing on either page to show it, so both read these constants."""
+    out = ss.symbol_pain([100.0] * 300)
+    assert out["short_sessions"] == ss.PAIN_SHORT_SESSIONS
+    assert out["long_sessions"] == ss.PAIN_LONG_SESSIONS
+    assert out["short"] == 0.0 and out["long"] == 0.0
+
+
+def test_symbol_pain_long_window_is_undefined_below_its_own_span():
+    """A name without a trading year of bars has no trailing-year reading, and
+    says so rather than reporting the short window's number twice."""
+    out = ss.symbol_pain([100.0] * 100)
+    assert out["short"] == 0.0
+    assert out["long"] is None
+
+
+def test_symbol_pain_carries_no_benchmark_or_percentile():
+    """Both survive the group case and neither survives the single-name one: a
+    lone stock against SPY is the apples-to-oranges comparison the equal-weight
+    index exists to avoid, and a per-name percentile inherits the overlapping-
+    window problem. Absent beats present-and-misleading."""
+    out = ss.symbol_pain([100.0] * 300)
+    for banned in ("benchmark_ulcer", "excess", "percentile_of_own_history"):
+        assert banned not in out, f"symbol_pain leaked a group-only field: {banned}"
+
+
+def test_pain_is_reported_as_a_number_and_never_as_a_band():
+    """No 'Extreme Fear' label. The Ulcer Index has no published thresholds, so
+    any band would be invented here and then read as a standard -- the mistake
+    the cycle classifier was rewritten to remove. The percentile against the
+    group's own history is the honest substitute, and it is a measurement."""
+    out = ss.pain({"A": _bars([100.0 - i * 0.5 for i in range(300)])}, _flat(400, 300))
+    for window in out["windows"].values():
+        for key, value in window.items():
+            assert not isinstance(value, str), f"pain window carries a label in {key!r}: {value!r}"
+        for banned in ("label", "band", "status", "verdict", "level", "rating"):
+            assert banned not in window, f"pain window carries a verdict key {banned!r}"
+
+
 # ---- dispersion ------------------------------------------------------------------
 
 def test_dispersion_is_zero_when_every_name_moves_identically():
@@ -305,7 +510,7 @@ def test_scorecard_has_every_documented_top_level_key():
     group = {"A": _trend(100, 0.2, 70)}
     out = ss.compute_sector_scorecard(group, _trend(100, 0.2, 70))
     for key in ("relative_strength", "breadth", "new_highs_lows", "participation",
-                "volatility", "dispersion", "at_level"):
+                "volatility", "pain", "dispersion", "at_level", "cycle_stages"):
         assert key in out, key
 
 
@@ -313,6 +518,374 @@ def test_scorecard_survives_an_empty_group_without_raising():
     out = ss.compute_sector_scorecard({}, None)
     assert out["constituents_used"] == []
     assert out["breadth"]["n"] == 0
+
+
+# ---- cycle_stages -------------------------------------------------------------
+
+def _noisy_trend(start: float, drift_pct: float, amp_pct: float, n: int) -> list[float]:
+    """A close series with genuine bidirectional daily moves, not a flat line.
+
+    Every other day steps by `drift_pct + amp_pct`, the rest by `drift_pct -
+    amp_pct` -- net drift accumulates over time, but with amp_pct > 0 there are
+    real up AND down days, so RSI lands at a realistic mid-range value instead
+    of pinning at 0 or 100 the way a perfectly flat-then-one-direction series
+    does (a flat base has zero average loss, so RSI=100 on literally any single
+    uptick -- the bug that made the first version of these fixtures useless).
+    """
+    c = [start]
+    for i in range(1, n):
+        step = drift_pct + (amp_pct if i % 2 == 0 else -amp_pct)
+        c.append(c[-1] * (1 + step / 100.0))
+    return c
+
+
+# ---- cycle stage: drawdown from peak + rally off trough ------------------------
+#
+# The rule is built on the standard definitions of these words, not on
+# indicators: 10-20% off a peak is a correction, past 20% is a bear market,
+# +20% off a trough starts a new bull market. `_cycle_closes` builds a close
+# series with an exact drawdown, off-low, and recent move so each band can be
+# tested at its real threshold.
+
+def _cycle_closes(peak: float, trough: float, last: float, move_pct: float,
+                  trough_first: bool = True, total_len: int = 52) -> list[float]:
+    """A close series with an exact peak, trough, final close, and recent move.
+
+    One value per week now, not per day -- `total_len` defaults to
+    `LONG_HIGH_WINDOW_WEEKS` (52) so the whole series sits inside the window
+    `_cycle_context` actually looks at, the same relationship the old
+    252-default had to its 252-session cap.
+
+    `trough_first` puts the trough earlier in the window than the peak (the
+    normal "ran up, then fell" shape); False puts the peak first, so the
+    trough is the more recent extreme -- the shape that separates a name
+    recovering off a fresh bottom from one still sliding away from an old top.
+    """
+    tail_len = ss.RECENT_MOVE_WINDOW_WEEKS + 1
+    anchor = last / (1 + move_pct / 100.0)          # becomes closes[-1 - window]
+    tail = [anchor + (last - anchor) * i / (tail_len - 1) for i in range(tail_len)]
+    extremes = [trough, peak] if trough_first else [peak, trough]
+    mid = (peak + trough) / 2.0
+    body = extremes + [mid] * (total_len - tail_len - 2)
+    return body + tail
+
+
+def _stage_of(peak: float, trough: float, last: float, move_pct: float,
+              trough_first: bool = True) -> str:
+    ctx = ss._cycle_context(_cycle_closes(peak, trough, last, move_pct, trough_first))
+    return ss._name_cycle_stage(ctx)
+
+
+def test_stage_within_ten_percent_of_the_peak_and_advancing_is_an_uptrend():
+    """Not yet a correction by the standard definition, and still moving up."""
+    assert _stage_of(peak=100, trough=50, last=95, move_pct=10) == "Extended/Uptrend"
+
+
+def test_stage_within_ten_percent_of_the_peak_but_stalled_is_a_local_peak():
+    """The distribution phase: near the peak, no longer advancing."""
+    assert _stage_of(peak=100, trough=50, last=95, move_pct=1) == "Local Peak"
+
+
+def test_stage_at_a_fresh_peak_still_advancing_hard_is_euphoria():
+    assert _stage_of(peak=100, trough=50, last=100, move_pct=20) == "Local Euphoria/Peak"
+
+
+def test_stage_at_a_fresh_peak_without_the_advance_is_not_euphoria():
+    """Sitting at a high is not the same as running into one."""
+    assert _stage_of(peak=100, trough=50, last=100, move_pct=1) == "Local Peak"
+
+
+def test_stage_ten_to_twenty_percent_off_the_peak_is_a_correction():
+    """The textbook definition, and the reason this threshold is not invented:
+    a 10-20% decline from a recent peak is what "correction" means."""
+    assert _stage_of(peak=100, trough=50, last=85, move_pct=-5) == "Correction"
+    assert _stage_of(peak=100, trough=50, last=82, move_pct=+2) == "Correction"
+
+
+def test_stage_just_inside_ten_percent_is_not_yet_a_correction():
+    """Under 10% is noise, not a correction -- the same convention's other side."""
+    assert _stage_of(peak=100, trough=50, last=95, move_pct=-1) == "Local Peak"
+
+
+def test_stage_past_twenty_percent_off_the_peak_and_still_falling_is_a_markdown():
+    """The read the moving-average version got wrong for FN: down 45% and
+    still dropping 29% in a month is mid-decline, not a base forming.
+
+    Markdown, not Correction: the standard reserves "correction" for a 10-20%
+    decline, and one label spanning -10% to -54% put AXTI and ANET under the
+    same word."""
+    assert _stage_of(peak=100, trough=50, last=55, move_pct=-29) == "Markdown"
+
+
+def test_correction_and_markdown_are_split_at_the_bear_market_threshold():
+    """The distinction that motivated the seventh stage: either side of -20%
+    gets a different word, exactly as the convention draws it.
+
+    `trough_first=True` is passed explicitly rather than relied on as a
+    default: the -21% case sits +58% above its trough, so if that trough were
+    the newer extreme the Recovery branch would take it before the Markdown
+    check ever ran, and the test would be proving something else.
+    """
+    assert _stage_of(peak=100, trough=50, last=81, move_pct=-12,
+                     trough_first=True) == "Correction"   # -19%, inside the band
+    assert _stage_of(peak=100, trough=50, last=79, move_pct=-12,
+                     trough_first=True) == "Markdown"     # -21%, past the threshold
+
+
+def test_direction_does_not_split_stages_inside_the_correction_band():
+    """The asymmetry, pinned: past -20% the recent move separates Markdown from
+    Bottoming, but inside the 10-20% band it does not separate anything. Both
+    of these are Correction because the standard defines that band by depth
+    alone -- falling steadily and drifting sideways read the same there.
+
+    The two moves are -14% and 0% rather than something more dramatic because
+    the drawdown caps how fast a name inside this band can have fallen: at 15%
+    off its peak it cannot also be down 30% over the recent window, since
+    whatever level it fell 30% *from* would itself be the peak. The fixture
+    enforces that -- a move steep enough to push the anchor above `peak`
+    silently redefines the peak, which is how this test failed the first time.
+    """
+    assert _stage_of(peak=100, trough=50, last=85, move_pct=-14) == "Correction"
+    assert _stage_of(peak=100, trough=50, last=85, move_pct=0) == "Correction"
+
+
+def test_stage_past_twenty_percent_off_the_peak_and_no_longer_falling_is_bottoming():
+    """GLW's case: a deep drawdown that has gone quiet. Bottoming describes
+    where it is without claiming it turns up from here."""
+    assert _stage_of(peak=100, trough=50, last=64, move_pct=-2) == "Bottoming"
+
+
+def test_stage_twenty_percent_off_a_newer_trough_is_a_recovery():
+    """+20% off the low is the standard new-bull trigger. It only applies when
+    the trough is the *more recent* extreme -- otherwise a name sliding away
+    from an old top would read as recovering off a year-old low."""
+    assert _stage_of(peak=100, trough=50, last=65, move_pct=+12,
+                     trough_first=False) == "Recovery"
+
+
+def test_stage_a_stale_low_does_not_manufacture_a_recovery():
+    """Same drawdown and same rally off the low, but the peak came last -- the
+    name is below an old top, not climbing off a fresh bottom. This is the
+    distinction `trough_is_newer` exists for; without it GLW, up 120% off a
+    year-old low, would have read as "Recovery" while 36% below its peak."""
+    assert _stage_of(peak=100, trough=50, last=65, move_pct=-2,
+                     trough_first=True) == "Bottoming"
+
+
+def test_recency_uses_the_last_occurrence_of_each_extreme():
+    """A name that retests its low after peaking has the *newer* trough.
+
+    `list.index()` returns the first match, which is the wrong semantic here:
+    with the low hit early, a peak after it, and the same low retested later,
+    first-occurrence logic reports the trough as the older extreme and the
+    name loses its Recovery classification. The fixtures built by
+    `_cycle_closes` seed each extreme exactly once, so they cannot reach this
+    -- hence the hand-built double bottom.
+    """
+    closes = ([50.0, 100.0] + [75.0] * 43 + [50.0] * 2
+              + [55.0 + i * 2.0 for i in range(1, 6)])
+    ctx = ss._cycle_context(closes)
+    assert ctx["trough_is_newer"] is True, "the retested low is the newer extreme"
+    # Deep drawdown plus a real rally off that newer low is a Recovery, not a base.
+    assert ctx["drawdown_pct"] < -ss.BEAR_DRAWDOWN_PCT
+    assert ctx["off_low_pct"] >= ss.NEW_BULL_OFF_LOW_PCT
+    assert ss._name_cycle_stage(ctx) == "Recovery"
+
+
+def test_recency_holds_when_the_peak_is_the_repeated_extreme():
+    """The mirror case: a peak set early, retested late, with the trough
+    between them -- the peak is the newer extreme and must not read as older."""
+    closes = ([100.0, 50.0] + [75.0] * 43 + [100.0] * 2
+              + [95.0 - i * 2.0 for i in range(1, 6)])
+    ctx = ss._cycle_context(closes)
+    assert ctx["trough_is_newer"] is False
+
+
+def test_euphoria_survives_a_small_pullback_from_the_exact_peak():
+    """A blow-off top that ticks down a day is still the same advance.
+
+    Requiring the close to be exactly the window maximum made this stage fire
+    only on days that set a fresh 252-session high; a 1% pullback disqualified
+    it entirely.
+    """
+    assert _stage_of(peak=100, trough=50, last=99, move_pct=20) == "Local Euphoria/Peak"
+
+
+def test_euphoria_does_not_extend_past_the_stated_tolerance():
+    """The tolerance is a small allowance, not a loophole -- 5% off the peak is
+    outside it, so the same strong advance reads as an uptrend instead."""
+    assert _stage_of(peak=100, trough=50, last=95, move_pct=20) == "Extended/Uptrend"
+
+
+def test_a_zero_close_is_reported_unclassified_not_a_crash():
+    """A zero close is a feed defect. Dividing by it would fail the whole
+    group's scorecard rather than one name."""
+    assert ss._cycle_context([0.0] * 30) is None
+
+
+def test_stage_rule_uses_no_moving_averages_or_oscillators():
+    """The redesign's whole point: the stage comes from prices against a
+    name's own peak and trough, nothing else.
+
+    Whole-word matching, not substring: "version" contains "rsi", and a
+    substring check flagged the docstring rather than any real indicator use.
+    """
+    import inspect
+    import re
+    src = (inspect.getsource(ss._name_cycle_stage)
+           + inspect.getsource(ss._cycle_context)).lower()
+    for banned in ("sma", "ema", "rsi", "macd", "indicators", "sma50", "sma200"):
+        assert not re.search(rf"\b{banned}\b", src), \
+            f"{banned!r} leaked back into the stage rule"
+
+
+def test_standard_thresholds_match_the_published_convention():
+    """These three are the industry-standard numbers, not tuning knobs -- if
+    someone changes them the rule stops meaning what its labels claim."""
+    assert ss.CORRECTION_DRAWDOWN_PCT == 10.0
+    assert ss.BEAR_DRAWDOWN_PCT == 20.0
+    assert ss.NEW_BULL_OFF_LOW_PCT == 20.0
+
+
+# ---- cycle context ---------------------------------------------------------------
+
+def test_cycle_context_reports_drawdown_and_rally_off_the_low():
+    ctx = ss._cycle_context(_cycle_closes(peak=100, trough=50, last=75, move_pct=0))
+    assert abs(ctx["drawdown_pct"] - (-25.0)) < 1e-6
+    assert abs(ctx["off_low_pct"] - 50.0) < 1e-6
+
+
+def test_cycle_context_tracks_which_extreme_came_last():
+    newer_trough = ss._cycle_context(
+        _cycle_closes(peak=100, trough=50, last=75, move_pct=0, trough_first=False))
+    older_trough = ss._cycle_context(
+        _cycle_closes(peak=100, trough=50, last=75, move_pct=0, trough_first=True))
+    assert newer_trough["trough_is_newer"] is True
+    assert older_trough["trough_is_newer"] is False
+
+
+def test_cycle_context_reports_the_full_window_when_history_allows():
+    ctx = ss._cycle_context(_cycle_closes(100, 50, 75, 0, total_len=300))
+    assert ctx["window_weeks"] == ss.LONG_HIGH_WINDOW_WEEKS
+
+
+def test_cycle_context_uses_whatever_history_is_actually_available():
+    """A name with less than 52 weeks of history must not silently claim one."""
+    assert ss._cycle_context([100.0] * 40)["window_weeks"] == 40
+
+
+def test_cycle_context_is_none_below_the_minimum_history():
+    assert ss._cycle_context([100.0] * ss.RECENT_MOVE_WINDOW_WEEKS) is None
+
+
+def test_cycle_context_on_a_flat_series_is_all_zeroes_not_a_crash():
+    ctx = ss._cycle_context([100.0] * 60)
+    assert ctx["drawdown_pct"] == 0.0
+    assert ctx["off_low_pct"] == 0.0
+    assert ctx["move_pct"] == 0.0
+
+
+# ---- cycle_stages assembly -------------------------------------------------------
+
+def _bars_for(peak: float, trough: float, last: float, move_pct: float,
+              trough_first: bool = True) -> list[dict]:
+    """Bars for `cycle_stages()`, one per ISO week.
+
+    `cycle_stages` collapses bars to weekly closes before classifying, so a
+    fixture spaced one calendar day apart would coarsen under that collapse --
+    several bars folding into one week's close, changing the very peak/trough/
+    move `_cycle_closes` was built to have. Spacing every bar exactly one week
+    apart makes the collapse an identity: each bar is already its own week, so
+    `_weekly_closes` hands `_cycle_context` back exactly the closes below.
+    """
+    closes = _cycle_closes(peak, trough, last, move_pct, trough_first)
+    start = date(2020, 1, 6)   # a Monday; the weekday itself does not matter
+    return [
+        {"t": (start + timedelta(weeks=i)).isoformat(), "o": c, "h": c, "l": c,
+         "c": c, "v": 1_000_000.0}
+        for i, c in enumerate(closes)
+    ]
+
+
+def test_cycle_stages_group_label_is_the_most_common_stage():
+    group = {
+        "A": _bars_for(100, 50, 85, -5),    # Correction
+        "B": _bars_for(100, 50, 85, -5),    # Correction
+        "C": _bars_for(100, 50, 95, 1),     # Local Peak
+    }
+    out = ss.cycle_stages(group)
+    assert out["group_label"] == "Correction"
+    assert out["counts"]["Correction"] == 2
+    assert out["counts"]["Local Peak"] == 1
+    assert out["n_classified"] == 3
+    assert out["unclassified"] == []
+
+
+def test_cycle_stages_reports_a_tie_rather_than_inventing_a_winner():
+    group = {
+        "A": _bars_for(100, 50, 85, -5),    # Correction
+        "B": _bars_for(100, 50, 95, 1),     # Local Peak
+    }
+    out = ss.cycle_stages(group)
+    assert " / " in out["group_label"]
+    assert "Correction" in out["group_label"]
+    assert "Local Peak" in out["group_label"]
+
+
+def test_cycle_stages_includes_context_per_symbol():
+    group = {"A": _bars_for(100, 50, 75, 0)}
+    out = ss.cycle_stages(group)
+    assert "context" in out
+    assert abs(out["context"]["A"]["drawdown_pct"] - (-25.0)) < 1e-6
+    assert out["context"]["A"]["window_weeks"] == ss.LONG_HIGH_WINDOW_WEEKS
+
+
+def test_cycle_stages_excludes_short_history_names_from_the_label():
+    group = {
+        "A": _bars_for(100, 50, 85, -5),
+        "SHORT": _bars([100.0] * 10),
+    }
+    out = ss.cycle_stages(group)
+    assert out["unclassified"] == ["SHORT"]
+    assert out["n_classified"] == 1
+    assert out["group_label"] == "Correction"
+    assert out["context"]["SHORT"] is None
+
+
+def test_cycle_stages_group_label_is_none_when_nothing_is_classifiable():
+    out = ss.cycle_stages({"SHORT": _bars([100.0] * 10)})
+    assert out["group_label"] is None
+    assert out["unclassified"] == ["SHORT"]
+
+
+def test_compute_sector_scorecard_includes_cycle_stages():
+    group = {"A": _bars_for(100, 50, 85, -5)}
+    out = ss.compute_sector_scorecard(group, _trend(100, 0.1, 260))
+    assert out["cycle_stages"]["group_label"] == "Correction"
+
+
+def test_client_stage_order_matches_the_server_list_exactly():
+    """app.js's CYCLE_STAGE_ORDER must equal sector_signals.CYCLE_STAGES.
+
+    Both files carry a comment saying so, but nothing enforced it -- and the
+    list has now changed once (six stages to seven, edited by hand in both
+    places), which is exactly when the two drift. A mismatch makes the client
+    render the breakdown in a different order than the server's counts, or drop
+    a stage from the display entirely.
+
+    `tests/test_ports.py` sets the precedent for this kind of cross-file check
+    in this repo: it parses `.claude/launch.json` and the `.command` launcher
+    and asserts they agree with `server.py`'s constants.
+    """
+    import re
+    app_js = (HERE.parent / "app.js").read_text()
+    m = re.search(r"const CYCLE_STAGE_ORDER = \[(.*?)\];", app_js, re.S)
+    assert m, "CYCLE_STAGE_ORDER not found in app.js -- was it renamed?"
+    client = [s.strip().strip("'\"") for s in m.group(1).split(",") if s.strip()]
+    assert client == list(ss.CYCLE_STAGES), (
+        f"client and server stage lists have drifted:\n"
+        f"  app.js          : {client}\n"
+        f"  sector_signals  : {list(ss.CYCLE_STAGES)}")
 
 
 def _main() -> int:

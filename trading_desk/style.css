@@ -895,3 +895,49 @@ button.primary:disabled { opacity: 0.5; cursor: default; }
 .rev-news-list li { margin-bottom: 8px; line-height: 1.35; }
 .rev-news-list a { color: var(--text-primary); }
 .rev-news-list .lvl-meta { display: block; }
+
+/* Cycle-stage panel in the Sector view. Deliberately distinct from .rev-stats
+   -- those are measurements, this is a rule-based classification, and the
+   visual break signals "read this one differently" rather than "another fact
+   tile". */
+.cyc-stage-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 12px 14px;
+  margin: 4px 0 18px;
+}
+.cyc-stage-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.cyc-stage-label-k {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cyc-stage-label-v {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.cyc-stage-rows { display: flex; flex-direction: column; gap: 4px; }
+.cyc-stage-row {
+  display: grid;
+  grid-template-columns: 140px 28px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cyc-stage-row:last-child { border-bottom: none; }
+.cyc-stage-row-empty { color: var(--text-muted); }
+.cyc-stage-name { font-weight: 500; }
+.cyc-stage-count { color: var(--text-muted); text-align: right; }
+.cyc-stage-names { color: var(--text-secondary); overflow-wrap: anywhere; }
+.cyc-stage-warn { color: var(--warning); }
