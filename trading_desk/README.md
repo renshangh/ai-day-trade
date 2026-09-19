@@ -437,10 +437,10 @@ there is no second, subtly different calculation to reconcile.
 | `Last` | Latest close, with the day's change beneath it. |
 | `Avg entry` | Cost basis across all open lots in that symbol. |
 | `Unrealised` | Dollars and percent against that basis. |
+| `Pain` | This name's own Ulcer Index over 14 sessions, with the 252-session reading beneath it. Both are **percentages, not counts of days** — the RMS distance below the name's own running peak across that window. Same measure and horizons as the Sector view's [Pain](#pain----how-much-it-hurts-to-hold-this-group) tile. |
 | `% book` | Share of the reviewed book **plus** excluded holdings, at market value. Cash is not included, so this is position weight, not account weight. |
 | `Resistance above` / `Support below` | Nearest level on each side, with distance in percent **and in ATR**. |
 | `To support` | Dollars between today's price and the nearest support. |
-| `Pain` | This name's own Ulcer Index over 14 sessions, with the 252-session reading beneath it. Same measure and same horizons as the Sector view's [Pain](#pain----how-much-it-hurts-to-hold-this-group) tile. |
 | `Earnings` | Days to the next projected print. Red inside the 21-day swing window. |
 
 Rows sort by **distance to support in ATR**, closest first — that is the
