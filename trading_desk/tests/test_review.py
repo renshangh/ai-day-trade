@@ -10,6 +10,7 @@ what a reader of the review will actually trust.
 from __future__ import annotations
 
 import csv
+import re
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -244,6 +245,59 @@ def test_missing_journal_is_reported_as_absence_not_an_empty_review():
 def test_stale_quote_is_surfaced():
     e = review_one(stub_stock([90.0, 95.0], [], stale=True), HELD)
     assert "stale_quote" in {f["key"] for f in srv._review_flags(e, None)}
+
+
+def test_review_table_header_and_row_declare_the_same_columns():
+    """app.js builds the heading row and the body row as two separate template
+    strings, so a column added, removed or moved in one but not the other
+    shifts every value to its right under the wrong heading -- silently, on a
+    page that still renders perfectly. Nothing server-side can see that, and
+    the review is read for money decisions, so it is pinned here the same way
+    SWING_WINDOW_DAYS and CYCLE_STAGE_ORDER are.
+
+    The error row is checked too: it spans the table with one cell for the
+    symbol plus a colspan for the rest, which has to stay in step with the
+    real column count or a failed symbol's message runs short or long.
+    """
+    js = (Path(__file__).resolve().parent.parent / "app.js").read_text()
+
+    # Anchored on the review table's own class. `<thead><tr>\s*<th>Symbol</th>`
+    # alone also matches the earnings calendar table, which likewise opens with
+    # a Symbol heading -- and which happens to have the same column count, so
+    # this assertion passed against the wrong table until a mutation check
+    # showed it surviving a bogus extra heading.
+    head = re.search(r'<table class="rev-tbl">\s*<thead><tr>(.*?)</tr></thead>', js, re.S)
+    assert head, "review thead not found in app.js -- was the table rewritten?"
+    headers = re.findall(r"<th[^>]*>([^<]*)</th>", head.group(1))
+
+    row = re.search(r'<tr class="rev-row" data-sym="\$\{e\.symbol\}" tabindex="0">(.*?)</tr>',
+                    js, re.S)
+    assert row, "review row template not found in app.js"
+    cells = re.findall(r"<td[^>]*>|\$\{rev\w+Cell\(", row.group(1))
+
+    assert len(headers) == len(cells), (
+        f"review table header and row disagree on column count:\n"
+        f"  {len(headers)} headers: {headers}\n"
+        f"  {len(cells)} row cells")
+
+    err = re.search(r'<td colspan="(\d+)" class="neg">\$\{e\.error\}', js)
+    assert err, "review error row not found in app.js"
+    assert int(err.group(1)) + 1 == len(headers), (
+        f"error row spans {int(err.group(1))} + 1 symbol cell, "
+        f"but the table has {len(headers)} columns")
+
+
+def test_pain_column_sits_next_to_unrealised():
+    """Not cosmetic. The column exists to be read against `Unrealised` -- pain
+    is measured from the name's own peak and P&L from whatever this desk paid,
+    so a name can be profitable and deep in a drawdown at once. Separated by
+    eight columns in a table that scrolls horizontally, the two were never on
+    screen together and the comparison was unavailable, which is how it
+    shipped the first time.
+    """
+    js = (Path(__file__).resolve().parent.parent / "app.js").read_text()
+    assert "<th>Unrealised</th><th>Pain</th>" in js, (
+        "the Pain heading no longer follows Unrealised")
 
 
 def test_swing_window_matches_the_client_constant():
