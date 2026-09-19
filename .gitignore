@@ -111,3 +111,4 @@ trading_records/*
 trading_desk/research/earnings_dates.json
 trading_desk/research/drift_results.json
 trading_desk/research/drift_robustness.json
+trading_desk/research/morning-checkin/
