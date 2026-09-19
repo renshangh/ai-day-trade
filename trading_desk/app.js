@@ -461,11 +461,16 @@ function revLevelCell(l) {
 // sector_signals.py for why neither survives the move to a single name.
 function revPainCell(p) {
   if (!p || p.short == null) return '<td class="muted">—</td>';
-  const long = p.long == null ? '—' : p.long.toFixed(1);
-  return `<td title="Ulcer Index: root-mean-square drawdown from the running peak.`
-       + ` Rises with how deep a decline is and how long it lasts.">`
-       + `${p.short.toFixed(1)}`
-       + `<span class="lvl-meta">${long} over ${p.long_sessions}d</span></td>`;
+  // "30.6 over 252d" gets read as "30.6 days out of 252". It is neither a count
+  // nor days: it is a percentage-scale drawdown figure over a 252-session
+  // window. The unit carries that, and naming the window first stops the two
+  // numbers reading as a ratio.
+  const long = p.long == null ? '—' : `${p.long.toFixed(1)}%`;
+  return `<td title="Ulcer Index: root-mean-square drawdown from the running peak,`
+       + ` in percent — not a count of days. Rises with how deep a decline is and`
+       + ` how long it lasts.">`
+       + `${p.short.toFixed(1)}%`
+       + `<span class="lvl-meta">${p.long_sessions}d: ${long}</span></td>`;
 }
 
 // Sizing worksheet state. Module-level so a re-render (or the 5-minute review
@@ -661,6 +666,7 @@ function renderReview() {
         <td>${fmtPx(e.last)}<span class="lvl-meta ${signClass(e.day_pct)}">${fmtPct(e.day_pct)}</span></td>
         <td>${fmtPx(e.avg_entry)}</td>
         <td class="${signClass(e.pnl)}">${fmtMoney0(e.pnl)}<span class="lvl-meta ${signClass(e.pnl_pct)}">${fmtPct(e.pnl_pct)}</span></td>
+        ${revPainCell(e.pain)}
         <td>${w == null ? '—' : w.toFixed(1) + '%'}</td>
         ${revLevelCell(e.nearest_resistance)}
         ${revLevelCell(e.nearest_support)}
@@ -669,16 +675,15 @@ function renderReview() {
         <td>${e.risk_to_stop == null ? '—' : fmtMoney0(e.risk_to_stop)}</td>
         <td>${e.rsi14 == null ? '—' : e.rsi14.toFixed(0)}</td>
         <td>${e.atr_pct == null ? '—' : e.atr_pct.toFixed(1) + '%'}</td>
-        ${revPainCell(e.pain)}
         <td class="${earnCls}">${earn}</td>
       </tr>`;
     }).join('');
     $('rev-table').innerHTML = `<table class="rev-tbl">
       <thead><tr>
-        <th>Symbol</th><th>Last</th><th>Avg entry</th><th>Unrealised</th><th>% book</th>
+        <th>Symbol</th><th>Last</th><th>Avg entry</th><th>Unrealised</th><th>Pain</th><th>% book</th>
         <th>Resistance above</th><th>Support below</th><th>To support</th>
         <th>Stop</th><th>To stop</th>
-        <th>RSI</th><th>ATR%</th><th>Pain</th><th>Earnings</th>
+        <th>RSI</th><th>ATR%</th><th>Earnings</th>
       </tr></thead><tbody>${rows}</tbody></table>`;
     // Clicking a row charts that symbol, same affordance as the calendar rows.
     $('rev-table').querySelectorAll('.rev-row').forEach(tr => {
@@ -967,11 +972,11 @@ function renderSector() {
       return sectorTile(label, '—', `fewer than ${x.sessions} sessions of history`);
     }
     const parts = [];
-    parts.push(`${esc(d.benchmark)} ${x.benchmark_ulcer == null ? '—' : x.benchmark_ulcer.toFixed(1)}`);
+    parts.push(`${esc(d.benchmark)} ${x.benchmark_ulcer == null ? '—' : x.benchmark_ulcer.toFixed(1) + '%'}`);
     if (x.percentile_of_own_history != null) {
       parts.push(`above ${x.percentile_of_own_history.toFixed(0)}% of its own ${x.history_n} prior readings`);
     }
-    return sectorTile(label, x.group_ulcer.toFixed(1), parts.join(' · '));
+    return sectorTile(label, `${x.group_ulcer.toFixed(1)}%`, parts.join(' · '));
   };
 
   const tiles = [
