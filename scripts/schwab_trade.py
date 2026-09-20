@@ -20,6 +20,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -537,6 +538,67 @@ def status() -> dict:
     return result
 
 
+def positions(account_last4: str | None) -> dict:
+    """Return one linked account's live positions without exposing its identity.
+
+    Values are passed through from Schwab. Missing numeric fields remain null;
+    they are never filled from the journal or inferred from another field.
+    """
+    readiness = status()
+    if not readiness.get("ok"):
+        return readiness
+    account = resolve_account(account_last4)
+    securities = account_details(account["hashValue"])
+    rows = []
+    raw_positions = securities.get("positions")
+    if raw_positions is None:
+        raise TradeError("Schwab omitted positions from the account response")
+    if not isinstance(raw_positions, list):
+        raise TradeError("Schwab returned positions in an unexpected format")
+    for position in raw_positions:
+        if not isinstance(position, dict):
+            continue
+        instrument = position.get("instrument") or {}
+        symbol = str(instrument.get("symbol") or "").upper()
+        if not symbol:
+            continue
+        long_qty = position.get("longQuantity")
+        short_qty = position.get("shortQuantity")
+        net_qty = None
+        if long_qty is not None and short_qty is not None:
+            try:
+                net_qty = float(Decimal(str(long_qty)) - Decimal(str(short_qty)))
+            except InvalidOperation:
+                net_qty = None
+        rows.append(
+            {
+                "symbol": symbol,
+                "asset_type": instrument.get("assetType"),
+                "long_quantity": long_qty,
+                "short_quantity": short_qty,
+                "quantity": net_qty,
+                "average_price": position.get("averagePrice"),
+                "market_value": position.get("marketValue"),
+                "open_profit_loss": position.get("longOpenProfitLoss"),
+                "current_day_profit_loss": position.get("currentDayProfitLoss"),
+            }
+        )
+    rows.sort(key=lambda row: row["symbol"])
+    balances = securities.get("currentBalances") or {}
+    return {
+        "ok": True,
+        "account": f"***{account['accountNumber'][-4:]}",
+        "account_type": securities.get("type"),
+        "positions": rows,
+        "balances": {
+            "liquidation_value": balances.get("liquidationValue"),
+            "cash_balance": balances.get("cashBalance"),
+            "buying_power": balances.get("buyingPower"),
+        },
+        "as_of": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -560,6 +622,8 @@ def build_parser() -> argparse.ArgumentParser:
     discard = sub.add_parser("discard", help="discard one preview without placing it")
     discard.add_argument("--preview-token", required=True)
     sub.add_parser("previews", help="list active, unexpired previews")
+    positions_parser = sub.add_parser("positions", help="live positions for one linked account")
+    positions_parser.add_argument("--account-last4")
     return parser
 
 
@@ -573,7 +637,13 @@ def main() -> None:
             emit({"ok": True, "active_previews": active_previews()})
         elif args.command == "discard":
             emit(discard_preview(args.preview_token))
+        elif args.command == "positions":
+            emit(positions(args.account_last4))
         elif args.command == "preview":
+            readiness = status()
+            if not readiness.get("ok"):
+                emit(readiness)
+                return
             order = normalize_order(
                 side=args.side,
                 symbol=args.symbol,
@@ -600,6 +670,18 @@ def main() -> None:
                     f"Schwab authentication request failed (HTTP {exc.status}): "
                     f"{safe_api_message(exc.body)}"
                 ),
+            }
+        )
+        raise SystemExit(1) from None
+    except SystemExit:
+        # schwab_api uses SystemExit for local token failures. Convert that to
+        # the same JSON contract as every other helper failure; stderr may name
+        # local secret paths and must never be reflected into the dashboard.
+        emit(
+            {
+                "ok": False,
+                "submitted": False,
+                "error": "Schwab OAuth is unavailable or expired; run the login flow again.",
             }
         )
         raise SystemExit(1) from None

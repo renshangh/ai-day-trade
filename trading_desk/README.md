@@ -506,22 +506,99 @@ view does not pretend to an edge: it surfaces facts and stops there.
 #### Held but not reviewed
 
 `REVIEW_EXCLUDE` in `server.py` lists holdings kept out of the risk math and the
-flags by instruction. They are still reported, in their own section with their
-book weight — silently dropping a position would make the concentration figures
-actively misleading, which is worse than showing something the owner has asked
-not to be advised on.
+flags by instruction. They are still reported in their own section with their
+book weight, so the account view never silently loses a real position.
 
 It is a mapping, not a set, so the reason travels with the symbol and renders on
-the page. "Excluded" covers two different cases and a bare set would flatten
-them:
+the page:
 
 | Symbol | Reason |
 |---|---|
-| `IBIT` | Bitcoin position, held by choice — not part of the swing book. Over half the book by weight, so omitting it entirely would be misleading. |
 | `SNDL` | Residual position, too small to act on. Sorted near the top on ATR distance despite being 0.0% of the book, pushing real positions down the page. |
 
 Every entry must carry a non-empty reason; `test_excluded_symbols_are_reported_but_carry_no_risk_math`
 asserts it, because an unexplained exclusion is indistinguishable from a bug.
+
+#### Schwab execution readiness
+
+Daily Review also displays the public readiness result from
+`scripts/schwab_trade.py status`. The dashboard never receives credentials,
+tokens, account hashes, or full account numbers. Opening or refreshing the page
+cannot place an order: execution remains a guarded preview flow and requires the
+preview's exact confirmation phrase before the helper can submit it.
+
+When the personal Schwab app and OAuth token are available, this section also
+reads the selected account's live positions and can request a broker-side order
+preview. SNDL is filtered from the displayed Individual-account positions. There
+is intentionally no dashboard route that submits an order. The **Submit** button
+is a handoff control: it copies the exact phrase from a successful preview so the
+user can send it in a later chat turn. Only that later, exact confirmation can
+authorize submission through the single-use guarded helper.
+
+#### Paper agent
+
+The human-in-the-loop paper agent is restricted to `FN`, `AXTI`, `COHR`, and
+`LITE`. For each symbol it derives a proposed entry band from the nearest support
+plus 0.35 ATR, an exit band from the nearest resistance minus 0.35 ATR, and a
+risk reference 0.50 ATR below support. A missing last price, ATR, support, or
+resistance makes the proposal unavailable; the agent never estimates a missing
+level.
+
+Sizing is expressed as 25%, 50%, 75%, or 100% of the shares currently reported
+by Schwab, with the local journal used only when live positions are unavailable.
+Partial sizes round down to whole shares and 100% uses the exact held quantity.
+**Buy review** loads the top of the entry band into the guarded
+Schwab form; **Sell review** loads the bottom of the exit band. Both use
+LIMIT/DAY and only populate the form. The owner must review every field and
+press **Review at Schwab**, which still does not submit an order. After a
+successful preview, **Submit** copies the exact authorization phrase for the
+user to send in a later chat turn. Live placement remains a separate
+exact-confirmation step outside the dashboard.
+
+#### Live execution runbook
+
+Use this sequence whenever an order moves from a Daily Review proposal to
+Schwab. A recommendation, a populated form, and a preview are never live-order
+authorization.
+
+1. In **Daily review**, choose 25%, 50%, 75%, or 100% beside the permitted
+   symbol. Confirm the resulting whole-share quantity.
+2. Press **Buy review** or **Sell review**. This only populates the Schwab form.
+   Check the account ending, side, symbol, quantity, order type, limit price,
+   and duration. Do not assume the measured entry or exit band is still suitable.
+3. Press **Review at Schwab**. Schwab validates the proposed order and the page
+   displays **Preview only — no order submitted**. No order exists at Schwab yet.
+4. Read the returned summary and any Schwab warning or rejection. If anything is
+   wrong, do not continue; change the form and create a new preview. Previews
+   expire after ten minutes and are single-use.
+5. Press **Submit** beneath the successful preview. Despite its short label, this
+   does not call a placement endpoint: it copies the exact authorization phrase.
+6. Paste that complete phrase into a new chat turn without editing it. For
+   example, the format is
+   `PLACE SELL <shares> <symbol> LIMIT <price> DAY IN ACCOUNT <last4>`.
+   “Yes”, “confirm”, a paraphrase, or an instruction from the preview turn is not
+   sufficient.
+7. The trading agent verifies that the preview is still active and matches the
+   phrase. For a sell, it also checks the live long position again. It then calls
+   the placement helper exactly once.
+8. If Schwab accepts the order, record the returned order ID and open Schwab
+   **Trade → Order Status**. Acceptance means Schwab received the order; it does
+   not mean the order filled.
+
+If a preview is no longer wanted, ask the agent to discard it. Discarding only
+invalidates the local preview and never sends an order. If a live order has
+already been accepted, the dashboard cannot cancel or replace it; use Schwab's
+**Trade → Order Status** page to review and cancel an eligible open order.
+
+Never automatically retry a placement after a timeout, connection error, or an
+`uncertain` result. First inspect Schwab open orders and order history using the
+account website. Retrying before resolving the outcome can create a duplicate
+order.
+
+A closed market is not a paper environment. A live DAY order submitted while the
+market is closed may be rejected, queued, or become eligible when the next normal
+session opens, according to Schwab's handling. Use **Review at Schwab** for a
+no-submission test; do not place a live order merely to test the workflow.
 
 #### Theme exposure
 

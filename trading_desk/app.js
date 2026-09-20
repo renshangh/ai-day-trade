@@ -79,6 +79,10 @@ const state = {
   horizon: DEFAULT_HORIZON,
   earnings: null,
   review: null,
+  schwab: null,
+  schwabPositions: null,
+  schwabPreview: null,
+  paperRecommendations: null,
   cycle: null,
   cycleSeq: 0,        // same out-of-order guard as selectionSeq, for /api/cycle loads
   sector: null,
@@ -402,7 +406,207 @@ function labelTiming(t) {
 
 // ------------------------------------------------------------- daily review
 async function fetchReview(force) {
-  await Promise.all([fetchReviewData(force), fetchSessionVwap(force)]);
+  await Promise.all([fetchReviewData(force), fetchSessionVwap(force), fetchSchwabStatus(), fetchPaperRecommendations(force)]);
+}
+
+async function fetchPaperRecommendations(force = false) {
+  try {
+    const response = await fetch(`/api/paper/recommendations${force ? '?force=1' : ''}`);
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || 'Request failed');
+    state.paperRecommendations = data;
+  } catch (error) {
+    state.paperRecommendations = { error: error.message };
+  }
+  renderPaperAgent();
+}
+
+function renderPaperAgent() {
+  const box = $('rev-paper-agent');
+  if (!box) return;
+  const data = state.paperRecommendations;
+  if (!data) { box.innerHTML = '<div class="loading">Loading paper recommendations…</div>'; return; }
+  if (data.error) { box.innerHTML = `<p class="sub neg">Paper agent unavailable: ${esc(data.error)}</p>`; return; }
+  const labels = { entry_review: 'Review entry', exit_review: 'Review exit', risk_review: 'Review risk', wait: 'Wait' };
+  const liveQuantities = new Map(
+    state.schwabPositions && state.schwabPositions.ok
+      ? (state.schwabPositions.positions || []).map(row => [row.symbol, row.quantity])
+      : [],
+  );
+  box.innerHTML = `<div class="detail-head"><h3 id="paper-agent-title" class="rev-h3">Paper agent · human approval required</h3>`
+    + `<span class="spacer"></span><span class="meta">${esc(data.feed_note || '')}</span></div>`
+    + `<p class="sub">Permitted symbols only: FN, AXTI, COHR, LITE. Bands come from measured support/resistance and ATR. Choose 25%, 50%, 75%, or 100% of the currently held whole shares.</p>`
+    + `<div id="paper-agent-notice" aria-live="polite"></div>`
+    + `<div class="table-wrap"><table class="paper-tbl"><thead><tr><th>Symbol</th><th>State</th><th>Last</th><th>Proposed entry</th><th>Proposed exit</th><th>Risk reference</th><th>Held shares</th><th>Your size</th><th>Shares</th><th>Prepare</th></tr></thead><tbody>`
+    + (data.recommendations || []).map(row => {
+      if (!row.available) return `<tr><td><b>${esc(row.symbol)}</b></td><td colspan="9" class="muted">Unavailable: ${esc(row.reason)}</td></tr>`;
+      const liveHeld = liveQuantities.get(row.symbol);
+      const heldShares = Number.isInteger(liveHeld) && liveHeld >= 0 ? liveHeld : row.held_shares;
+      const heldSource = Number.isInteger(liveHeld) && liveHeld >= 0 ? 'Schwab live' : 'journal fallback';
+      return `<tr class="paper-row" data-symbol="${esc(row.symbol)}" data-held="${heldShares == null ? '' : heldShares}" data-entry-high="${row.entry_range.high}" data-exit-low="${row.exit_range.low}">
+        <td><b>${esc(row.symbol)}</b></td><td>${esc(labels[row.state] || row.state)}</td><td>${fmtPx(row.last)}</td>
+        <td>${fmtPx(row.entry_range.low)}–${fmtPx(row.entry_range.high)}</td>
+        <td>${fmtPx(row.exit_range.low)}–${fmtPx(row.exit_range.high)}</td><td>${fmtPx(row.risk_reference)}</td>
+        <td title="${esc(heldSource)}">${heldShares == null ? '—' : esc(heldShares)}</td>
+        <td><select class="paper-pct" aria-label="${esc(row.symbol)} paper share percentage"><option value="25">25%</option><option value="50">50%</option><option value="75">75%</option><option value="100">100%</option></select></td>
+        <td class="paper-shares">—</td><td><button type="button" class="paper-prepare" data-side="BUY" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Buy review</button> <button type="button" class="paper-prepare" data-side="SELL" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Sell review</button></td></tr>`;
+    }).join('') + `</tbody></table></div>`
+    + `<p class="sub">25%–75% sizes round down to whole shares; 100% uses the full held quantity. These are review proposals, not orders or simulated fills, and nothing is sent to Schwab.</p>`;
+  box.querySelectorAll('.paper-row').forEach(row => {
+    const input = row.querySelector('.paper-pct');
+    const output = row.querySelector('.paper-shares');
+    const update = () => {
+      const held = Number(row.dataset.held);
+      const pct = Number(input.value);
+      output.textContent = Number.isFinite(held) && held > 0
+        ? String(pct === 100 ? held : Math.floor(held * pct / 100)) : '—';
+    };
+    input.onchange = update;
+    update();
+    row.querySelectorAll('.paper-prepare').forEach(button => {
+      button.onclick = () => {
+        const form = $('schwab-preview-form');
+        const shares = Number(output.textContent);
+        const side = button.dataset.side;
+        const price = Number(side === 'BUY' ? row.dataset.entryHigh : row.dataset.exitLow);
+        const notice = $('paper-agent-notice');
+        if (!form || !Number.isInteger(shares) || shares <= 0 || !Number.isFinite(price)) {
+          notice.innerHTML = `<div class="notice err"><span class="ico">⚠</span><span>Could not prepare this preview.</span></div>`;
+          return;
+        }
+        form.elements.side.value = side;
+        form.elements.symbol.value = row.dataset.symbol;
+        form.elements.quantity.value = String(shares);
+        form.elements.order_type.value = 'LIMIT';
+        form.elements.limit_price.value = price.toFixed(2);
+        form.elements.duration.value = 'DAY';
+        form.elements.limit_price.disabled = false;
+        form.elements.limit_price.required = true;
+        form.elements.duration.querySelector('option[value="GTC"]').disabled = false;
+        notice.innerHTML = `<div class="notice ok"><span class="ico">✓</span><span>Loaded <b>${esc(side)} ${shares} ${esc(row.dataset.symbol)}</b> at ${fmtPx(price)} into the Schwab review form. Review every field, then press Review at Schwab.</span></div>`;
+        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      };
+    });
+  });
+}
+
+async function fetchSchwabStatus() {
+  try {
+    const response = await fetch('/api/schwab/status');
+    state.schwab = await response.json();
+  } catch (error) {
+    state.schwab = { ok: false, message: `Schwab readiness unavailable: ${error.message}` };
+  }
+  if (state.schwab && state.schwab.ok) await fetchSchwabPositions();
+  renderSchwabStatus();
+}
+
+async function fetchSchwabPositions(accountLast4 = '') {
+  const query = accountLast4 ? `?account_last4=${encodeURIComponent(accountLast4)}` : '';
+  try {
+    const response = await fetch(`/api/schwab/positions${query}`);
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || data.message || 'Request failed');
+    state.schwabPositions = data;
+  } catch (error) {
+    state.schwabPositions = { ok: false, error: error.message };
+  }
+}
+
+function renderSchwabStatus() {
+  const box = $('rev-schwab');
+  if (!box) return;
+  const s = state.schwab;
+  if (!s) { box.textContent = ''; return; }
+  const ready = Boolean(s.ok);
+  const accounts = (s.accounts || []).map(a => a.label).join(', ');
+  box.innerHTML = `<div class="notice ${ready ? 'ok' : 'warn'}"><span class="ico">${ready ? '✓' : '⚠'}</span>`
+    + `<span><b>Schwab guarded execution:</b> ${esc(s.message || (ready ? 'ready' : 'not ready'))}`
+    + `${accounts ? ` · linked ${esc(accounts)}` : ''}`
+    + `. Orders require a preview and exact confirmation; opening this page never submits one.</span></div>`;
+  renderSchwabTrade();
+  renderPaperAgent();
+}
+
+function renderSchwabTrade() {
+  const box = $('rev-schwab-trade');
+  if (!box) return;
+  const s = state.schwab || {};
+  const p = state.schwabPositions;
+  const ready = Boolean(s.ok);
+  const positionRows = p && p.ok ? (p.positions || []).filter(row => row.symbol !== 'SNDL') : [];
+  const positionHtml = p && p.ok
+    ? `<p class="sub">Live ${esc(p.account || '')} positions · ${esc(p.as_of || '')}</p>`
+      + `<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average</th><th>Market value</th><th>Open P/L</th></tr></thead><tbody>`
+      + positionRows.map(row => `<tr><td>${esc(row.symbol)}</td><td>${row.quantity == null ? '—' : esc(row.quantity)}</td>`
+        + `<td>${row.average_price == null ? '—' : fmtPx(row.average_price)}</td>`
+        + `<td>${row.market_value == null ? '—' : fmtMoney0(row.market_value)}</td>`
+        + `<td class="${signClass(row.open_profit_loss)}">${row.open_profit_loss == null ? '—' : fmtMoney0(row.open_profit_loss)}</td></tr>`).join('')
+      + `</tbody></table></div>`
+    : p && p.error ? `<p class="sub neg">Live positions unavailable: ${esc(p.error)}</p>` : '';
+  const result = state.schwabPreview;
+  const previewHtml = result
+    ? `<div class="notice ${result.ok ? 'ok' : 'err'}"><span class="ico">${result.ok ? '✓' : '⚠'}</span><span>`
+      + (result.ok
+        ? `<b>Preview only — no order submitted.</b> ${esc(JSON.stringify(result.summary || {}))}`
+          + `<span class="lvl-meta">To place it, provide this exact phrase in a later chat turn: ${esc(result.confirmation_phrase || '')}</span>`
+          + `<button type="button" id="schwab-submit-handoff">Submit</button>`
+        : esc(result.error || result.message || 'Preview failed'))
+      + `</span></div>` : '';
+  box.innerHTML = `<div class="detail-head"><h3 id="schwab-trade-title" class="rev-h3">Schwab live account & guarded preview</h3></div>`
+    + positionHtml
+    + `<form id="schwab-preview-form" class="size-form">
+      <label>Account last 4 <input name="account_last4" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="optional if one account" ${ready ? '' : 'disabled'}></label>
+      <label>Side <select name="side" ${ready ? '' : 'disabled'}><option value="BUY">Buy</option><option value="SELL">Sell</option></select></label>
+      <label>Symbol <input name="symbol" maxlength="10" required ${ready ? '' : 'disabled'}></label>
+      <label>Whole shares <input name="quantity" type="number" min="1" step="1" required ${ready ? '' : 'disabled'}></label>
+      <label>Type <select name="order_type" ${ready ? '' : 'disabled'}><option value="LIMIT">Limit</option><option value="MARKET">Market</option></select></label>
+      <label>Limit price <input name="limit_price" type="number" min="0.01" step="0.01" required ${ready ? '' : 'disabled'}></label>
+      <label>Duration <select name="duration" ${ready ? '' : 'disabled'}><option value="DAY">Day</option><option value="GTC">GTC</option></select></label>
+      <button type="submit" ${ready ? '' : 'disabled'}>Review at Schwab</button>
+    </form>${previewHtml}
+    <p class="sub">Review at Schwab validates the order but does not submit it. Live placement still requires the exact confirmation phrase returned by Schwab.</p>`;
+  const form = $('schwab-preview-form');
+  const type = form && form.elements.order_type;
+  const price = form && form.elements.limit_price;
+  const duration = form && form.elements.duration;
+  if (!form) return;
+  const submitHandoff = $('schwab-submit-handoff');
+  if (submitHandoff) {
+    submitHandoff.onclick = async () => {
+      const phrase = result && result.confirmation_phrase;
+      if (!phrase) return;
+      try {
+        await navigator.clipboard.writeText(phrase);
+        submitHandoff.textContent = 'Copied — send in chat';
+      } catch (_error) {
+        submitHandoff.textContent = 'Copy phrase above';
+      }
+    };
+  }
+  type.onchange = () => {
+    const market = type.value === 'MARKET';
+    price.disabled = market || !ready;
+    price.required = !market;
+    if (market) { price.value = ''; duration.value = 'DAY'; }
+    duration.querySelector('option[value="GTC"]').disabled = market;
+  };
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    state.schwabPreview = null;
+    try {
+      const values = Object.fromEntries(new FormData(form).entries());
+      const response = await fetch('/api/schwab/preview', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values),
+      });
+      state.schwabPreview = await response.json();
+    } catch (error) {
+      state.schwabPreview = { ok: false, error: error.message };
+    }
+    renderSchwabTrade();
+  };
 }
 
 let vwapRequestSeq = 0;
@@ -671,6 +875,8 @@ function renderReview() {
     `Every open lot in ${d.journal}, priced against the same levels the chart draws. `
     + `Sorted by how close each position sits to its nearest support — the level a stop `
     + `would key off. Levels are prices the market actually turned at, not projections.`;
+  renderSchwabStatus();
+  renderPaperAgent();
 
   // ---- portfolio summary
   const tot = d.totals || {};

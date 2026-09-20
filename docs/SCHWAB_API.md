@@ -2,7 +2,7 @@
 
 > How to get your own Charles Schwab developer app approved and make your first real API calls, using `scripts/schwab_api.py`.
 
-**Last Updated:** 2026-09-11
+**Last Updated:** 2026-09-20
 **Status:** Active
 **Audience:** Developers, AI Agents
 
@@ -130,8 +130,8 @@ a guarded Schwab order workflow. Invoke it naturally or by name, for example:
 
 > Use `$schwab-trader` to preview buying 10 shares of AXTI with a $30.50 limit.
 
-The skill calls `scripts/schwab_trade.py`; it does not add trading controls to the
-Trading Desk. Its order scope is deliberately small:
+The skill and the Trading Desk's preview form both call
+`scripts/schwab_trade.py`. Their order scope is deliberately small:
 
 - stocks and ETFs only;
 - whole shares only;
@@ -156,6 +156,14 @@ Useful direct checks are:
 python3 scripts/schwab_trade.py status
 python3 scripts/schwab_trade.py previews
 ```
+
+The Trading Desk Daily Review calls the same sanitized boundaries to show readiness,
+read live positions, and request a broker-side preview. It does not receive
+credentials, OAuth tokens, account hashes, or full account numbers, and the dashboard
+has no order-placement endpoint. Its **Submit** button only copies the preview's
+exact confirmation phrase; it does not call Schwab. Loading, refreshing, previewing,
+or pressing that button therefore cannot place an order. Placement remains available
+only through the later-turn exact-confirmation workflow described above.
 
 Until the developer app reads **Ready For Use**, `status` will explain the remaining
 setup step and no order can be previewed or placed.

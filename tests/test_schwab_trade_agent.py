@@ -183,3 +183,40 @@ def test_market_gtc_and_rounded_limit_prices_are_rejected():
             duration="DAY",
             limit_price="30.505",
         )
+
+
+def test_live_positions_are_masked_and_missing_values_stay_missing(monkeypatch):
+    # Position serialization is deterministic and must not depend on a
+    # developer's local Schwab credentials or OAuth token.
+    monkeypatch.setattr(schwab_trade, "status", lambda: {"ok": True})
+    monkeypatch.setattr(
+        schwab_trade,
+        "resolve_account",
+        lambda _last4: {"accountNumber": "12345678", "hashValue": "secret-hash"},
+    )
+    monkeypatch.setattr(
+        schwab_trade,
+        "account_details",
+        lambda _hash: {
+            "type": "CASH",
+            "currentBalances": {"liquidationValue": 1000.0},
+            "positions": [
+                {
+                    "instrument": {"symbol": "AXTI", "assetType": "EQUITY"},
+                    "longQuantity": 10,
+                    "shortQuantity": 0,
+                    "averagePrice": 30.5,
+                    # Schwab omitted marketValue and P/L; the bridge must not
+                    # invent them from quantity or any cached journal value.
+                }
+            ],
+        },
+    )
+
+    result = schwab_trade.positions("5678")
+
+    assert result["account"] == "***5678"
+    assert "secret-hash" not in json.dumps(result)
+    assert result["positions"][0]["quantity"] == 10.0
+    assert result["positions"][0]["market_value"] is None
+    assert result["positions"][0]["open_profit_loss"] is None
