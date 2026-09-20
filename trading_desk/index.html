@@ -75,8 +75,23 @@
         <span class="meta" id="rev-stamp"></span>
       </div>
       <p class="sub" id="rev-sub"></p>
+      <div id="rev-schwab" aria-live="polite"></div>
+      <section id="rev-paper-agent" class="session-vwap" aria-labelledby="paper-agent-title"></section>
+      <section id="rev-schwab-trade" class="session-vwap" aria-labelledby="schwab-trade-title"></section>
       <div id="rev-cycle"></div>
       <div id="rev-summary"></div>
+      <section id="rev-vwap" class="session-vwap" aria-labelledby="vwap-title">
+        <div class="detail-head">
+          <h3 id="vwap-title" class="rev-h3">Today's VWAP</h3>
+          <span class="spacer"></span>
+          <button id="vwap-refresh" type="button">Refresh VWAP</button>
+        </div>
+        <p class="sub" id="vwap-stamp">Loading consolidated session data…</p>
+        <div class="table-wrap" id="vwap-table" aria-live="polite"></div>
+        <p class="sub">Average traded price weighted by volume since the regular-session open.
+          A reference level, not a buy or sell signal. IBIT included; SNDL excluded.
+          Separate from the chart's rolling VWAP 20.</p>
+      </section>
       <div class="table-wrap" id="rev-table"></div>
       <div id="rev-cards"></div>
       <div id="rev-sizing"></div>
@@ -102,6 +117,18 @@
       <div id="cyc-history"></div>
       <div id="cyc-form"></div>
       <p class="sub" id="cyc-disclaimer"></p>
+    </section>
+
+    <section class="card hidden" id="enterprise-ai-card">
+      <div class="detail-head">
+        <h2 style="margin:0">Enterprise AI briefing</h2>
+        <span class="spacer"></span>
+        <span class="meta" id="enterprise-ai-stamp"></span>
+      </div>
+      <p class="sub">Stocks mentioned in the ChatGPT scheduled enterprise AI briefing, with a live desk quote, business description, and briefing read-through.</p>
+      <div id="enterprise-ai-summary"></div>
+      <div id="enterprise-ai-stocks" class="enterprise-ai-stocks"></div>
+      <p class="sub">Briefing names are context, not trade signals. Verify current prices, filings, and risk before acting.</p>
     </section>
 
     <section class="card hidden" id="sector-card">

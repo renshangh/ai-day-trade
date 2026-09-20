@@ -580,6 +580,17 @@ tr.earn-row.today td:first-child { box-shadow: inset 3px 0 0 var(--warning); fon
 /* ---------------------------------------------------------------- daily review
    Colors come from the same tokens as the rest of the desk, so light/dark and
    the up/down palette stay consistent with the board and the charts. */
+.session-vwap {
+  margin: 18px 0 24px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-3);
+}
+.session-vwap .rev-h3 { margin: 0; }
+.vwap-tbl th, .vwap-tbl td { white-space: nowrap; }
+.vwap-tbl th:first-child { text-align: left; }
+.vwap-tbl td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .rev-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -941,3 +952,27 @@ button.primary:disabled { opacity: 0.5; cursor: default; }
 .cyc-stage-count { color: var(--text-muted); text-align: right; }
 .cyc-stage-names { color: var(--text-secondary); overflow-wrap: anywhere; }
 .cyc-stage-warn { color: var(--warning); }
+
+/* Enterprise AI briefing -------------------------------------------------- */
+.enterprise-ai-summary { margin: 4px 0 14px; color: var(--text-secondary); }
+.enterprise-ai-stocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+.enterprise-ai-stock {
+  display: block;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+.enterprise-ai-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.enterprise-ai-symbol { font: 600 14px var(--mono); color: var(--accent); background: transparent; border: 0; padding: 0; cursor: pointer; }
+.enterprise-ai-symbol:hover, .enterprise-ai-symbol:focus-visible { text-decoration: underline; }
+.enterprise-ai-quote { font: 11px var(--mono); color: var(--text-secondary); text-align: right; }
+.enterprise-ai-name { font-weight: 600; }
+.enterprise-ai-role { color: var(--text-muted); font-size: 11px; }
+.enterprise-ai-stock p { margin: 8px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }

@@ -128,6 +128,13 @@ THEMES: dict[str, dict] = {
             "SWKS", "TER", "ASML", "ARM",
         ],
     },
+    "AI Robotics": {
+        "etf": None,
+        "constituents": [
+            "TSLA", "TER", "SYM", "SERV", "AMZN", "FFAI",
+            "RIVN", "LCID", "NIO", "LI", "XPEV",
+        ],
+    },
 }
 
 # Benchmarks shown for context; never ranked as a "sector".
