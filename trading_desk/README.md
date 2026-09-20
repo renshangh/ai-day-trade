@@ -420,6 +420,15 @@ Writes `research/split_events.csv` (one row per event) and
 
 ### Daily review
 
+**Today's VWAP** shows every open holding except SNDL, including IBIT, against
+its regular-session volume-weighted price. The separate panel uses consolidated
+SIP minute bars delayed at least 17 minutes, even when the daily board uses IEX.
+It shows the session cutoff, fetch time and each symbol's last bar time; prices
+and VWAP use the same window. Refresh VWAP forces a new pull, and the visible
+review refreshes this panel every two minutes. Holidays, early closes, unavailable
+data and the distinction from the chart's rolling VWAP 20 are documented in
+`../docs/TRADING_DESK_VWAP.md` and `../docsrc/TRADING_DESK.rst`.
+
 A per-position screen for the one question the ranking board cannot answer:
 *where does what I already own actually stand?* Positions come from
 `trading_records/trades-schwab.csv` (gitignored, optional) via the same
@@ -942,6 +951,7 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/detail?symbol=X` | Fundamentals, price stats, news, and research links. |
 | `GET /api/earnings?horizon=N` | Projected prints within N days (1-400, default 30), nearest first, with held-position flags. |
 | `GET /api/review` | Per-holding review: levels, downside to support, risk to the managed stop, `pain` (that name's own Ulcer Index at both horizons), theme exposure, journal gaps, up to three headlines per reviewed holding, and the latest hand-entered cycle score. `?force=1` rebuilds. |
+| `GET /api/session-vwap` | Today's consolidated regular-session VWAP, same-window prices, volume and timestamps for open holdings except SNDL. Two-minute memory cache; `?force=1` bypasses it. |
 | `GET /api/cycle` | The cycle log (every review, oldest first, totals derived from the scores), the rubric parsed from the framework document, the bands, and any file warnings. Never cached. |
 | `POST /api/cycle` | Write one review (JSON: `review_date`, `scores`, `core_question`, `assumption_changed`, `notes`), replacing a row with the same date. Returns the rebuilt payload, or 400 with the reason. |
 | `GET /api/sector?group=X&benchmark=Y` | Leading-indicator scorecard for one universe.py group (`X` defaults to `DEFAULT_SECTOR_GROUP`; `benchmark` defaults to the group's own `etf`, then `SPY`). Cached like `/api/stock`; `?force=1` bypasses it. Unknown group returns `error` plus `available_groups`. |

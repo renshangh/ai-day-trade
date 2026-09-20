@@ -23,6 +23,8 @@ const VIEWS = [
     load: force => fetchReview(force), draw: () => renderReview() },
   { key: 'cycle', label: 'Cycle', lookbacks: [], solo: true, card: 'cycle-card',
     load: () => fetchCycle(), draw: () => renderCycle() },
+  { key: 'enterprise-ai', label: 'Enterprise AI', lookbacks: [], solo: true, card: 'enterprise-ai-card',
+    load: () => fetchEnterpriseAI(), draw: () => renderEnterpriseAI() },
   { key: 'sector', label: 'Sector', lookbacks: [], solo: true, card: 'sector-card',
     load: force => fetchSector(force), draw: () => renderSector() },
 ];
@@ -83,6 +85,7 @@ const state = {
   sectorGroup: null,  // group name selected in the Sector view; null = server default
   sectorSeq: 0,       // same out-of-order guard, for /api/sector loads
   tableView: false,
+  enterpriseAI: null,
   hover: null,        // index into the visible slice
   loading: false,
 };
@@ -399,6 +402,56 @@ function labelTiming(t) {
 
 // ------------------------------------------------------------- daily review
 async function fetchReview(force) {
+  await Promise.all([fetchReviewData(force), fetchSessionVwap(force)]);
+}
+
+let vwapRequestSeq = 0;
+const easternTime = value => new Date(value).toLocaleTimeString('en-US', {
+  timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true,
+});
+
+async function fetchSessionVwap(force = false) {
+  const seq = ++vwapRequestSeq;
+  const button = $('vwap-refresh');
+  button.disabled = true;
+  $('vwap-stamp').textContent = 'Updating consolidated session data…';
+  $('vwap-table').textContent = '';
+  try {
+    const response = await fetch(`/api/session-vwap${force ? '?force=1' : ''}`);
+    const data = await response.json();
+    if (seq !== vwapRequestSeq) return;
+    if (!response.ok || data.error) throw new Error(data.error || 'Request failed');
+    if (data.message) {
+      $('vwap-stamp').textContent = `${data.session_date} · ${data.message}`;
+      return;
+    }
+    $('vwap-stamp').textContent = `${data.session_date} · ${easternTime(data.session_open)}–${easternTime(data.cutoff_at)} ET (end exclusive)`
+      + ` · Consolidated SIP · ${data.delay_minutes}+ min delayed · fetched ${easternTime(data.built_at)} ET`;
+    const rows = (data.rows || []).filter(row => row.symbol !== 'SNDL');
+    $('vwap-table').innerHTML = `<table class="vwap-tbl"><thead><tr>
+      <th scope="col">Holding</th><th scope="col">Session VWAP</th>
+      <th scope="col">Price at cutoff</th><th scope="col">Vs VWAP</th>
+      <th scope="col">Volume</th><th scope="col">Last bar (ET)</th>
+      </tr></thead><tbody>` + rows.map(row => {
+      const symbol = esc(row.symbol);
+      if (row.error) return `<tr><th scope="row">${symbol}</th><td colspan="5" class="muted">${esc(row.error)}</td></tr>`;
+      const diff = row.difference_pct;
+      const direction = diff > 0 ? 'Above' : diff < 0 ? 'Below' : 'At';
+      const cls = diff > 0 ? 'pos' : diff < 0 ? 'neg' : '';
+      return `<tr><th scope="row">${symbol}</th><td><b>${fmtPx(row.vwap)}</b></td>
+        <td>${fmtPx(row.last)}</td><td class="${cls}">${direction} ${Math.abs(diff).toFixed(2)}%</td>
+        <td>${Math.round(row.volume).toLocaleString('en-US')}</td><td>${esc(easternTime(row.last_bar_at))}</td></tr>`;
+    }).join('') + '</tbody></table>';
+  } catch (error) {
+    if (seq !== vwapRequestSeq) return;
+    $('vwap-stamp').textContent = `VWAP unavailable: ${error.message}`;
+    $('vwap-table').textContent = '';
+  } finally {
+    if (seq === vwapRequestSeq) button.disabled = false;
+  }
+}
+
+async function fetchReviewData(force) {
   const card = $('review-card');
   card.classList.add('refetching');
   try {
@@ -1149,6 +1202,58 @@ function fmtMonth(iso, shared) {
 function localToday() {
   const t = new Date();
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
+async function fetchEnterpriseAI() {
+  try {
+    const response = await fetch('/api/enterprise-ai-briefing');
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || 'Request failed');
+    state.enterpriseAI = data;
+    renderEnterpriseAI();
+  } catch (error) {
+    state.enterpriseAI = { error: error.message };
+    renderEnterpriseAI();
+  }
+}
+
+function renderEnterpriseAI() {
+  const data = state.enterpriseAI;
+  if (!data || data.error) {
+    $('enterprise-ai-stamp').textContent = '';
+    $('enterprise-ai-summary').innerHTML = `<div class="notice err">${esc(data?.error || 'Loading…')}</div>`;
+    $('enterprise-ai-stocks').innerHTML = '';
+    return;
+  }
+  const stocks = data.stocks || [];
+  $('enterprise-ai-stamp').textContent = `${esc(data.title || 'Scheduled briefing')} · ${esc(data.briefing_date || '')}`;
+  $('enterprise-ai-summary').innerHTML = `<div class="enterprise-ai-summary">${esc(data.summary || '')} ${stocks.length} stocks mentioned. Quotes are fetched from the desk’s configured market-data feed; unavailable data is shown explicitly.</div>`;
+  $('enterprise-ai-stocks').innerHTML = stocks.map(stock => `
+    <article class="enterprise-ai-stock">
+      <div class="enterprise-ai-head"><button class="enterprise-ai-symbol" type="button" data-symbol="${esc(stock.symbol)}">${esc(stock.symbol)}</button><span class="enterprise-ai-quote" data-quote="${esc(stock.symbol)}">Loading quote…</span></div>
+      <div class="enterprise-ai-name">${esc(stock.name)}</div>
+      <div class="enterprise-ai-role">${esc(stock.role)}</div>
+      <p><b>What it does:</b> ${esc(stock.does)}</p>
+      <p><b>Briefing:</b> ${esc(stock.briefing)}</p>
+    </article>`).join('');
+  $('enterprise-ai-stocks').querySelectorAll('[data-symbol]').forEach(button => {
+    button.onclick = () => fetchStock(button.dataset.symbol, false);
+  });
+  stocks.forEach(stock => fetchEnterpriseAIQuote(stock.symbol));
+}
+
+async function fetchEnterpriseAIQuote(symbol) {
+  const target = document.querySelector(`[data-quote="${CSS.escape(symbol)}"]`);
+  if (!target) return;
+  try {
+    const response = await fetch(`/api/stock?symbol=${encodeURIComponent(symbol)}`);
+    const data = await response.json();
+    if (data.error || !data.bars || !data.bars.length) throw new Error(data.error || 'No real bars returned');
+    const last = data.bars[data.bars.length - 1];
+    target.textContent = `${fmtPx(last.c)} · ${last.t}`;
+  } catch (error) {
+    target.textContent = `Quote unavailable · ${error.message}`;
+  }
 }
 
 function renderCycle() {
@@ -2757,6 +2862,14 @@ function init() {
     const v = currentView();
     if (v.solo) v.load(true);
   };
+
+  $('vwap-refresh').onclick = () => fetchSessionVwap(true);
+  // Only poll the visible review. Each response retains its actual bar cutoff.
+  setInterval(() => {
+    if (state.view === 'review' && !document.hidden && !$('vwap-refresh').disabled) {
+      fetchSessionVwap(false);
+    }
+  }, 120000);
 
   const applyTheme = next => {
     document.documentElement.dataset.theme = next;

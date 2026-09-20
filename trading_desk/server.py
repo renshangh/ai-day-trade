@@ -43,9 +43,11 @@ import earnings  # noqa: E402
 import indicators  # noqa: E402
 import sector_signals  # noqa: E402
 import universe  # noqa: E402
+import session_vwap  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 CACHE_PATH = HERE / "cache.json"
+ENTERPRISE_AI_BRIEFING_PATH = HERE / "enterprise_ai_briefing.json"
 
 # Feed selection.
 #
@@ -1574,6 +1576,26 @@ class Handler(BaseHTTPRequestHandler):
                 ))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
+            return
+
+        if path == "/api/session-vwap":
+            try:
+                self._json(session_vwap.get(
+                    list(open_positions()), lambda url: _get(url, retries=2),
+                    force=qs.get("force", ["0"])[0] == "1"))
+            except Exception:
+                self._json({"error": "Could not load session VWAP."}, 502)
+            return
+
+        if path == "/api/enterprise-ai-briefing":
+            try:
+                with ENTERPRISE_AI_BRIEFING_PATH.open(encoding="utf-8") as fh:
+                    briefing = json.load(fh)
+                if not isinstance(briefing, dict) or not isinstance(briefing.get("stocks"), list):
+                    raise ValueError("invalid briefing document")
+                self._json(briefing)
+            except Exception:
+                self._json({"error": "Enterprise AI briefing is unavailable."}, 503)
             return
 
         if path == "/api/review":
