@@ -215,9 +215,10 @@ def test_flags_never_tell_the_reader_what_to_do():
 def test_excluded_symbols_are_reported_but_carry_no_risk_math():
     # The exclusion list is the documented contract, and every entry must carry
     # a reason -- an unexplained exclusion is indistinguishable from a bug.
-    for sym in ("IBIT", "SNDL"):
+    for sym in ("SNDL",):
         assert sym in srv.REVIEW_EXCLUDE, f"{sym} should be excluded"
         assert (srv.REVIEW_EXCLUDE[sym] or "").strip(), f"{sym} excluded without a reason"
+    assert "IBIT" not in srv.REVIEW_EXCLUDE, "Individual-account holdings include IBIT"
     e = review_one(stub_stock([90.0, 95.0], [{"level": 90.0}]), HELD)
     assert e["excluded"] is False
     original = srv.REVIEW_EXCLUDE
@@ -830,7 +831,7 @@ def test_only_reviewed_holdings_get_headlines():
     rows = [
         {"symbol": "FN", "status": "open", "qty": "10", "entry_price": "400",
          "stop": "", "thesis": "t", "setup": "s"},
-        {"symbol": "IBIT", "status": "open", "qty": "100", "entry_price": "59",
+        {"symbol": "SNDL", "status": "open", "qty": "100", "entry_price": "2",
          "stop": "", "thesis": "", "setup": ""},
     ]
     import tempfile, csv as _csv
@@ -857,7 +858,7 @@ def test_only_reviewed_holdings_get_headlines():
         srv._cache["review_news"].clear()
         path.unlink(missing_ok=True)
 
-    assert fetched == ["FN"], f"headlines fetched for {fetched}; IBIT is excluded"
+    assert fetched == ["FN"], f"headlines fetched for {fetched}; SNDL is excluded"
     assert "news" in out["positions"][0]
     assert all("news" not in e for e in out["excluded"])
 

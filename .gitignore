@@ -66,6 +66,12 @@ data/SRNE_Minute.csv
 .env
 token.json
 schwab_token.json
+# Ignore the whole directory, not individual names inside it. This repository is
+# public and now holds brokerage credentials; enumerating the secret files that
+# happen to exist today means the next one added is tracked by default. The two
+# specific patterns above are kept because they also catch these files if they
+# are ever written outside .secrets/.
+.secrets/
 
 # AI assistant instruction files (contain local paths)
 CLAUDE.md

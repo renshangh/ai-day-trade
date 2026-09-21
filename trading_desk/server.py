@@ -20,6 +20,7 @@ import csv
 import json
 import os
 import statistics
+import subprocess
 import sys
 import threading
 import time
@@ -41,11 +42,15 @@ import cycle  # noqa: E402
 import fundamentals  # noqa: E402
 import earnings  # noqa: E402
 import indicators  # noqa: E402
+import paper_agent  # noqa: E402
 import sector_signals  # noqa: E402
 import universe  # noqa: E402
+import session_vwap  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 CACHE_PATH = HERE / "cache.json"
+ENTERPRISE_AI_BRIEFING_PATH = HERE / "enterprise_ai_briefing.json"
+SCHWAB_TRADE_HELPER = REPO_ROOT / "scripts" / "schwab_trade.py"
 
 # Feed selection.
 #
@@ -115,16 +120,12 @@ REVIEW_NEWS_CACHE_MAX = 30
 # overdue rather than merely old. Reported, never acted on.
 CYCLE_STALE_DAYS = 35
 # Holdings deliberately left out of the review's risk math and flags, at the
-# desk owner's instruction. They are still reported, in a separate section:
-# silently dropping a real position would make the review actively misleading
-# about concentration -- and IBIT alone is over half the book.
+# desk owner's instruction. They are still reported in a separate section so a
+# real position is never silently lost from the account view.
 #
 # A mapping rather than a set so the reason travels with the symbol and shows up
-# on the page. "Excluded" covers two quite different cases and a bare set would
-# flatten them: one is a large position the owner does not want commentary on,
-# the other is a residual too small to act on.
+# on the page.
 REVIEW_EXCLUDE: dict[str, str] = {
-    "IBIT": "Bitcoin position, held by choice — not part of the swing book",
     "SNDL": "Residual position, too small to act on",
 }
 # The desk owner's stated swing horizon. A print landing inside this window
@@ -1211,7 +1212,7 @@ def get_position_review(force: bool = False) -> dict:
 
 # The concrete case this view was built for; every group is equally usable,
 # this is only what loads before a client picks one explicitly.
-DEFAULT_SECTOR_GROUP = "AI Optical / Interconnect"
+DEFAULT_SECTOR_GROUP = "AI Robotics"
 DEFAULT_SECTOR_BENCHMARK = "SPY"
 # Same window get_stock() uses for a single symbol: ~2y of calendar days gives
 # comfortable margin over the 200 trading days breadth's SMA200 check needs,
@@ -1502,6 +1503,94 @@ def load_cache() -> None:
         print(f"[warn] could not load cache: {e}", file=sys.stderr)
 
 
+def run_schwab_helper(*args: str) -> dict:
+    """Run the guarded helper and return only its JSON public response."""
+    if not SCHWAB_TRADE_HELPER.is_file():
+        return {"ok": False, "message": "Schwab trade helper is unavailable."}
+    try:
+        run = subprocess.run(
+            [sys.executable, str(SCHWAB_TRADE_HELPER), *args],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {"ok": False, "message": "Schwab request could not complete."}
+    try:
+        payload = json.loads(run.stdout)
+    except (json.JSONDecodeError, TypeError):
+        return {"ok": False, "message": "Schwab helper returned an invalid response."}
+    if not isinstance(payload, dict):
+        return {"ok": False, "message": "Schwab helper returned an invalid response."}
+    return payload
+
+
+def schwab_status() -> dict:
+    """Return the guarded trade helper's public readiness report.
+
+    The helper intentionally emits no keys, tokens, account numbers, or hashes.
+    Keeping the dashboard behind that boundary also means it cannot submit an
+    order merely because the page is open; submission still requires a separate
+    preview and the helper's exact confirmation phrase.
+    """
+    payload = run_schwab_helper("status")
+    payload["execution_mode"] = "guarded_preview"
+    payload["broker_ready"] = bool(payload.get("ok"))
+    payload["dashboard_submission_enabled"] = False
+    return payload
+
+
+def schwab_preview_post(data: dict) -> tuple[int, dict]:
+    """Create a broker preview. This endpoint has no live-submit counterpart."""
+    required = ("side", "symbol", "quantity", "order_type", "duration")
+    missing = [key for key in required if data.get(key) in (None, "")]
+    if missing:
+        return 400, {"ok": False, "error": f"missing field(s): {', '.join(missing)}"}
+    args = [
+        "preview",
+        "--side", str(data["side"]),
+        "--symbol", str(data["symbol"]),
+        "--quantity", str(data["quantity"]),
+        "--order-type", str(data["order_type"]),
+        "--duration", str(data["duration"]),
+    ]
+    if data.get("account_last4") not in (None, ""):
+        args.extend(("--account-last4", str(data["account_last4"])))
+    if data.get("limit_price") not in (None, ""):
+        args.extend(("--limit-price", str(data["limit_price"])))
+    result = run_schwab_helper(*args)
+    return (200 if result.get("ok") else 400), result
+
+
+def build_paper_recommendations(force: bool = False) -> dict:
+    """Build transparent paper proposals for the explicitly permitted sleeve."""
+    rows = []
+    held = open_positions()
+    for symbol in paper_agent.PERMITTED_SYMBOLS:
+        try:
+            stock = get_stock(symbol, force=force)
+            if stock.get("error"):
+                rows.append({"symbol": symbol, "available": False, "reason": stock["error"]})
+            else:
+                proposal = paper_agent.recommend(symbol, stock)
+                proposal["held_shares"] = (held.get(symbol) or {}).get("qty")
+                rows.append(proposal)
+        except Exception as exc:  # noqa: BLE001 - one symbol must not hide the other three
+            rows.append({"symbol": symbol, "available": False, "reason": str(exc)})
+    return {
+        "mode": "paper",
+        "human_approval_required": True,
+        "broker_submission": False,
+        "permitted_symbols": list(paper_agent.PERMITTED_SYMBOLS),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "feed": FEED,
+        "feed_note": FEED_NOTE,
+        "recommendations": rows,
+    }
+
+
 # --------------------------------------------------------------------------
 # HTTP
 # --------------------------------------------------------------------------
@@ -1530,7 +1619,26 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, obj: dict, code: int = 200) -> None:
         self._send(code, json.dumps(obj).encode(), "application/json; charset=utf-8")
 
+    def _host_is_local(self) -> bool:
+        """Reject requests whose Host is not a loopback name for this port.
+
+        Binding to 127.0.0.1 keeps other machines out but does nothing against
+        DNS rebinding: a page the user visits can point its own hostname at
+        127.0.0.1 and then read this server same-origin. That mattered little
+        when the desk served public market data and a local CSV; it matters now
+        that `/api/schwab/status` and `/api/schwab/positions` return live
+        brokerage account data. The browser always sends the name it dialled, so
+        checking it is what closes the hole.
+        """
+        host = (self.headers.get("Host") or "").strip()
+        hostname = host.rsplit(":", 1)[0].strip("[]").lower() if host else ""
+        return hostname in {"127.0.0.1", "localhost", "::1", ""}
+
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        if not self._host_is_local():
+            self.close_connection = True
+            self._send(403, b"forbidden host", "text/plain")
+            return
         parsed = urllib.parse.urlparse(self.path)
         path, qs = parsed.path, urllib.parse.parse_qs(parsed.query)
 
@@ -1576,11 +1684,48 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": str(e)}, 502)
             return
 
+        if path == "/api/session-vwap":
+            try:
+                self._json(session_vwap.get(
+                    list(open_positions()), lambda url: _get(url, retries=2),
+                    force=qs.get("force", ["0"])[0] == "1"))
+            except Exception:
+                self._json({"error": "Could not load session VWAP."}, 502)
+            return
+
+        if path == "/api/enterprise-ai-briefing":
+            try:
+                with ENTERPRISE_AI_BRIEFING_PATH.open(encoding="utf-8") as fh:
+                    briefing = json.load(fh)
+                if not isinstance(briefing, dict) or not isinstance(briefing.get("stocks"), list):
+                    raise ValueError("invalid briefing document")
+                self._json(briefing)
+            except Exception:
+                self._json({"error": "Enterprise AI briefing is unavailable."}, 503)
+            return
+
         if path == "/api/review":
             try:
                 self._json(get_position_review(force=qs.get("force", ["0"])[0] == "1"))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
+            return
+
+        if path == "/api/schwab/status":
+            self._json(schwab_status())
+            return
+
+        if path == "/api/schwab/positions":
+            account = (qs.get("account_last4") or [""])[0].strip()
+            args = ["positions"]
+            if account:
+                args.extend(("--account-last4", account))
+            payload = run_schwab_helper(*args)
+            self._json(payload, 200 if payload.get("ok") else 503)
+            return
+
+        if path == "/api/paper/recommendations":
+            self._json(build_paper_recommendations(force=qs.get("force", ["0"])[0] == "1"))
             return
 
         if path == "/api/cycle":
@@ -1629,12 +1774,16 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        if not self._host_is_local():
+            self.close_connection = True
+            self._send(403, b"forbidden host", "text/plain")
+            return
         path = urllib.parse.urlparse(self.path).path
         # Every early return below answers without reading the body. On an
         # HTTP/1.1 keep-alive socket the unread bytes would be parsed as the
         # *next* request line, so the connection is closed instead: a 70 KB
         # POST followed by GET /api/health on the same socket came back 414.
-        if path != "/api/cycle":
+        if path not in ("/api/cycle", "/api/schwab/preview"):
             self.close_connection = True
             self._send(404, b"not found", "text/plain")
             return
@@ -1651,6 +1800,21 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": f"request body must be at most {MAX_POST_BYTES} bytes"}, 413)
             return
         body = self.rfile.read(length) if length else b""
+        if path == "/api/schwab/preview":
+            if "application/json" not in self.headers.get("Content-Type", ""):
+                self._json({"ok": False, "error": "Content-Type must be application/json"}, 415)
+                return
+            try:
+                data = json.loads(body or b"{}")
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                self._json({"ok": False, "error": "body must be valid JSON"}, 400)
+                return
+            if not isinstance(data, dict):
+                self._json({"ok": False, "error": "body must be a JSON object"}, 400)
+                return
+            code, payload = schwab_preview_post(data)
+            self._json(payload, code)
+            return
         code, payload = cycle_post(body, self.headers.get("Content-Type", ""))
         self._json(payload, code)
 
