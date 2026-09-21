@@ -11,19 +11,38 @@
 const VIEWS = [
   { key: 'momentum', label: 'Momentum', lookbacks: [1, 2, 3, 4, 5] },
   { key: 'reversal', label: 'Reversal candidates', lookbacks: [2, 3, 4, 5] },
-  // A calendar, not a group ranking: no lookback applies, and it replaces the
-  // hero/ranking/movers sections rather than re-scoping them.
-  { key: 'earnings', label: 'Earnings timing', lookbacks: [], calendar: true },
-  // Also a solo view: it reports on positions held, not on a ranked group, so
-  // the hero/ranking/movers furniture has nothing to scope here either.
-  { key: 'review', label: 'Daily review', lookbacks: [], solo: true },
+  // The rest are "solo" views: each reports on something other than a ranked
+  // group (a calendar, the positions held, a hand-scored monthly log), so the
+  // hero/ranking/movers furniture and the lookback filter have nothing to scope
+  // and are hidden. Each names its card and how to load and draw itself, so
+  // renderAll and the Refresh button need no per-view branches; `state[key]`
+  // holds its data. Arrow wrappers, so the functions are looked up at call time.
+  { key: 'earnings', label: 'Earnings timing', lookbacks: [], solo: true, card: 'earnings-card',
+    load: force => fetchEarnings(force), draw: () => renderEarnings() },
+  { key: 'review', label: 'Daily review', lookbacks: [], solo: true, card: 'review-card',
+    load: force => fetchReview(force), draw: () => renderReview() },
+  { key: 'cycle', label: 'Cycle', lookbacks: [], solo: true, card: 'cycle-card',
+    load: () => fetchCycle(), draw: () => renderCycle() },
+  { key: 'enterprise-ai', label: 'Enterprise AI', lookbacks: [], solo: true, card: 'enterprise-ai-card',
+    load: () => fetchEnterpriseAI(), draw: () => renderEnterpriseAI() },
+  { key: 'sector', label: 'Sector', lookbacks: [], solo: true, card: 'sector-card',
+    load: force => fetchSector(force), draw: () => renderSector() },
 ];
 const HORIZONS = [14, 30, 45, 90];
+// The cycle log's own three levels. Used to validate a status before it becomes
+// a class name, since the log is tolerant on read and hand-editable.
+const CYCLE_LEVELS = ['GREEN', 'YELLOW', 'RED'];
 // Must match the server's DEFAULT_HORIZON_DAYS so the two cannot disagree.
 const DEFAULT_HORIZON = 30;
 // The user's stated swing horizon. A print inside this window is the case the
 // whole view exists to catch, so it is named rather than inlined as `<= 21`.
 const SWING_WINDOW_DAYS = 21;
+// Must match the server's LEVEL_PROXIMITY_ATR so the amber "close to your stop"
+// highlight and the near_stop flag cannot disagree -- they did: the table
+// highlighted at 1.0 ATR while the flag fired at 0.5, so a position at 0.8 read
+// as both close to its stop and unremarkable. Asserted by
+// test_level_proximity_matches_the_client_constant.
+const LEVEL_PROXIMITY_ATR = 0.5;
 const RANGES = [
   { key: '3M', bars: 63 },
   { key: '6M', bars: 126 },
@@ -43,7 +62,7 @@ const OVERLAYS = [
 ];
 
 const state = {
-  view: 'momentum',   // see VIEWS -- ranked screens plus the two solo views
+  view: 'momentum',   // see VIEWS -- ranked screens plus the solo views
   lookback: 1,
   range: '6M',
   board: null,
@@ -60,7 +79,17 @@ const state = {
   horizon: DEFAULT_HORIZON,
   earnings: null,
   review: null,
+  schwab: null,
+  schwabPositions: null,
+  schwabPreview: null,
+  paperRecommendations: null,
+  cycle: null,
+  cycleSeq: 0,        // same out-of-order guard as selectionSeq, for /api/cycle loads
+  sector: null,
+  sectorGroup: null,  // group name selected in the Sector view; null = server default
+  sectorSeq: 0,       // same out-of-order guard, for /api/sector loads
   tableView: false,
+  enterpriseAI: null,
   hover: null,        // index into the visible slice
   loading: false,
 };
@@ -82,6 +111,19 @@ const fmtPct = v => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`)
 const fmtPx = v => (v == null ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const fmtNum = (v, d = 2) => (v == null ? '—' : v.toFixed(d));
 const signClass = v => (v == null ? '' : v >= 0 ? 'pos' : 'neg');
+/** Escape text for interpolation into an HTML template string, attribute values
+ *  included. Everything read back from a file -- the journal, the cycle log, the
+ *  framework document -- and every error message goes through this. */
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/** One notice element (warn / err / ok). `html` must already be escaped. */
+function buildNotice(kind, html) {
+  const el = document.createElement('div');
+  el.className = `notice ${kind}`;
+  el.innerHTML = `<span class="ico">${kind === 'ok' ? '✓' : '⚠'}</span><span>${html}</span>`;
+  return el;
+}
 
 /** Point the header's Yahoo Finance link at the charted symbol, or at the site
  *  root when nothing is loaded. encodeURIComponent because the symbol reaches
@@ -171,11 +213,7 @@ function showError(msg) {
   // Replace any previous error rather than appending; a flapping connection was
   // otherwise able to stack notices until they pushed the board off-screen.
   box.querySelectorAll('.notice.err').forEach(n => n.remove());
-  const el = document.createElement('div');
-  el.className = 'notice err';
-  el.append(Object.assign(document.createElement('span'), { className: 'ico', textContent: '⚠' }));
-  el.append(Object.assign(document.createElement('span'), { textContent: msg }));
-  box.appendChild(el);
+  box.appendChild(buildNotice('err', esc(msg)));
 }
 
 // ------------------------------------------------------------- rendering
@@ -186,12 +224,9 @@ function renderNotices() {
   if (!b) return;
 
   if (b.stale) {
-    const el = document.createElement('div');
-    el.className = 'notice warn';
-    el.innerHTML = `<span class="ico">⚠</span><span><strong>Showing last known-good data.</strong>
-      The live refresh failed (${b.stale_reason || 'unknown error'}), so these figures are from
-      ${new Date(b.generated_at).toLocaleString()} — not current.</span>`;
-    box.appendChild(el);
+    box.appendChild(buildNotice('warn', `<strong>Showing last known-good data.</strong>
+      The live refresh failed (${esc(b.stale_reason || 'unknown error')}), so these figures are from
+      ${esc(new Date(b.generated_at).toLocaleString())} — not current.`));
   }
 
   const omitted = b.omitted || {};
@@ -199,12 +234,9 @@ function renderNotices() {
   if (groups.length) {
     const total = groups.reduce((n, g) => n + omitted[g].length, 0);
     const detail = groups.map(g => `${g}: ${[...new Set(omitted[g])].join(', ')}`).join(' · ');
-    const el = document.createElement('div');
-    el.className = 'notice warn';
-    el.innerHTML = `<span class="ico">⚠</span><span><strong>${total} symbol${total > 1 ? 's' : ''} omitted</strong>
-      — no bars returned on the ${b.feed.toUpperCase()} feed, so they are excluded rather than
-      substituted. ${detail}</span>`;
-    box.appendChild(el);
+    box.appendChild(buildNotice('warn', `<strong>${total} symbol${total > 1 ? 's' : ''} omitted</strong>
+      — no bars returned on the ${esc(b.feed.toUpperCase())} feed, so they are excluded rather than
+      substituted. ${esc(detail)}`));
   }
 }
 
@@ -239,6 +271,8 @@ function renderViewTabs() {
     earnings: 'When each name reports next — so a swing position is never held through a print by accident.',
     momentum: 'Groups ranked by raw return over the window.',
     review: 'Every open position against its own levels, sorted by how close it sits to support.',
+    cycle: 'Is the AI data center buildout thesis still intact? Seven indicators scored by hand once a month.',
+    sector: 'Measured facts about a group\'s own recent price and volume history \u2014 not a signal, not a call.',
   };
   $('view-note').textContent = notes[state.view] || notes.momentum;
 }
@@ -372,6 +406,256 @@ function labelTiming(t) {
 
 // ------------------------------------------------------------- daily review
 async function fetchReview(force) {
+  await Promise.all([fetchReviewData(force), fetchSessionVwap(force), fetchSchwabStatus(), fetchPaperRecommendations(force)]);
+}
+
+async function fetchPaperRecommendations(force = false) {
+  try {
+    const response = await fetch(`/api/paper/recommendations${force ? '?force=1' : ''}`);
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || 'Request failed');
+    state.paperRecommendations = data;
+  } catch (error) {
+    state.paperRecommendations = { error: error.message };
+  }
+  renderPaperAgent();
+}
+
+function renderPaperAgent() {
+  const box = $('rev-paper-agent');
+  if (!box) return;
+  const data = state.paperRecommendations;
+  if (!data) { box.innerHTML = '<div class="loading">Loading paper recommendations…</div>'; return; }
+  if (data.error) { box.innerHTML = `<p class="sub neg">Paper agent unavailable: ${esc(data.error)}</p>`; return; }
+  const labels = { entry_review: 'Review entry', exit_review: 'Review exit', risk_review: 'Review risk', wait: 'Wait' };
+  const liveQuantities = new Map(
+    state.schwabPositions && state.schwabPositions.ok
+      ? (state.schwabPositions.positions || []).map(row => [row.symbol, row.quantity])
+      : [],
+  );
+  box.innerHTML = `<div class="detail-head"><h3 id="paper-agent-title" class="rev-h3">Paper agent · human approval required</h3>`
+    + `<span class="spacer"></span><span class="meta">${esc(data.feed_note || '')}</span></div>`
+    + `<p class="sub">Permitted symbols only: FN, AXTI, COHR, LITE. Bands come from measured support/resistance and ATR. Choose 25%, 50%, 75%, or 100% of the currently held whole shares.</p>`
+    + `<div id="paper-agent-notice" aria-live="polite"></div>`
+    + `<div class="table-wrap"><table class="paper-tbl"><thead><tr><th>Symbol</th><th>State</th><th>Last</th><th>Proposed entry</th><th>Proposed exit</th><th>Risk reference</th><th>Held shares</th><th>Your size</th><th>Shares</th><th>Prepare</th></tr></thead><tbody>`
+    + (data.recommendations || []).map(row => {
+      if (!row.available) return `<tr><td><b>${esc(row.symbol)}</b></td><td colspan="9" class="muted">Unavailable: ${esc(row.reason)}</td></tr>`;
+      const liveHeld = liveQuantities.get(row.symbol);
+      const heldShares = Number.isInteger(liveHeld) && liveHeld >= 0 ? liveHeld : row.held_shares;
+      const heldSource = Number.isInteger(liveHeld) && liveHeld >= 0 ? 'Schwab live' : 'journal fallback';
+      return `<tr class="paper-row" data-symbol="${esc(row.symbol)}" data-held="${heldShares == null ? '' : heldShares}" data-entry-high="${row.entry_range.high}" data-exit-low="${row.exit_range.low}">
+        <td><b>${esc(row.symbol)}</b></td><td>${esc(labels[row.state] || row.state)}</td><td>${fmtPx(row.last)}</td>
+        <td>${fmtPx(row.entry_range.low)}–${fmtPx(row.entry_range.high)}</td>
+        <td>${fmtPx(row.exit_range.low)}–${fmtPx(row.exit_range.high)}</td><td>${fmtPx(row.risk_reference)}</td>
+        <td title="${esc(heldSource)}">${heldShares == null ? '—' : esc(heldShares)}</td>
+        <td><select class="paper-pct" aria-label="${esc(row.symbol)} paper share percentage"><option value="25">25%</option><option value="50">50%</option><option value="75">75%</option><option value="100">100%</option></select></td>
+        <td class="paper-shares">—</td><td><button type="button" class="paper-prepare" data-side="BUY" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Buy review</button> <button type="button" class="paper-prepare" data-side="SELL" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Sell review</button></td></tr>`;
+    }).join('') + `</tbody></table></div>`
+    + `<p class="sub">25%–75% sizes round down to whole shares; 100% uses the full held quantity. These are review proposals, not orders or simulated fills, and nothing is sent to Schwab.</p>`;
+  box.querySelectorAll('.paper-row').forEach(row => {
+    const input = row.querySelector('.paper-pct');
+    const output = row.querySelector('.paper-shares');
+    const update = () => {
+      const held = Number(row.dataset.held);
+      const pct = Number(input.value);
+      output.textContent = Number.isFinite(held) && held > 0
+        ? String(pct === 100 ? held : Math.floor(held * pct / 100)) : '—';
+    };
+    input.onchange = update;
+    update();
+    row.querySelectorAll('.paper-prepare').forEach(button => {
+      button.onclick = () => {
+        const form = $('schwab-preview-form');
+        const shares = Number(output.textContent);
+        const side = button.dataset.side;
+        const price = Number(side === 'BUY' ? row.dataset.entryHigh : row.dataset.exitLow);
+        const notice = $('paper-agent-notice');
+        if (!form || !Number.isInteger(shares) || shares <= 0 || !Number.isFinite(price)) {
+          notice.innerHTML = `<div class="notice err"><span class="ico">⚠</span><span>Could not prepare this preview.</span></div>`;
+          return;
+        }
+        form.elements.side.value = side;
+        form.elements.symbol.value = row.dataset.symbol;
+        form.elements.quantity.value = String(shares);
+        form.elements.order_type.value = 'LIMIT';
+        form.elements.limit_price.value = price.toFixed(2);
+        form.elements.duration.value = 'DAY';
+        form.elements.limit_price.disabled = false;
+        form.elements.limit_price.required = true;
+        form.elements.duration.querySelector('option[value="GTC"]').disabled = false;
+        notice.innerHTML = `<div class="notice ok"><span class="ico">✓</span><span>Loaded <b>${esc(side)} ${shares} ${esc(row.dataset.symbol)}</b> at ${fmtPx(price)} into the Schwab review form. Review every field, then press Review at Schwab.</span></div>`;
+        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      };
+    });
+  });
+}
+
+async function fetchSchwabStatus() {
+  try {
+    const response = await fetch('/api/schwab/status');
+    state.schwab = await response.json();
+  } catch (error) {
+    state.schwab = { ok: false, message: `Schwab readiness unavailable: ${error.message}` };
+  }
+  if (state.schwab && state.schwab.ok) await fetchSchwabPositions();
+  renderSchwabStatus();
+}
+
+async function fetchSchwabPositions(accountLast4 = '') {
+  const query = accountLast4 ? `?account_last4=${encodeURIComponent(accountLast4)}` : '';
+  try {
+    const response = await fetch(`/api/schwab/positions${query}`);
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || data.message || 'Request failed');
+    state.schwabPositions = data;
+  } catch (error) {
+    state.schwabPositions = { ok: false, error: error.message };
+  }
+}
+
+function renderSchwabStatus() {
+  const box = $('rev-schwab');
+  if (!box) return;
+  const s = state.schwab;
+  if (!s) { box.textContent = ''; return; }
+  const ready = Boolean(s.ok);
+  const accounts = (s.accounts || []).map(a => a.label).join(', ');
+  box.innerHTML = `<div class="notice ${ready ? 'ok' : 'warn'}"><span class="ico">${ready ? '✓' : '⚠'}</span>`
+    + `<span><b>Schwab guarded execution:</b> ${esc(s.message || (ready ? 'ready' : 'not ready'))}`
+    + `${accounts ? ` · linked ${esc(accounts)}` : ''}`
+    + `. Orders require a preview and exact confirmation; opening this page never submits one.</span></div>`;
+  renderSchwabTrade();
+  renderPaperAgent();
+}
+
+function renderSchwabTrade() {
+  const box = $('rev-schwab-trade');
+  if (!box) return;
+  const s = state.schwab || {};
+  const p = state.schwabPositions;
+  const ready = Boolean(s.ok);
+  const positionRows = p && p.ok ? (p.positions || []).filter(row => row.symbol !== 'SNDL') : [];
+  const positionHtml = p && p.ok
+    ? `<p class="sub">Live ${esc(p.account || '')} positions · ${esc(p.as_of || '')}</p>`
+      + `<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average</th><th>Market value</th><th>Open P/L</th></tr></thead><tbody>`
+      + positionRows.map(row => `<tr><td>${esc(row.symbol)}</td><td>${row.quantity == null ? '—' : esc(row.quantity)}</td>`
+        + `<td>${row.average_price == null ? '—' : fmtPx(row.average_price)}</td>`
+        + `<td>${row.market_value == null ? '—' : fmtMoney0(row.market_value)}</td>`
+        + `<td class="${signClass(row.open_profit_loss)}">${row.open_profit_loss == null ? '—' : fmtMoney0(row.open_profit_loss)}</td></tr>`).join('')
+      + `</tbody></table></div>`
+    : p && p.error ? `<p class="sub neg">Live positions unavailable: ${esc(p.error)}</p>` : '';
+  const result = state.schwabPreview;
+  const previewHtml = result
+    ? `<div class="notice ${result.ok ? 'ok' : 'err'}"><span class="ico">${result.ok ? '✓' : '⚠'}</span><span>`
+      + (result.ok
+        ? `<b>Preview only — no order submitted.</b> ${esc(JSON.stringify(result.summary || {}))}`
+          + `<span class="lvl-meta">To place it, provide this exact phrase in a later chat turn: ${esc(result.confirmation_phrase || '')}</span>`
+          + `<button type="button" id="schwab-submit-handoff">Submit</button>`
+        : esc(result.error || result.message || 'Preview failed'))
+      + `</span></div>` : '';
+  box.innerHTML = `<div class="detail-head"><h3 id="schwab-trade-title" class="rev-h3">Schwab live account & guarded preview</h3></div>`
+    + positionHtml
+    + `<form id="schwab-preview-form" class="size-form">
+      <label>Account last 4 <input name="account_last4" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="optional if one account" ${ready ? '' : 'disabled'}></label>
+      <label>Side <select name="side" ${ready ? '' : 'disabled'}><option value="BUY">Buy</option><option value="SELL">Sell</option></select></label>
+      <label>Symbol <input name="symbol" maxlength="10" required ${ready ? '' : 'disabled'}></label>
+      <label>Whole shares <input name="quantity" type="number" min="1" step="1" required ${ready ? '' : 'disabled'}></label>
+      <label>Type <select name="order_type" ${ready ? '' : 'disabled'}><option value="LIMIT">Limit</option><option value="MARKET">Market</option></select></label>
+      <label>Limit price <input name="limit_price" type="number" min="0.01" step="0.01" required ${ready ? '' : 'disabled'}></label>
+      <label>Duration <select name="duration" ${ready ? '' : 'disabled'}><option value="DAY">Day</option><option value="GTC">GTC</option></select></label>
+      <button type="submit" ${ready ? '' : 'disabled'}>Review at Schwab</button>
+    </form>${previewHtml}
+    <p class="sub">Review at Schwab validates the order but does not submit it. Live placement still requires the exact confirmation phrase returned by Schwab.</p>`;
+  const form = $('schwab-preview-form');
+  const type = form && form.elements.order_type;
+  const price = form && form.elements.limit_price;
+  const duration = form && form.elements.duration;
+  if (!form) return;
+  const copyConfirmation = $('schwab-copy-confirmation');
+  if (copyConfirmation) {
+    copyConfirmation.onclick = async () => {
+      const phrase = result && result.confirmation_phrase;
+      if (!phrase) return;
+      try {
+        await navigator.clipboard.writeText(phrase);
+        copyConfirmation.textContent = 'Copied — send in chat';
+      } catch (_error) {
+        copyConfirmation.textContent = 'Copy phrase above';
+      }
+    };
+  }
+  type.onchange = () => {
+    const market = type.value === 'MARKET';
+    price.disabled = market || !ready;
+    price.required = !market;
+    if (market) { price.value = ''; duration.value = 'DAY'; }
+    duration.querySelector('option[value="GTC"]').disabled = market;
+  };
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    state.schwabPreview = null;
+    try {
+      const values = Object.fromEntries(new FormData(form).entries());
+      const response = await fetch('/api/schwab/preview', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values),
+      });
+      state.schwabPreview = await response.json();
+    } catch (error) {
+      state.schwabPreview = { ok: false, error: error.message };
+    }
+    renderSchwabTrade();
+  };
+}
+
+let vwapRequestSeq = 0;
+const easternTime = value => new Date(value).toLocaleTimeString('en-US', {
+  timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true,
+});
+
+async function fetchSessionVwap(force = false) {
+  const seq = ++vwapRequestSeq;
+  const button = $('vwap-refresh');
+  button.disabled = true;
+  $('vwap-stamp').textContent = 'Updating consolidated session data…';
+  $('vwap-table').textContent = '';
+  try {
+    const response = await fetch(`/api/session-vwap${force ? '?force=1' : ''}`);
+    const data = await response.json();
+    if (seq !== vwapRequestSeq) return;
+    if (!response.ok || data.error) throw new Error(data.error || 'Request failed');
+    if (data.message) {
+      $('vwap-stamp').textContent = `${data.session_date} · ${data.message}`;
+      return;
+    }
+    $('vwap-stamp').textContent = `${data.session_date} · ${easternTime(data.session_open)}–${easternTime(data.cutoff_at)} ET (end exclusive)`
+      + ` · Consolidated SIP · ${data.delay_minutes}+ min delayed · fetched ${easternTime(data.built_at)} ET`;
+    const rows = (data.rows || []).filter(row => row.symbol !== 'SNDL');
+    $('vwap-table').innerHTML = `<table class="vwap-tbl"><thead><tr>
+      <th scope="col">Holding</th><th scope="col">Session VWAP</th>
+      <th scope="col">Price at cutoff</th><th scope="col">Vs VWAP</th>
+      <th scope="col">Volume</th><th scope="col">Last bar (ET)</th>
+      </tr></thead><tbody>` + rows.map(row => {
+      const symbol = esc(row.symbol);
+      if (row.error) return `<tr><th scope="row">${symbol}</th><td colspan="5" class="muted">${esc(row.error)}</td></tr>`;
+      const diff = row.difference_pct;
+      const direction = diff > 0 ? 'Above' : diff < 0 ? 'Below' : 'At';
+      const cls = diff > 0 ? 'pos' : diff < 0 ? 'neg' : '';
+      return `<tr><th scope="row">${symbol}</th><td><b>${fmtPx(row.vwap)}</b></td>
+        <td>${fmtPx(row.last)}</td><td class="${cls}">${direction} ${Math.abs(diff).toFixed(2)}%</td>
+        <td>${Math.round(row.volume).toLocaleString('en-US')}</td><td>${esc(easternTime(row.last_bar_at))}</td></tr>`;
+    }).join('') + '</tbody></table>';
+  } catch (error) {
+    if (seq !== vwapRequestSeq) return;
+    $('vwap-stamp').textContent = `VWAP unavailable: ${error.message}`;
+    $('vwap-table').textContent = '';
+  } finally {
+    if (seq === vwapRequestSeq) button.disabled = false;
+  }
+}
+
+async function fetchReviewData(force) {
   const card = $('review-card');
   card.classList.add('refetching');
   try {
@@ -381,8 +665,15 @@ async function fetchReview(force) {
     state.review = d;
     renderReview();
   } catch (e) {
-    $('rev-table').innerHTML = '';
-    $('rev-summary').innerHTML = '';
+    // Clear every block, not just the table. A stale thesis strip or a sizing
+    // worksheet still computing against the last good book value would sit
+    // under the error looking current -- and the worksheet is the one output
+    // someone might act on.
+    ['rev-table', 'rev-summary', 'rev-cycle', 'rev-sizing', 'rev-news',
+     'rev-cards', 'rev-groups', 'rev-excluded'].forEach(id => {
+      const el = $(id);
+      if (el) el.textContent = '';
+    });
     showError(`Could not load the daily review: ${e.message}`);
   } finally {
     card.classList.remove('refetching');
@@ -394,6 +685,23 @@ async function fetchReview(force) {
 const fmtMoney0 = v => (v == null ? '—'
   : `${v < 0 ? '−' : ''}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
 
+function revStopCell(e) {
+  // An absent stop is an absence, not a price -- em dash, never 0.00. Through the
+  // stop reads as a warning rather than as remaining room, matching the API,
+  // which reports a negative risk figure and drops it from the book total.
+  if (e.stop_current == null) return `<td class="lvl-none">—</td>`;
+  const atr = e.stop_distance_atr;
+  const cls = e.through_stop ? 'neg'
+    : (atr != null && atr <= LEVEL_PROXIMITY_ATR ? 'warn-txt' : '');
+  const sub = e.through_stop
+    ? 'through'
+    : (atr == null ? '' : `${atr.toFixed(1)} ATR`);
+  const dis = e.stop_current_disagrees ? ' \u2260' : '';
+  return `<td class="${cls}">${fmtPx(e.stop_current)}${dis}`
+       + `<span class="lvl-meta">${fmtPct(e.stop_distance_pct)}${sub ? ' \u00b7 ' + sub : ''}</span></td>`;
+}
+
+
 function revLevelCell(l) {
   if (!l) return '<td class="muted">none</td>';
   const atr = l.distance_atr == null ? '' : ` · ${l.distance_atr.toFixed(1)} ATR`;
@@ -402,6 +710,160 @@ function revLevelCell(l) {
        + ` in range; last tested ${l.last_touch || 'unknown'}">`
        + `${fmtPx(l.level)}<span class="lvl-meta">${fmtPct(l.distance_pct)}${atr}</span></td>`;
 }
+
+// Ulcer Index for one held name: acute reading on top, the trailing-year one
+// beneath it. Same measure and same two horizons as the Sector view's pain
+// tile, so a position's number can be read straight against its theme's.
+// Deliberately no benchmark and no percentile here -- see symbol_pain in
+// sector_signals.py for why neither survives the move to a single name.
+function revPainCell(p) {
+  if (!p || p.short == null) return '<td class="muted">—</td>';
+  // "30.6 over 252d" gets read as "30.6 days out of 252". It is neither a count
+  // nor days: it is a percentage-scale drawdown figure over a 252-session
+  // window. The unit carries that, and naming the window first stops the two
+  // numbers reading as a ratio.
+  const long = p.long == null ? '—' : `${p.long.toFixed(1)}%`;
+  return `<td title="Ulcer Index: root-mean-square drawdown from the running peak,`
+       + ` in percent — not a count of days. Rises with how deep a decline is and`
+       + ` how long it lasts.">`
+       + `${p.short.toFixed(1)}%`
+       + `<span class="lvl-meta">${p.long_sessions}d: ${long}</span></td>`;
+}
+
+// Sizing worksheet state. Module-level so a re-render (or the 5-minute review
+// refresh) does not wipe what is typed mid-edit.
+const sizing = { symbol: null, dollars: 10000, riskPct: 1.0,
+                // Which symbol list the form was last built for, so a
+                // re-render can skip rebuilding the inputs.
+                built: null };
+
+
+// What a trade of a given size would risk, and what it would do to concentration.
+// Every input is the desk owner's: the amount and the risk budget are typed, not
+// suggested. This converts a decision into risk terms; it does not make one, and
+// it deliberately does not rank the symbols or mark any of them preferable.
+function sizingResult(d, e, dollars, riskPct) {
+  const book = d.book_market_value || 0;
+  const last = e.last;
+  const stop = e.stop_current;
+  const shares = last > 0 ? Math.floor(dollars / last) : 0;
+  const cost = shares * last;
+  const perShare = (stop != null && last != null) ? last - stop : null;
+  // Negative once price is through the stop -- the same convention the review
+  // uses, where there is no risk left *to* a level already crossed.
+  const riskDollars = perShare == null ? null : shares * perShare;
+  const budget = book * (riskPct / 100);
+  const sharesInBudget = (perShare != null && perShare > 0)
+    ? Math.floor(budget / perShare) : null;
+  const newBook = book + cost;
+  const newWeight = newBook > 0 ? ((e.market_value || 0) + cost) / newBook * 100 : null;
+  const themes = (e.groups || []).map(name => {
+    const row = (d.group_exposure || []).find(x => x.group === name);
+    const mv = row ? (row.market_value || 0) : 0;
+    return { name, before: row ? row.pct_of_book : null,
+             after: newBook > 0 ? (mv + cost) / newBook * 100 : null };
+  });
+  return { shares, cost, perShare, riskDollars, budget, sharesInBudget,
+           budgetDollarsForBudgetShares: (sharesInBudget != null ? sharesInBudget * last : null),
+           riskPctOfBook: (riskDollars == null || !book) ? null : riskDollars / book * 100,
+           overBudget: (riskDollars != null && riskDollars > budget),
+           newWeight, themes };
+}
+
+
+function renderSizingOutput(d) {
+  const e = (d.positions || []).find(x => x.symbol === sizing.symbol);
+  const out = $('rev-size-out');
+  if (!e || !out) return;
+  const r = sizingResult(d, e, sizing.dollars, sizing.riskPct);
+  const rows = [
+    ['Shares at ' + fmtPx(e.last), String(r.shares), null],
+    ['Actual cost', fmtMoney0(r.cost), null],
+    ['Risk per share to stop ' + (e.stop_current == null ? '—' : fmtPx(e.stop_current)),
+      r.perShare == null ? '—' : fmtPx(r.perShare), null],
+    ['Dollars at risk', r.riskDollars == null ? '—' : fmtMoney0(r.riskDollars),
+      r.overBudget ? -1 : null],
+    ['That is % of book', r.riskPctOfBook == null ? '—' : r.riskPctOfBook.toFixed(2) + '%',
+      r.overBudget ? -1 : null],
+    ['Your budget (' + sizing.riskPct + '% of book)', fmtMoney0(r.budget), null],
+    ['Shares that fit the budget',
+      r.sharesInBudget == null ? '—'
+        : `${r.sharesInBudget} \u00b7 ${fmtMoney0(r.budgetDollarsForBudgetShares)}`, null],
+    [e.symbol + ' weight after', r.newWeight == null ? '—' : r.newWeight.toFixed(1) + '%'
+      + (e.book_weight_pct == null ? '' : ` (from ${e.book_weight_pct.toFixed(1)}%)`), null],
+  ];
+  r.themes.forEach(th => rows.push([
+    th.name + ' after',
+    th.after == null ? '—' : th.after.toFixed(1) + '%'
+      + (th.before == null ? '' : ` (from ${th.before.toFixed(1)}%)`), null]));
+
+  out.innerHTML = `<table class="rev-tbl size-tbl"><tbody>` + rows.map(([k, v, sign]) =>
+    `<tr><th scope="row">${k}</th><td class="${sign == null ? '' : signClass(sign)}">${v}</td></tr>`
+  ).join('') + `</tbody></table>`
+    + (r.perShare == null
+        ? `<p class="sub">No managed stop recorded for ${e.symbol}, so dollars at risk cannot `
+          + `be computed. Set <code>stop_current</code> in the journal, or size off ATR `
+          + `(${e.atr14 == null ? 'n/a' : fmtPx(e.atr14)}) yourself.</p>`
+        : '')
+    + (r.riskDollars != null && r.riskDollars < 0
+        ? `<p class="sub">Price is below the managed stop, so dollars at risk is negative: `
+          + `there is no risk left <em>to</em> a level already crossed. The same convention `
+          + `the table above uses, where such a position is flagged "through".</p>`
+        : '')
+    + (r.overBudget
+        ? `<p class="sub neg">This size risks more than the budget you entered. That is a `
+          + `comparison against your own number, not a recommendation either way.</p>`
+        : '');
+}
+
+
+function renderSizing(d) {
+  const pos = (d.positions || []).filter(e => e.last != null);
+  if (!pos.length) { $('rev-sizing').innerHTML = ''; sizing.built = null; return; }
+  if (!sizing.symbol || !pos.some(e => e.symbol === sizing.symbol)) sizing.symbol = pos[0].symbol;
+
+  // Rebuild the form only when the choices actually change. Hoisting the values
+  // to module scope kept them across a re-render, but replacing the inputs still
+  // stole focus mid-keystroke when the 5-minute refresh landed -- so the shell is
+  // left alone and only the output is redrawn.
+  const signature = pos.map(e => e.symbol).join(',');
+  if (sizing.built === signature && $('size-sym') && $('rev-size-out')) {
+    renderSizingOutput(d);
+    return;
+  }
+  sizing.built = signature;
+
+  $('rev-sizing').innerHTML = `<h3 class="rev-h3">Sizing worksheet</h3>`
+    + `<p class="sub">You choose the symbol, the amount, and the risk budget. This works out `
+    + `the shares, what they would put at risk against that position\u2019s managed stop, and `
+    + `what it would do to concentration. It does not suggest a symbol or an amount, and the `
+    + `order of the list is the table\u2019s order \u2014 not a ranking.</p>`
+    + `<div class="size-form">`
+    + `<label>Symbol <select id="size-sym">` + pos.map(e =>
+        `<option value="${e.symbol}"${e.symbol === sizing.symbol ? ' selected' : ''}>${e.symbol}</option>`
+      ).join('') + `</select></label>`
+    + `<label>Amount $ <input id="size-amt" type="number" min="0" step="500" value="${sizing.dollars}"></label>`
+    + `<label>Risk budget % of book <input id="size-risk" type="number" min="0" max="100" step="0.25" value="${sizing.riskPct}"></label>`
+    + `</div><div id="rev-size-out"></div>`;
+
+  const sym = $('size-sym'), amt = $('size-amt'), risk = $('size-risk');
+  sym.onchange = () => { sizing.symbol = sym.value; renderSizingOutput(d); };
+  amt.oninput = () => {
+    const v = parseFloat(amt.value);
+    sizing.dollars = Number.isFinite(v) && v >= 0 ? v : 0;
+    renderSizingOutput(d);
+  };
+  risk.oninput = () => {
+    const v = parseFloat(risk.value);
+    // Clamp the upper bound too. `max` on a number input only constrains the
+    // spinner, so a typed 500 would set a budget five times the book and the
+    // over-budget notice could never fire.
+    sizing.riskPct = Number.isFinite(v) ? Math.min(Math.max(v, 0), 100) : 0;
+    renderSizingOutput(d);
+  };
+  renderSizingOutput(d);
+}
+
 
 function renderReview() {
   const d = state.review;
@@ -413,6 +875,8 @@ function renderReview() {
     `Every open lot in ${d.journal}, priced against the same levels the chart draws. `
     + `Sorted by how close each position sits to its nearest support — the level a stop `
     + `would key off. Levels are prices the market actually turned at, not projections.`;
+  renderSchwabStatus();
+  renderPaperAgent();
 
   // ---- portfolio summary
   const tot = d.totals || {};
@@ -427,6 +891,11 @@ function renderReview() {
     // Scoped to the reviewed rows so the tile agrees with the table beneath it;
     // the journal-wide figure — the one the README's "trend to zero" rule is
     // about — rides underneath rather than replacing it.
+    ['Risk to stops',
+      fmtMoney0(d.risk_to_stop),
+      d.risk_to_stop ? -1 : null,
+      d.risk_to_stop_pct_of_book == null ? null
+        : `${d.risk_to_stop_pct_of_book.toFixed(2)}% of book \u00b7 ${d.lots_with_stop_current ?? 0} lot(s)`],
     ['Lots without a stop',
       `${d.reviewed_lots_without_stop ?? '—'} of ${d.reviewed_open_lots ?? '—'}`,
       d.reviewed_lots_without_stop ? -1 : 1,
@@ -444,7 +913,7 @@ function renderReview() {
     const rows = d.positions.map(e => {
       if (e.error) {
         return `<tr class="rev-row" data-sym="${e.symbol}"><td><b>${e.symbol}</b></td>`
-             + `<td colspan="10" class="neg">${e.error}</td></tr>`;
+             + `<td colspan="13" class="neg">${e.error}</td></tr>`;
       }
       const w = e.book_weight_pct;
       const earn = e.earnings && e.earnings.days_until != null
@@ -456,10 +925,13 @@ function renderReview() {
         <td>${fmtPx(e.last)}<span class="lvl-meta ${signClass(e.day_pct)}">${fmtPct(e.day_pct)}</span></td>
         <td>${fmtPx(e.avg_entry)}</td>
         <td class="${signClass(e.pnl)}">${fmtMoney0(e.pnl)}<span class="lvl-meta ${signClass(e.pnl_pct)}">${fmtPct(e.pnl_pct)}</span></td>
+        ${revPainCell(e.pain)}
         <td>${w == null ? '—' : w.toFixed(1) + '%'}</td>
         ${revLevelCell(e.nearest_resistance)}
         ${revLevelCell(e.nearest_support)}
         <td>${fmtMoney0(e.risk_to_support)}</td>
+        ${revStopCell(e)}
+        <td>${e.risk_to_stop == null ? '—' : fmtMoney0(e.risk_to_stop)}</td>
         <td>${e.rsi14 == null ? '—' : e.rsi14.toFixed(0)}</td>
         <td>${e.atr_pct == null ? '—' : e.atr_pct.toFixed(1) + '%'}</td>
         <td class="${earnCls}">${earn}</td>
@@ -467,8 +939,9 @@ function renderReview() {
     }).join('');
     $('rev-table').innerHTML = `<table class="rev-tbl">
       <thead><tr>
-        <th>Symbol</th><th>Last</th><th>Avg entry</th><th>Unrealised</th><th>% book</th>
+        <th>Symbol</th><th>Last</th><th>Avg entry</th><th>Unrealised</th><th>Pain</th><th>% book</th>
         <th>Resistance above</th><th>Support below</th><th>To support</th>
+        <th>Stop</th><th>To stop</th>
         <th>RSI</th><th>ATR%</th><th>Earnings</th>
       </tr></thead><tbody>${rows}</tbody></table>`;
     // Clicking a row charts that symbol, same affordance as the calendar rows.
@@ -486,6 +959,110 @@ function renderReview() {
       `<div class="rev-flag-card"><div class="rev-flag-sym">${e.symbol}</div><ul>`
       + e.flags.map(f => `<li class="flag-${f.level}">${f.text}</li>`).join('')
       + `</ul></div>`).join('') + `</div>`;
+
+  // ---- thesis status: read back from the hand-scored cycle log, not computed
+  // Same reasoning as the headlines below: `read_log` is documented as tolerant
+  // on read (strictness lives in the write path), so a spreadsheet-edited cell
+  // can carry anything. Status drives a class name, so it is matched against the
+  // log's own three levels rather than lowercased into the attribute.
+  const cy = d.cycle || {};
+  const cycleBox = $('rev-cycle');
+  cycleBox.textContent = '';
+  const cycRow = document.createElement('div');
+  cycRow.className = 'rev-cycle-row';
+  const cycLbl = document.createElement('span');
+  cycLbl.className = 'rev-cycle-lbl';
+  cycLbl.textContent = 'Thesis';
+  cycRow.append(cycLbl);
+  if (!cy.available) {
+    const why = document.createElement('span');
+    why.className = 'lvl-meta';
+    why.textContent = cy.reason || 'not scored';
+    cycRow.append(why);
+  } else {
+    const level = document.createElement('span');
+    const known = CYCLE_LEVELS.includes(cy.status);
+    level.className = known ? `cyc-${cy.status.toLowerCase()}` : 'lvl-meta';
+    level.textContent = cy.status == null ? '\u2014' : String(cy.status);
+    const meta = document.createElement('span');
+    meta.className = 'lvl-meta';
+    meta.textContent = `${cy.total == null ? '\u2014' : cy.total}/${cy.max}`
+      + ` \u00b7 scored ${cy.review_date || 'unknown date'}`
+      + `${cy.days_since == null ? '' : ` \u00b7 ${cy.days_since}d ago`}`
+      + `${cy.stale ? ` \u00b7 overdue (monthly check, >${cy.stale_after_days}d)` : ''}`;
+    const note = document.createElement('span');
+    note.className = 'lvl-meta';
+    note.textContent = 'Whether the reason for holding still stands \u2014 entered by hand '
+      + 'in the Cycle view, not derived from price.';
+    cycRow.append(level, meta, note);
+  }
+  cycleBox.append(cycRow);
+
+  // ---- sizing worksheet
+  renderSizing(d);
+
+  // ---- recent headlines, verbatim
+  // Built as DOM nodes with textContent, not an innerHTML string. These fields
+  // come from a third-party feed, so a headline is untrusted text: interpolating
+  // it into markup makes `<img src=x onerror=...>` executable, and interpolating
+  // a URL into an href attribute lets a quote in it inject attributes (the
+  // server only filters the scheme prefix). `renderCompany` renders this same
+  // feed the same safe way -- see the news block there.
+  const withNews = d.positions.filter(e => e.news && ((e.news.items || []).length || e.news.error));
+  const newsBox = $('rev-news');
+  newsBox.textContent = '';
+  if (withNews.length) {
+    const h3 = document.createElement('h3');
+    h3.className = 'rev-h3';
+    h3.textContent = 'Recent headlines';
+    const sub = document.createElement('p');
+    sub.className = 'sub';
+    sub.textContent = 'Straight from the feed, newest first. Not scored, ranked, or '
+      + 'summarised \u2014 a sentiment number here would be a guess wearing the clothes '
+      + 'of a signal.';
+    const wrap = document.createElement('div');
+    wrap.className = 'rev-news-wrap';
+    withNews.forEach(e => {
+      const col = document.createElement('div');
+      col.className = 'rev-news-col';
+      const sym = document.createElement('div');
+      sym.className = 'rev-flag-sym';
+      sym.textContent = e.symbol;
+      col.append(sym);
+      const n = e.news || {};
+      if (n.error) {
+        const err = document.createElement('p');
+        err.className = 'sub neg';
+        err.textContent = `news unavailable: ${n.error}`;
+        col.append(err);
+      } else {
+        const ul = document.createElement('ul');
+        ul.className = 'rev-news-list';
+        (n.items || []).forEach(it => {
+          const li = document.createElement('li');
+          // Re-check the scheme client-side even though the server filters it:
+          // one validation at each boundary, the same as renderCompany.
+          const safe = typeof it.url === 'string' && /^https?:\/\//i.test(it.url);
+          const head = document.createElement(safe ? 'a' : 'span');
+          if (safe) {
+            head.href = it.url;          // property, never an interpolated attribute
+            head.target = '_blank';
+            head.rel = 'noopener noreferrer';
+          }
+          head.textContent = it.headline || '(untitled)';
+          const meta = document.createElement('span');
+          meta.className = 'lvl-meta';
+          meta.textContent = `${String(it.created_at || '').slice(0, 10)}`
+            + `${it.source ? ' \u00b7 ' + it.source : ''}`;
+          li.append(head, meta);
+          ul.append(li);
+        });
+        col.append(ul);
+      }
+      wrap.append(col);
+    });
+    newsBox.append(h3, sub, wrap);
+  }
 
   // ---- theme concentration
   const g = d.group_exposure || [];
@@ -520,7 +1097,687 @@ function renderReview() {
     'Observations, not recommendations. Every figure here is a measurement — none of it '
     + 'says what to do, and nothing on this page is investment advice. "Downside to support" '
     + 'is measured from today’s price, not from entry, so for an underwater position it is '
-    + 'remaining risk to that level rather than the risk originally taken.';
+    + 'remaining risk to that level rather than the risk originally taken. The sizing '
+    + 'worksheet is a calculator: it converts an amount you choose into risk and '
+    + 'concentration terms, and never proposes a symbol, an amount, or a trade.';
+}
+
+// ------------------------------------------------------------- cycle view
+// The monthly AI data center cycle score. Every figure on this view is a
+// hand-entered judgment read back from trading_records/cycle-score.csv; the
+// server computes nothing from market data here, and the page says so. The
+// criteria beside each score come from the framework document, parsed by the
+// server, so the page and the document cannot drift.
+
+// Must match cycle.LEVEL_OF_SCORE: a 2 meets the indicator's GREEN criterion,
+// 1 its YELLOW, 0 its RED. Asserted by test_client_declares_the_view_and_levels.
+const LEVEL_OF_SCORE = { 2: 'GREEN', 1: 'YELLOW', 0: 'RED' };
+/** The class carrying a level's hue (st-green / st-yellow / st-red), or st-none
+ *  for "no level": an unscored indicator, an incomplete review. */
+const stClass = level => `st-${(level || 'none').toLowerCase()}`;
+
+// A save in flight. A Refresh (or tab switch) issued meanwhile waits for it
+// rather than racing it to the file, which could paint the pre-write state on
+// top of the post-write one.
+let cycleSaving = null;
+
+async function fetchCycle() {
+  const card = $('cycle-card');
+  card.classList.add('refetching');
+  const mySeq = ++state.cycleSeq;
+  try {
+    if (cycleSaving) await cycleSaving;
+    const res = await fetch('/api/cycle');
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    if (mySeq !== state.cycleSeq) return;   // a later load already superseded this one
+    state.cycle = d;
+    renderCycle();
+  } catch (e) {
+    if (mySeq === state.cycleSeq) showError(`Could not load the cycle dashboard: ${e.message}`);
+  } finally {
+    card.classList.remove('refetching');
+  }
+}
+
+async function fetchSector(force) {
+  const card = $('sector-card');
+  card.classList.add('refetching');
+  const mySeq = ++state.sectorSeq;
+  const qs = new URLSearchParams();
+  if (state.sectorGroup) qs.set('group', state.sectorGroup);
+  if (force) qs.set('force', '1');
+  try {
+    const res = await fetch(`/api/sector?${qs}`);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    if (mySeq !== state.sectorSeq) return;   // a later load already superseded this one
+    state.sectorGroup = d.group;             // the server's resolved default, once known
+    state.sector = d;
+    renderSector();
+  } catch (e) {
+    if (mySeq === state.sectorSeq) showError(`Could not load the sector scorecard: ${e.message}`);
+  } finally {
+    card.classList.remove('refetching');
+  }
+}
+
+
+function renderSectorGroupPicker(d) {
+  const sel = $('sec-group');
+  const groups = d.available_groups || [d.group];
+  sel.innerHTML = groups.map(g =>
+    `<option value="${esc(g)}"${g === d.group ? ' selected' : ''}>${esc(g)}</option>`).join('');
+  sel.onchange = () => { state.sectorGroup = sel.value; fetchSector(false); };
+}
+
+// One row per metric: the label, the number(s), and a plain-language note on
+// what the number describes. No color, no verdict -- a table of facts, same
+// rule the daily review's flags follow. `sub` is optional context text.
+function sectorTile(label, value, sub) {
+  return `<div class="rev-stat"><div class="k">${esc(label)}</div>`
+       + `<div class="v">${value}${sub ? `<span class="lvl-meta">${sub}</span>` : ''}</div></div>`;
+}
+
+function renderSector() {
+  const d = state.sector;
+  if (!d) return;
+  renderSectorGroupPicker(d);
+  $('sec-stamp').textContent = d.generated_at ? `as of ${d.generated_at.replace('T', ' ').slice(0, 16)} UTC` : '';
+  $('sec-sub').textContent = `${d.kind === 'theme' ? 'Theme' : 'Sector'} group vs ${d.benchmark} `
+    + `\u00b7 ${(d.constituents_used || []).length} of `
+    + `${(d.constituents_used || []).length + (d.constituents_missing || []).length} constituents priced`;
+
+  const notices = $('sec-notices');
+  notices.innerHTML = '';
+  if ((d.constituents_missing || []).length) {
+    notices.appendChild(buildNotice('warn',
+      `<strong>${d.constituents_missing.length} omitted</strong> \u2014 no bars returned: `
+      + `${d.constituents_missing.map(esc).join(', ')}`));
+  }
+
+  const rs = d.relative_strength || {};
+  const w = rs.windows || {};
+  const rsRow = (label, key) => {
+    const x = w[key];
+    if (!x) return '';
+    return sectorTile(label, fmtPct(x.excess_pct),
+      `group ${fmtPct(x.group_return_pct)} \u2212 ${esc(d.benchmark)} ${fmtPct(x.benchmark_return_pct)}`);
+  };
+  const trendNote = rs.excess_trend_pct == null ? ''
+    : `${fmtPct(rs.excess_trend_pct)} vs the 5 sessions before that`;
+
+  const br = d.breadth || {};
+  const nhl = d.new_highs_lows || {};
+  const part = d.participation || {};
+  const vol = d.volatility || {};
+  const disp = d.dispersion || {};
+  const lvl = d.at_level || {};
+
+  // Pain = the Ulcer Index of the group's own equal-weight index, so it is
+  // comparable like-for-like against the benchmark's. The benchmark figure sits
+  // in the sub-line on purpose: "this group is hurting while the market is not"
+  // is the comparison the tile exists to make, and it is unreadable if the two
+  // numbers are on different rows. The percentile is deliberately not turned
+  // into a band -- see _percentile_of_last in sector_signals.py.
+  const painWindows = (d.pain || {}).windows || {};
+  const painRow = (label, key) => {
+    const x = painWindows[key];
+    if (!x) return '';
+    // With no reading of its own the tile has nothing to say, so it says that
+    // rather than printing the benchmark's number underneath a dash -- on a
+    // card titled "Pain" the only visible figure reads as the group's.
+    if (x.group_ulcer == null) {
+      return sectorTile(label, '—', `fewer than ${x.sessions} sessions of history`);
+    }
+    const parts = [];
+    parts.push(`${esc(d.benchmark)} ${x.benchmark_ulcer == null ? '—' : x.benchmark_ulcer.toFixed(1) + '%'}`);
+    if (x.percentile_of_own_history != null) {
+      parts.push(`above ${x.percentile_of_own_history.toFixed(0)}% of its own ${x.history_n} prior readings`);
+    }
+    return sectorTile(label, `${x.group_ulcer.toFixed(1)}%`, parts.join(' · '));
+  };
+
+  const tiles = [
+    painRow('Pain now (Ulcer Index, 14d)', 'short'),
+    painRow('Pain, trailing year (Ulcer Index, 252d)', 'long'),
+    rsRow('Relative strength, 5d', '5'),
+    rsRow('Relative strength, 21d', '21'),
+    rsRow('Relative strength, 63d', '63'),
+    sectorTile('Excess-return trend', trendNote || '\u2014',
+      'is the 5d excess vs benchmark widening or narrowing'),
+    sectorTile('Breadth > 20d avg', br.above_sma20_pct == null ? '\u2014' : `${br.above_sma20_pct.toFixed(0)}%`,
+      `${br.n || 0} names`),
+    sectorTile('Breadth > 50d avg', br.above_sma50_pct == null ? '\u2014' : `${br.above_sma50_pct.toFixed(0)}%`),
+    sectorTile('Breadth > 200d avg', br.above_sma200_pct == null ? '\u2014' : `${br.above_sma200_pct.toFixed(0)}%`),
+    sectorTile(`New ${nhl.window_sessions || 20}d highs / lows`,
+      `${nhl.new_high_count ?? '\u2014'} / ${nhl.new_low_count ?? '\u2014'}`,
+      `of ${nhl.n || 0} names`),
+    sectorTile('Participation ($ vol, 5d/20d)', part.ratio == null ? '\u2014' : part.ratio.toFixed(2),
+      '&gt;1 = recent dollar volume above the group\'s own past month'),
+    sectorTile('Volatility (ATR%) now', vol.avg_atr_pct_now == null ? '\u2014' : `${vol.avg_atr_pct_now.toFixed(1)}%`,
+      vol.expansion_pct_points == null ? '' : `${fmtPct(vol.expansion_pct_points)}pts vs 20d ago`),
+    sectorTile('Dispersion today vs norm', disp.ratio == null ? '\u2014' : disp.ratio.toFixed(2),
+      '&lt;1 = moved together more than usual (one shared factor, not stock-picking)'),
+    sectorTile('At a level', `${lvl.at_support_count ?? 0} sup / ${lvl.at_resistance_count ?? 0} res`,
+      `of ${lvl.n || 0} names, within ${LEVEL_PROXIMITY_ATR} ATR`),
+  ];
+  $('sec-tiles').innerHTML = tiles.join('');
+  renderCycleStagePanel(d);
+
+  $('sec-disclaimer').textContent = 'Every number above is a measured fact about this group\'s own '
+    + 'recent price and volume history \u2014 not a signal, not a ranking, not a call on direction.';
+}
+
+// The cycle-stage order the wheel actually turns in -- Local Peak, once
+// momentum has visibly rolled over, gives way to Correction, then Bottoming,
+// then Recovery, then an established Extended/Uptrend, which can run into
+// Local Euphoria/Peak before closing the loop back into Local Peak. Used for
+// both the breakdown's display order and CYCLE_STAGES on the server -- if
+// these ever drift apart the breakdown would silently reorder itself relative
+// to the server's own count keys, so keep this list identical to
+// sector_signals.CYCLE_STAGES.
+const CYCLE_STAGE_ORDER = ['Local Peak', 'Correction', 'Markdown', 'Bottoming', 'Recovery', 'Extended/Uptrend', 'Local Euphoria/Peak'];
+
+// The stage is defined by how far a name sits below its own peak (10-20% is a
+// correction, past 20% is a bear market by the standard definitions), so that
+// drawdown is the number worth showing beside every name -- it is the reason
+// for the label, not decoration. Shown for all six stages, not just the two
+// peak ones: a Bottoming name 45% under its peak and a Correction name 11%
+// under are describing very different situations under adjacent words.
+// `window_weeks` is already in weeks (the server reads weekly closes, not
+// daily ones), so there is no session-count-to-weeks conversion to do here --
+// unlike the old `window_sessions`, this needs no client-side constant to
+// compare against.
+function nameWithDrawdown(symbol, context) {
+  const ctx = context && context[symbol];
+  if (!ctx || ctx.drawdown_pct == null) return esc(symbol);
+  return `${esc(symbol)} (${fmtPct(ctx.drawdown_pct)} vs ${ctx.window_weeks}w peak)`;
+}
+
+function renderCycleStagePanel(d) {
+  const cs = d.cycle_stages;
+  const box = $('sec-cycle');
+  if (!cs) { box.innerHTML = ''; return; }
+
+  const label = cs.group_label
+    ? esc(cs.group_label)
+    : '<span class="lvl-meta">not enough history to classify any constituent</span>';
+
+  const counts = cs.counts || {};
+  const bySymbol = cs.by_symbol || {};
+  const context = cs.context || {};
+  // Defensive, not decorative: if the server ever adds or renames a stage
+  // without this list being updated to match, a silently-dropped stage would
+  // look like "the group has fewer stages now" rather than "this display list
+  // is stale" -- surfaced instead of hidden.
+  const unknownStages = Object.keys(counts).filter(s => !CYCLE_STAGE_ORDER.includes(s) && counts[s] > 0);
+  const rows = CYCLE_STAGE_ORDER.map(stage => {
+    const n = counts[stage] || 0;
+    const names = Object.keys(bySymbol)
+      .filter(s => bySymbol[s] === stage)
+      .sort();
+    const nameList = names.length
+      ? names.map(s => nameWithDrawdown(s, context)).join(', ')
+      : '<span class="lvl-meta">none</span>';
+    return `<div class="cyc-stage-row${n ? '' : ' cyc-stage-row-empty'}">`
+      + `<span class="cyc-stage-name">${esc(stage)}</span>`
+      + `<span class="cyc-stage-count">${n}</span>`
+      + `<span class="cyc-stage-names">${nameList}</span></div>`;
+  }).join('');
+
+  const unclassified = cs.unclassified || [];
+  const unclassifiedNote = unclassified.length
+    ? `<p class="sub">${unclassified.length} not enough history to classify: ${esc(unclassified.join(', '))}</p>`
+    : '';
+  const unknownStageNote = unknownStages.length
+    ? `<p class="sub cyc-stage-warn">Server reports ${unknownStages.length} stage(s) this view cannot `
+      + `display (${esc(unknownStages.join(', '))}) -- not counted above.</p>`
+    : '';
+
+  box.innerHTML = `<div class="cyc-stage-panel">
+    <div class="cyc-stage-head">
+      <span class="cyc-stage-label-k">Cycle stage</span>
+      <span class="cyc-stage-label-v">${label}</span>
+      <span class="lvl-meta">${cs.n_classified || 0} of ${(cs.n_classified || 0) + unclassified.length} classified</span>
+    </div>
+    <div class="cyc-stage-rows">${rows}</div>
+    ${unclassifiedNote}
+    ${unknownStageNote}
+    <p class="sub">Built on the standard definitions of these words, not on indicators: a decline of
+      10&ndash;20% from a name's own peak is a <em>correction</em>, past 20% is a <em>bear market</em>,
+      and a rally of 20%+ off its own trough is what starts a <em>new bull market</em>. No moving
+      averages, no oscillators, no benchmark &mdash; closing prices against each name's own peak and
+      trough, plus which way it has moved over the last month. The percentage beside each name is
+      its drawdown from that peak, since that is the number the label is actually derived from.
+      "Local Peak" means within 10% of the peak with the advance stalled &mdash; the distribution
+      phase &mdash; not a claim about an all-time high. The group label is whichever stage the most
+      names sit in, with ties shown as ties. None of it forecasts what happens next.</p>
+  </div>`;
+}
+
+
+async function saveCycleRow(row) {
+  const req = fetch('/api/cycle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(row),
+  });
+  cycleSaving = req.then(() => undefined, () => undefined);   // settled either way, for waiters
+  try {
+    const res = await req;
+    let d = {};
+    try { d = await res.json(); } catch { /* fall through to the status check */ }
+    if (!res.ok || d.error) throw new Error(d.error || `HTTP ${res.status}`);
+    state.cycle = d;   // the server read the file back after writing: the freshest copy there is
+    return d;
+  } finally {
+    cycleSaving = null;
+  }
+}
+
+/** A notice inside the cycle card, next to what it is about, rather than in the
+ *  page-level box at the top. `html` must already be escaped. */
+function cycleNotice(kind, html) {
+  const box = $('cyc-notices');
+  // One error at a time, as showError does: repeated failed saves would
+  // otherwise stack identical banners until they push the review off-screen.
+  if (kind === 'err') box.querySelectorAll('.notice.err').forEach(n => n.remove());
+  box.appendChild(buildNotice(kind, html));
+}
+
+function statusBadge(status, scored, n, small) {
+  const sm = small ? ' sm' : '';
+  if (!status) return `<span class="cyc-badge${sm} st-none">Incomplete · ${scored} of ${n} scored</span>`;
+  return `<span class="cyc-badge${sm} ${stClass(status)}">${esc(status)}</span>`;
+}
+
+/** "2026-01-31" -> "Jan '26" for the trend labels, or "Jan 31" when another
+ *  review shares the month (a mid-month re-score after a print), so two columns
+ *  never carry the same label. */
+function fmtMonth(iso, shared) {
+  const [y, m, day] = (iso || '').split('-');
+  if (!m || !MONTHS[+m - 1]) return iso || '';
+  return shared ? `${MONTHS[+m - 1]} ${+day}` : `${MONTHS[+m - 1]} '${String(y).slice(2)}`;
+}
+
+/** Today in the browser's own calendar, YYYY-MM-DD. Computed when the form is
+ *  drawn rather than when the payload was fetched, so a tab left open past
+ *  midnight does not default a new review to yesterday. The server still
+ *  rejects a future date; that check is the authority, this is the default. */
+function localToday() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
+async function fetchEnterpriseAI() {
+  try {
+    const response = await fetch('/api/enterprise-ai-briefing');
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || 'Request failed');
+    state.enterpriseAI = data;
+    renderEnterpriseAI();
+  } catch (error) {
+    state.enterpriseAI = { error: error.message };
+    renderEnterpriseAI();
+  }
+}
+
+function renderEnterpriseAI() {
+  const data = state.enterpriseAI;
+  if (!data || data.error) {
+    $('enterprise-ai-stamp').textContent = '';
+    $('enterprise-ai-summary').innerHTML = `<div class="notice err">${esc(data?.error || 'Loading…')}</div>`;
+    $('enterprise-ai-stocks').innerHTML = '';
+    return;
+  }
+  const stocks = data.stocks || [];
+  $('enterprise-ai-stamp').textContent = `${esc(data.title || 'Scheduled briefing')} · ${esc(data.briefing_date || '')}`;
+  $('enterprise-ai-summary').innerHTML = `<div class="enterprise-ai-summary">${esc(data.summary || '')} ${stocks.length} stocks mentioned. Quotes are fetched from the desk’s configured market-data feed; unavailable data is shown explicitly.</div>`;
+  $('enterprise-ai-stocks').innerHTML = stocks.map(stock => `
+    <article class="enterprise-ai-stock">
+      <div class="enterprise-ai-head"><button class="enterprise-ai-symbol" type="button" data-symbol="${esc(stock.symbol)}">${esc(stock.symbol)}</button><span class="enterprise-ai-quote" data-quote="${esc(stock.symbol)}">Loading quote…</span></div>
+      <div class="enterprise-ai-name">${esc(stock.name)}</div>
+      <div class="enterprise-ai-role">${esc(stock.role)}</div>
+      <p><b>What it does:</b> ${esc(stock.does)}</p>
+      <p><b>Briefing:</b> ${esc(stock.briefing)}</p>
+    </article>`).join('');
+  $('enterprise-ai-stocks').querySelectorAll('[data-symbol]').forEach(button => {
+    button.onclick = () => fetchStock(button.dataset.symbol, false);
+  });
+  stocks.forEach(stock => fetchEnterpriseAIQuote(stock.symbol));
+}
+
+async function fetchEnterpriseAIQuote(symbol) {
+  const target = document.querySelector(`[data-quote="${CSS.escape(symbol)}"]`);
+  if (!target) return;
+  try {
+    const response = await fetch(`/api/stock?symbol=${encodeURIComponent(symbol)}`);
+    const data = await response.json();
+    if (data.error || !data.bars || !data.bars.length) throw new Error(data.error || 'No real bars returned');
+    const last = data.bars[data.bars.length - 1];
+    target.textContent = `${fmtPx(last.c)} · ${last.t}`;
+  } catch (error) {
+    target.textContent = `Quote unavailable · ${error.message}`;
+  }
+}
+
+function renderCycle() {
+  const d = state.cycle;
+  if (!d) { $('cyc-status').innerHTML = '<div class="loading">Loading…</div>'; return; }
+  const n = d.indicators.length;
+  const stamp = d.generated_at ? new Date(d.generated_at).toLocaleTimeString('en-US') : '';
+  $('cyc-stamp').textContent = stamp ? `read ${stamp} · ${d.log_path}` : '';
+  $('cyc-sub').textContent =
+    `${n} indicators of the hyperscaler buildout, each scored 0–${d.score_max} once a month from `
+    + `primary sources and summed to a GREEN / YELLOW / RED reading out of ${d.max_score}. Nothing `
+    + `here is computed from market data: every figure is a judgment recorded in ${d.log_path}, and `
+    + `the criteria come from ${d.doc}.`;
+
+  // ---- notices: what was wrong with the file, and whether the rubric loaded
+  $('cyc-notices').innerHTML = '';
+  (d.warnings || []).forEach(w => cycleNotice('warn', esc(w)));
+  if (d.rubric_error) {
+    cycleNotice('warn', `Criteria could not be read from ${esc(d.doc)}: ${esc(d.rubric_error)}. `
+      + `Scores still save; the document has the rubric.`);
+  }
+
+  // ---- latest review
+  const L = d.latest, P = d.previous;
+  if (!L) {
+    $('cyc-status').innerHTML = `<div class="cyc-empty"><div class="lede">No reviews logged yet</div>`
+      + `<p class="sub" style="margin:6px 0 0">${d.exists
+          ? `${esc(d.log_path)} has no rows.`
+          : `${esc(d.log_path)} does not exist yet; the first save creates it with the template's columns.`}`
+      + ` Score this month in the form below.</p></div>`;
+  } else {
+    let deltaTxt;
+    if (!P) deltaTxt = 'first review logged';
+    else if (L.total == null) deltaTxt = `incomplete, so no change to report vs ${P.review_date}`;
+    else if (P.total == null) deltaTxt = `previous review (${P.review_date}) was incomplete`;
+    else if (L.total === P.total) deltaTxt = `unchanged vs ${P.review_date}`;
+    else deltaTxt = `${L.total > P.total ? '+' : '−'}${Math.abs(L.total - P.total)} vs ${P.review_date}`;
+    const was = P && P.status && L.status && P.status !== L.status ? ` · was ${P.status}` : '';
+    $('cyc-status').innerHTML = `
+      <div class="hero cyc-hero">
+        <div>
+          <div class="lede">Latest review · ${esc(L.review_date)}</div>
+          <div class="cyc-status-line">${statusBadge(L.status, L.scored, n)}
+            <span class="cyc-total">${L.total == null ? '—' : L.total}<span class="cyc-of"> / ${d.max_score}</span></span></div>
+          <div class="meta">${esc(deltaTxt)}${esc(was)}</div>
+        </div>
+        <div class="stat cyc-q">
+          <div class="k">Core question</div>
+          <div class="cyc-q-v">${L.core_question ? esc(L.core_question) : '—'}</div>
+          <div class="meta">${esc(d.core_question || '')}</div>
+        </div>
+        <div class="stat cyc-q">
+          <div class="k">Assumption changed</div>
+          <div class="cyc-q-v">${L.assumption_changed ? esc(L.assumption_changed) : '—'}</div>
+        </div>
+      </div>`;
+  }
+
+  // ---- one tile per indicator: the score, the level it meets, the move since
+  // the previous review, and the criterion that level is defined by.
+  $('cyc-tiles').innerHTML = `<h3 class="rev-h3">Indicators${L ? ` · ${esc(L.review_date)}` : ''}</h3>`
+    + `<div class="cyc-tiles">` + d.indicators.map(ind => {
+      const s = L ? L.scores[ind.key] : null;
+      const prev = P ? P.scores[ind.key] : null;
+      const lvl = s == null ? null : LEVEL_OF_SCORE[s];
+      const dlt = (s != null && prev != null) ? s - prev : null;
+      const dTxt = dlt == null ? '' : dlt === 0 ? '· same' : dlt > 0 ? `· ▲ from ${prev}` : `· ▼ from ${prev}`;
+      const crit = lvl && ind.rubric && ind.rubric[lvl] ? ind.rubric[lvl] : (ind.title || '');
+      return `<div class="cyc-tile ${stClass(lvl)}">
+        <div class="k">${esc(ind.label)}</div>
+        <div class="v">${s == null ? '—' : s}<span class="cyc-lvl">${lvl ? esc(lvl) : 'not scored'} ${esc(dTxt)}</span></div>
+        <div class="n">${esc(crit)}</div></div>`;
+    }).join('') + `</div>`;
+
+  renderCycleHistory(d);
+  // Preserve a half-entered review across a re-render (Refresh, a save).
+  renderCycleForm(d, cycleFormValues());
+
+  $('cyc-disclaimer').textContent =
+    'Observations recorded by hand, not recommendations. The framework, its criteria and its bands '
+    + `live in ${d.doc}; this page reads and writes ${d.log_path} and computes nothing else. `
+    + 'An indicator not checked this month stays blank — it is never carried forward — and a review '
+    + 'with a blank has no total and no status.';
+}
+
+function renderCycleHistory(d) {
+  const rows = d.rows || [];
+  if (!rows.length) { $('cyc-trend').innerHTML = ''; $('cyc-history').innerHTML = ''; return; }
+
+  const perMonth = {};
+  rows.forEach(r => { const k = r.review_date.slice(0, 7); perMonth[k] = (perMonth[k] || 0) + 1; });
+  $('cyc-trend').innerHTML = `<h3 class="rev-h3">Trend</h3><div class="cyc-trend">` + rows.map(r => {
+    const h = r.total == null ? 0 : Math.round(r.total / d.max_score * 100);
+    const title = r.total == null ? `${r.review_date}: incomplete` : `${r.review_date}: ${r.total} / ${d.max_score} ${r.status}`;
+    return `<div class="cyc-col" title="${esc(title)}">
+      <div class="cyc-col-val">${r.total == null ? '—' : r.total}</div>
+      <div class="cyc-col-track"><div class="cyc-col-fill ${stClass(r.status)}" style="height:${h}%"></div></div>
+      <div class="cyc-col-lbl">${esc(fmtMonth(r.review_date, perMonth[r.review_date.slice(0, 7)] > 1))}</div></div>`;
+  }).join('') + `</div>`;
+
+  // Newest first in the table -- the column headers are the CSV's own column
+  // names, so the table doubles as a key to the file.
+  const body = [...rows].reverse().map(r => `<tr>
+    <td>${esc(r.review_date)}</td>
+    ${d.indicators.map(i => { const s = r.scores[i.key]; return `<td class="${s == null ? 'muted' : ''}">${s == null ? '—' : s}</td>`; }).join('')}
+    <td>${r.total == null ? '—' : r.total}</td>
+    <td>${r.status ? statusBadge(r.status, r.scored, d.indicators.length, true) : `<span class="muted">${r.scored}/${d.indicators.length}</span>`}</td>
+    <td class="cyc-txt">${esc(r.core_question) || '—'}</td>
+    <td class="cyc-txt">${esc(r.assumption_changed) || '—'}</td>
+    <td class="cyc-txt cyc-notes">${esc(r.notes) || '—'}</td></tr>`).join('');
+  $('cyc-history').innerHTML = `<h3 class="rev-h3">History · ${rows.length} review${rows.length === 1 ? '' : 's'}</h3>`
+    + `<div class="table-wrap"><table class="cyc-tbl"><thead><tr><th>review_date</th>`
+    + d.indicators.map(i => `<th title="${esc(i.label)}">${esc(i.key)}</th>`).join('')
+    + `<th>total</th><th>status</th><th class="cyc-txt">core_question</th><th class="cyc-txt">assumption_changed</th>`
+    + `<th class="cyc-txt">notes</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+/** What the form currently holds, or null if it has not been drawn yet. */
+function cycleFormValues() {
+  const f = $('cyc-form').querySelector('form');
+  if (!f || !state.cycle) return null;
+  const fd = new FormData(f);
+  const out = {
+    review_date: fd.get('review_date') || '',
+    scores: {},
+    core_question: fd.get('core_question') || '',
+    assumption_changed: fd.get('assumption_changed') || '',
+    notes: fd.get('notes') || '',
+  };
+  state.cycle.indicators.forEach(i => {
+    const v = fd.get(`score_${i.key}`);
+    out.scores[i.key] = (v == null || v === '') ? null : Number(v);
+  });
+  return out;
+}
+
+/** The logged review for a date, or null. */
+const loggedFor = (d, date) => (d.rows || []).find(r => r.review_date === date) || null;
+
+/** The values a form for `date` starts from: that date's logged review if there
+ *  is one, otherwise an empty review. Never another month's scores. */
+function formValuesFor(d, date) {
+  const row = loggedFor(d, date);
+  if (row) {
+    return { review_date: row.review_date, scores: { ...row.scores },
+             core_question: row.core_question, assumption_changed: row.assumption_changed, notes: row.notes };
+  }
+  return { review_date: date, scores: Object.fromEntries(d.indicators.map(i => [i.key, null])),
+           core_question: '', assumption_changed: '', notes: '' };
+}
+
+function formIsEmpty(v) {
+  return Object.values(v.scores).every(x => x == null)
+    && !v.core_question.trim() && !v.assumption_changed.trim() && !v.notes.trim();
+}
+
+/** Same review, as the server would store it: text trimmed, newlines normalised. */
+function sameReview(a, b) {
+  const norm = s => String(s || '').replace(/\r\n/g, '\n').trim();
+  return a.review_date === b.review_date
+    && ['core_question', 'assumption_changed', 'notes'].every(k => norm(a[k]) === norm(b[k]))
+    && Object.keys(a.scores).every(k => (a.scores[k] ?? null) === (b.scores[k] ?? null));
+}
+
+function renderCycleForm(d, keep) {
+  // What to draw. A half-entered review survives a re-render (Refresh, a save);
+  // a form that is empty, or that matches the log's row for its date, is redrawn
+  // from the log so a hand edit to the file shows up; a form that has diverged
+  // from the log is kept as typed, and the banner says the two differ.
+  let vals;
+  if (!keep || !keep.review_date) {
+    vals = formValuesFor(d, localToday());
+  } else {
+    const logged = loggedFor(d, keep.review_date);
+    vals = logged && (formIsEmpty(keep) || sameReview(keep, formValuesFor(d, keep.review_date)))
+      ? formValuesFor(d, keep.review_date) : keep;
+  }
+  const opt = (v, cur, label) =>
+    `<option value="${v}"${(cur == null ? '' : String(cur)) === String(v) ? ' selected' : ''}>${label}</option>`;
+
+  const rowsHtml = d.indicators.map(ind => {
+    const cur = vals.scores[ind.key];
+    const rub = ind.rubric || {};
+    return `<div class="cyc-frow">
+      <div class="cyc-fhead"><label for="cyc-s-${ind.key}">${esc(ind.label)}</label>
+        ${ind.title ? `<span class="meta">${esc(ind.title)}</span>` : ''}</div>
+      <select id="cyc-s-${ind.key}" name="score_${ind.key}" data-key="${ind.key}">
+        ${opt('', cur, '— not scored')}${opt(2, cur, '2 · GREEN')}${opt(1, cur, '1 · YELLOW')}${opt(0, cur, '0 · RED')}
+      </select>
+      <div class="cyc-rubric">${['GREEN', 'YELLOW', 'RED'].map(lv => rub[lv]
+        ? `<div class="cyc-crit ${stClass(lv)}" data-level="${lv}"><b>${lv}</b> ${esc(rub[lv])}</div>`
+        : '').join('')}</div>
+      ${ind.track && ind.track.length
+        ? `<details class="cyc-track"><summary>What to check</summary><ul>${ind.track.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`
+        : ''}
+    </div>`;
+  }).join('');
+
+  $('cyc-form').innerHTML = `<h3 class="rev-h3">Score this month</h3>
+    <form class="cyc-form" autocomplete="off">
+      <div class="cyc-fmeta">
+        <label>Review date <input type="date" name="review_date" value="${esc(vals.review_date)}" required></label>
+        <span class="meta" id="cyc-banner"></span>
+      </div>
+      <div class="cyc-frows">${rowsHtml}</div>
+      <div class="cyc-ftext">
+        <label>Core question — ${esc(d.core_question || 'starting from cash, would you own the same names at the same weights?')}
+          <input type="text" name="core_question" value="${esc(vals.core_question)}" maxlength="4000"
+                 placeholder="yes, or the names you would not"></label>
+        <label>Assumption changed
+          <input type="text" name="assumption_changed" value="${esc(vals.assumption_changed)}" maxlength="4000"
+                 placeholder="unchanged — or what was true last month and is not now"></label>
+        <label>Notes
+          <textarea name="notes" rows="3" maxlength="4000"
+                    placeholder="Sources checked, and anything that did not fit a cell">${esc(vals.notes)}</textarea></label>
+      </div>
+      <div class="cyc-fsave"><span class="meta" id="cyc-ftotal"></span><span class="spacer"></span>
+        <button type="submit" class="primary">Save to ${esc(d.log)}</button></div>
+    </form>`;
+
+  const form = $('cyc-form').querySelector('form');
+
+  const updateTotal = () => {
+    const v = cycleFormValues();
+    const all = Object.values(v.scores);
+    const scored = all.filter(x => x != null).length;
+    const total = scored === all.length ? all.reduce((a, b) => a + b, 0) : null;
+    const st = total == null ? null : (d.bands.find(b => total >= b.lo && total <= b.hi) || {}).status;
+    $('cyc-ftotal').innerHTML = total == null
+      ? `${scored} of ${all.length} scored — total and status stay blank until all ${all.length} are.`
+      : `Total <b>${total}</b> / ${d.max_score} → ${statusBadge(st, scored, all.length, true)}`;
+    form.querySelectorAll('select[data-key]').forEach(sel => {
+      const cur = sel.value === '' ? null : Number(sel.value);
+      sel.closest('.cyc-frow').querySelectorAll('.cyc-crit').forEach(c =>
+        c.classList.toggle('on', cur != null && LEVEL_OF_SCORE[cur] === c.dataset.level));
+    });
+  };
+
+  // The banner names what saving will do to the log: append a new review,
+  // replace the logged one the form matches, or replace one that differs
+  // from what is typed -- in which case it offers to load the logged values.
+  const updateBanner = () => {
+    const v = cycleFormValues();
+    const logged = loggedFor(d, v.review_date);
+    const el = $('cyc-banner');
+    el.replaceChildren();
+    if (!logged) {
+      el.textContent = 'A new review. An indicator you skip stays blank; nothing is carried forward from last month.';
+      // The framework says to re-score the month's review when a print lands,
+      // which means editing that row, not adding a second one for the month.
+      const sameMonth = (d.rows || []).filter(r => r.review_date.slice(0, 7) === v.review_date.slice(0, 7)).pop();
+      if (sameMonth) {
+        el.append(` A review dated ${sameMonth.review_date} is already logged this month; to re-score it instead of adding another, `);
+        const use = document.createElement('button');
+        use.type = 'button';
+        use.textContent = `use ${sameMonth.review_date}`;
+        use.onclick = () => {
+          form.querySelector('[name=review_date]').value = sameMonth.review_date;
+          onDateChange();
+        };
+        el.append(use);
+      }
+      return;
+    }
+    if (sameReview(v, formValuesFor(d, v.review_date))) {
+      el.textContent = `Editing the review dated ${logged.review_date} — saving replaces it.`;
+      return;
+    }
+    el.textContent = `A review dated ${logged.review_date} is already logged and differs from the form — saving replaces it. `;
+    const load = document.createElement('button');
+    load.type = 'button';
+    load.textContent = 'Load the logged review';
+    load.onclick = () => setFormValues(formValuesFor(d, v.review_date));
+    el.append(load);
+  };
+
+  /** Put values into the existing controls. Never rebuilds the form, so focus,
+   *  scroll position and any opened "What to check" list survive. */
+  const setFormValues = next => {
+    form.querySelector('[name=review_date]').value = next.review_date;
+    d.indicators.forEach(i => {
+      form.querySelector(`[name=score_${i.key}]`).value = next.scores[i.key] == null ? '' : String(next.scores[i.key]);
+    });
+    ['core_question', 'assumption_changed', 'notes'].forEach(k => { form.querySelector(`[name=${k}]`).value = next[k] || ''; });
+    updateTotal();
+    updateBanner();
+  };
+
+  // Changing the date never rebuilds the form or discards what is typed: a
+  // date input fires change on every keyboard step, and each step would
+  // otherwise wipe seven scores. An empty form loads the logged review for the
+  // new date if there is one; a form with entries keeps them, and the banner
+  // offers to load instead.
+  const onDateChange = () => {
+    const v = cycleFormValues();
+    if (loggedFor(d, v.review_date) && formIsEmpty(v)) setFormValues(formValuesFor(d, v.review_date));
+    else updateBanner();
+  };
+  form.querySelectorAll('select').forEach(s => { s.onchange = () => { updateTotal(); updateBanner(); }; });
+  form.querySelectorAll('input[type=text], textarea').forEach(el => { el.oninput = updateBanner; });
+  form.querySelector('[name=review_date]').onchange = onDateChange;
+  updateTotal();
+  updateBanner();
+
+  form.onsubmit = async ev => {
+    ev.preventDefault();
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    const payload = cycleFormValues();
+    try {
+      await saveCycleRow(payload);
+      renderCycle();   // redraws from the server's copy; the form matches the saved row, so it too comes from the log
+      cycleNotice('ok', `Saved the review dated <b>${esc(payload.review_date)}</b> to ${esc(state.cycle.log_path)}.`);
+    } catch (e) {
+      cycleNotice('err', `Not saved: ${esc(e.message)}`);
+      btn.disabled = false;
+    }
+  };
 }
 
 function renderLookbackTabs() {
@@ -1711,33 +2968,24 @@ function renderDetail() {
 function renderAll() {
   renderViewTabs();
 
-  // The calendar and the daily review both report on something other than a
-  // ranked group, so the group-ranking furniture (hero, ranking bars, movers
-  // strip, ranking table) and the lookback filter have nothing to scope. They
-  // are hidden rather than left showing stale figures.
+  // A solo view reports on something other than a ranked group, so the
+  // group-ranking furniture (hero, ranking bars, movers strip, ranking table)
+  // and the lookback filter have nothing to scope. They are hidden rather than
+  // left showing stale figures, and only the current view's own card shows.
   const v = currentView();
-  const calendar = !!v.calendar;
-  const review = !!v.solo;
-  const soloView = calendar || review;
+  const soloView = !!v.solo;
   ['hero-card', 'rank-card', 'leaders-card', 'rank-table-card'].forEach(id => {
     const el = $(id);
     if (el) el.classList.toggle('hidden', soloView);
   });
   $('lookback-row').classList.toggle('hidden', soloView);
-  $('earnings-card').classList.toggle('hidden', !calendar);
-  $('review-card').classList.toggle('hidden', !review);
+  VIEWS.filter(x => x.card).forEach(x => $(x.card).classList.toggle('hidden', x.key !== v.key));
 
   if (soloView) {
-    if (calendar) {
-      if (!state.earnings) fetchEarnings();
-      else renderEarnings();
-      // Keep whatever symbol is charted; calendar rows can change it.
-      if (state.stock) renderDetail();
-    } else if (!state.review) {
-      fetchReview();          // renderReview() runs when it lands
-    } else {
-      renderReview();
-    }
+    if (state[v.key]) v.draw();
+    else v.load();            // draws itself when the data lands
+    // Keep whatever symbol is charted; calendar and review rows can change it.
+    if (state.stock) renderDetail();
     return;
   }
 
@@ -1814,11 +3062,20 @@ function init() {
     $('notices').innerHTML = '';
     fetchBoard(true);
     if (state.symbol) fetchStock(state.symbol, true);
-    // Both solo views cache server-side, so without this Refresh left them
-    // stale with no way for the user to force a rebuild.
-    if (currentView().calendar) fetchEarnings(true);
-    if (currentView().solo) fetchReview(true);
+    // The solo views cache server-side (the cycle log is re-read per request,
+    // but a row edited by hand still needs a re-pull to show up), so without
+    // this Refresh left the one on screen stale with no way to force a rebuild.
+    const v = currentView();
+    if (v.solo) v.load(true);
   };
+
+  $('vwap-refresh').onclick = () => fetchSessionVwap(true);
+  // Only poll the visible review. Each response retains its actual bar cutoff.
+  setInterval(() => {
+    if (state.view === 'review' && !document.hidden && !$('vwap-refresh').disabled) {
+      fetchSessionVwap(false);
+    }
+  }, 120000);
 
   const applyTheme = next => {
     document.documentElement.dataset.theme = next;

@@ -1,0 +1,21 @@
+{
+  "briefing_date": "2026-09-20",
+  "title": "Enterprise AI & Automation Briefing",
+  "summary": "Sunday's briefing focused on robotics applications, AI-native networking, security containment, and the electrical infrastructure needed for large-scale compute.",
+  "stocks": [
+    {"symbol":"FFAI","name":"Faraday Future","role":"Physical AI / robotics","does":"Builds electric vehicles and embodied-AI robots.","briefing":"Launched nine robot configurations and packaged industrial solutions; an architectural signal, not proof of scale."},
+    {"symbol":"NVDA","name":"Nvidia","role":"AI compute","does":"Designs GPUs, networking, and software used to train and run AI.","briefing":"AI semiconductors led Friday's tape; NVDA gained 1.34%, supporting the view that compute demand remains intact."},
+    {"symbol":"MU","name":"Micron","role":"AI memory","does":"Makes memory and storage semiconductors, including high-bandwidth memory for AI systems.","briefing":"Cited among Friday's largest positive S&P contributors."},
+    {"symbol":"GOOGL","name":"Alphabet","role":"Enterprise AI / security","does":"Operates Google Search, Cloud, Gemini, and other internet and AI products.","briefing":"Google disclosed that Gemini accessed three real companies during a security test, highlighting the need for agent containment."},
+    {"symbol":"MSFT","name":"Microsoft","role":"Enterprise AI / software","does":"Provides Azure cloud, business software, developer tools, and Copilot AI products.","briefing":"Cited as a Friday index drag while investors demanded clearer application-layer AI monetization."},
+    {"symbol":"CSCO","name":"Cisco","role":"AI networking / security","does":"Sells networking, observability, security, and collaboration infrastructure.","briefing":"Named among companies benefiting from AI-driven demand for networking, fiber, and security controls."},
+    {"symbol":"GLW","name":"Corning","role":"Fiber / optical infrastructure","does":"Makes optical fiber, connectivity, glass, and advanced materials.","briefing":"Highlighted as part of the optical backbone supporting the AI buildout."},
+    {"symbol":"LUMN","name":"Lumen Technologies","role":"Fiber / networking","does":"Operates fiber networks and provides connectivity and managed network services.","briefing":"Cited as a beneficiary of rising demand for fiber and legacy telecom conduit."},
+    {"symbol":"COHR","name":"Coherent","role":"Optical infrastructure","does":"Makes lasers, optical components, and engineered materials for communications and industry.","briefing":"Again outperformed in the optical and networking group."},
+    {"symbol":"LITE","name":"Lumentum","role":"Optical infrastructure","does":"Makes optical and photonic products for cloud, telecom, and industrial customers.","briefing":"Named among the optical names showing relative strength."},
+    {"symbol":"CRM","name":"Salesforce","role":"Enterprise software / agents","does":"Provides CRM software and Agentforce automation for sales, service, and marketing.","briefing":"CRM fell 2.03% Friday as investors pressed application vendors for clearer AI monetization."},
+    {"symbol":"NOW","name":"ServiceNow","role":"Enterprise software / agents","does":"Runs digital workflows and enterprise operations software with AI agents.","briefing":"NOW fell 2.17% Friday, reflecting pressure on high-multiple software."},
+    {"symbol":"ORCL","name":"Oracle","role":"Cloud / enterprise AI","does":"Provides databases, cloud infrastructure, and enterprise applications.","briefing":"ORCL fell 1.98% Friday and was part of the software group lagging physical infrastructure."},
+    {"symbol":"PATH","name":"UiPath","role":"Automation / agents","does":"Provides robotic process automation and agent orchestration software.","briefing":"PATH fell 2.69%; the briefing framed it between a large orchestration opportunity and RPA-disruption risk."}
+  ]
+}

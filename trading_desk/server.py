@@ -20,13 +20,14 @@ import csv
 import json
 import os
 import statistics
+import subprocess
 import sys
 import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -37,13 +38,19 @@ sys.path.insert(0, str(HERE))
 # so the repo root has to be added for the optional `lumibot` SEC import.
 sys.path.append(str(REPO_ROOT))
 
+import cycle  # noqa: E402
 import fundamentals  # noqa: E402
 import earnings  # noqa: E402
 import indicators  # noqa: E402
+import paper_agent  # noqa: E402
+import sector_signals  # noqa: E402
 import universe  # noqa: E402
+import session_vwap  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 CACHE_PATH = HERE / "cache.json"
+ENTERPRISE_AI_BRIEFING_PATH = HERE / "enterprise_ai_briefing.json"
+SCHWAB_TRADE_HELPER = REPO_ROOT / "scripts" / "schwab_trade.py"
 
 # Feed selection.
 #
@@ -103,17 +110,22 @@ DETAIL_CACHE_MAX = 60
 # time on prices up to STOCK_TTL old -- the page would overstate its own
 # freshness. Equal means a rebuild and a bar refresh come due together.
 REVIEW_TTL = STOCK_TTL
+# Headlines age differently from bars: a print at 09:05 matters at 09:06, and the
+# feed is cheap, so this is shorter than REVIEW_TTL rather than tied to it.
+REVIEW_NEWS_TTL = 120
+# The review only ever asks for held symbols, but the helper is callable with
+# any of them, so the cache is bounded rather than trusting the call site.
+REVIEW_NEWS_CACHE_MAX = 30
+# The cycle doc calls itself a monthly check, so a score older than this is
+# overdue rather than merely old. Reported, never acted on.
+CYCLE_STALE_DAYS = 35
 # Holdings deliberately left out of the review's risk math and flags, at the
-# desk owner's instruction. They are still reported, in a separate section:
-# silently dropping a real position would make the review actively misleading
-# about concentration -- and IBIT alone is over half the book.
+# desk owner's instruction. They are still reported in a separate section so a
+# real position is never silently lost from the account view.
 #
 # A mapping rather than a set so the reason travels with the symbol and shows up
-# on the page. "Excluded" covers two quite different cases and a bare set would
-# flatten them: one is a large position the owner does not want commentary on,
-# the other is a residual too small to act on.
+# on the page.
 REVIEW_EXCLUDE: dict[str, str] = {
-    "IBIT": "Bitcoin position, held by choice — not part of the swing book",
     "SNDL": "Residual position, too small to act on",
 }
 # The desk owner's stated swing horizon. A print landing inside this window
@@ -129,8 +141,9 @@ _lock = threading.Lock()
 _board_build_lock = threading.Lock()
 _earnings_build_lock = threading.Lock()
 _review_build_lock = threading.Lock()
+_sector_build_lock = threading.Lock()
 _cache: dict = {"board": None, "board_ts": 0.0, "stocks": {}, "details": {}, "earnings": {},
-                "review": None, "review_ts": 0.0}
+                "review": None, "review_ts": 0.0, "review_news": {}, "sector": {}}
 
 
 # --------------------------------------------------------------------------
@@ -749,6 +762,84 @@ def _last_of(series: list) -> float | None:
     return None
 
 
+def review_news(symbol: str, *, limit: int = 3, force: bool = False) -> dict:
+    """Latest headlines for one held symbol, verbatim from the feed.
+
+    Deliberately no sentiment score, no "bullish/bearish" tag, and no summary.
+    Scoring a headline would be inventing a number the feed does not carry and
+    dressing a guess as a signal -- the same reason the cycle dashboard is
+    hand-entered. The desk reports what was published; reading it is the job.
+
+    Degrades on its own, like the other blocks in `get_detail`: a news outage
+    returns an `error` and leaves the rest of the review intact.
+    """
+    key = symbol.upper()
+    with _lock:
+        hit = _cache["review_news"].get(key)
+        if hit and not force and time.time() - hit["ts"] < REVIEW_NEWS_TTL:
+            return hit["data"]
+    try:
+        items = fundamentals.get_news(
+            key, HEADERS["APCA-API-KEY-ID"], HEADERS["APCA-API-SECRET-KEY"], limit=limit
+        )
+    except Exception as e:  # noqa: BLE001 - one dead feed must not kill the review
+        # Never cache a failure, the same rule get_earnings_calendar states: a
+        # one-second blip would otherwise pin "news unavailable" for the whole
+        # TTL and keep showing it after the feed had recovered.
+        return {"items": [], "error": str(e)}
+    data = {"items": items[:limit], "error": None}
+    with _lock:
+        store = _cache["review_news"]
+        store[key] = {"ts": time.time(), "data": data}
+        # Bounded like the sibling per-symbol caches (details is capped by
+        # DETAIL_CACHE_MAX). Only held symbols reach this today, but nothing in
+        # the signature enforces that -- a caller looping the universe would
+        # otherwise retain every payload for the process lifetime.
+        if len(store) > REVIEW_NEWS_CACHE_MAX:
+            for old_key in sorted(store, key=lambda k: store[k]["ts"])[
+                    : len(store) - REVIEW_NEWS_CACHE_MAX]:
+                store.pop(old_key, None)
+    return data
+
+
+def cycle_status() -> dict:
+    """The latest hand-entered cycle score, or why there is not one.
+
+    The review answers where a position sits against its levels today; this
+    answers whether the reason for holding it still stands. Neither is derived
+    from the other, and this one is not computed at all -- it is read back from
+    `trading_records/cycle-score.csv` exactly as it was entered.
+    """
+    try:
+        log = cycle.read_log()
+    except Exception as e:  # noqa: BLE001
+        return {"available": False, "reason": str(e)}
+    rows = log.get("rows") or []
+    if not rows:
+        return {"available": False,
+                "reason": "no score logged yet; score it in the Cycle view",
+                "warnings": log.get("warnings") or []}
+    last = rows[-1]
+    scored = last.get("review_date")
+    days = None
+    if scored:
+        try:
+            days = (date.today() - date.fromisoformat(str(scored))).days
+        except ValueError:
+            days = None
+    return {
+        "available": True,
+        "review_date": scored,
+        "total": last.get("total"),
+        "max": cycle.MAX_SCORE,
+        "status": last.get("status"),
+        "days_since": days,
+        "stale": days is not None and days > CYCLE_STALE_DAYS,
+        "stale_after_days": CYCLE_STALE_DAYS,
+        "warnings": log.get("warnings") or [],
+    }
+
+
 def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, list[str]],
                 *, force: bool = False) -> dict:
     """Everything the review reports for one holding.
@@ -768,9 +859,13 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
         "exclusion_reason": REVIEW_EXCLUDE.get(symbol),
         # Journal hygiene is a fact about the record, available even when the
         # market data fetch fails, so it is filled in before anything else.
+        # Keyed off `stop` (the entry stop), not `stop_current`. This tracks entry
+        # discipline -- the number trading_records/README.md says should trend to
+        # zero -- so a stop decided today must not silence it.
         "lots_without_stop": sum(1 for r in lots if not (r.get("stop") or "").strip()),
         "lots_without_thesis": sum(1 for r in lots if not (r.get("thesis") or "").strip()),
         "lots_without_setup": sum(1 for r in lots if not (r.get("setup") or "").strip()),
+        "lots_with_stop_current": sum(1 for r in lots if (r.get("stop_current") or "").strip()),
     }
     try:
         stock = get_stock(symbol, force=force)
@@ -794,6 +889,16 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
         "rsi14": _last_of(ind.get("rsi14")),
         "atr14": atr,
         "atr_pct": (atr / last * 100.0) if (atr and last) else None,
+        # Depth and duration of this name's own drawdown, the same measure and
+        # the same two horizons the Sector view's pain tile uses. It answers a
+        # question none of the columns beside it can: `pnl_pct` is measured from
+        # whenever this desk happened to buy, so a name 40% off its own peak and
+        # grinding can show a profit, and a name that only dipped this week can
+        # show a loss. Not routed through compute_all -- the 252-session window
+        # costs far more than the 14-20 session ones there, and it would then be
+        # paid on every constituent of every sector scorecard to serve a handful
+        # of held names.
+        "pain": sector_signals.symbol_pain([float(b["c"]) for b in bars]),
         "stale": bool(stock.get("stale")),
     })
     if entry["avg_entry"]:
@@ -832,6 +937,47 @@ def _review_one(symbol: str, held: dict, lots: list[dict], groups: dict[str, lis
     # underwater position has already spent the difference.
     if sup and entry["qty"]:
         entry["risk_to_support"] = (last - sup["level"]) * entry["qty"]
+
+    # `stop_current` is the level being managed from now, separate from the entry
+    # stop. Lots of one symbol normally share it; if they disagree, take the
+    # tightest and say so rather than averaging into a number nobody set.
+    stops = set()
+    for r in lots:
+        raw = (r.get("stop_current") or "").strip()
+        if not raw:
+            continue
+        try:
+            stops.add(float(raw))
+        except ValueError:
+            # A hand-edited cell ("n/a", "$94.00") must not take the whole review
+            # down -- this runs past the get_stock guard above, so an uncaught
+            # raise here escapes _review_one's "raises nothing" contract. Same
+            # treatment open_positions gives a malformed qty/price.
+            entry.setdefault("stop_current_unparsed", []).append(raw)
+    if stops:
+        # Tightest depends on direction: for a long the stop sits below and the
+        # highest is tightest; for a short it sits above and the lowest is.
+        is_short = any((r.get("side") or "").strip().lower() == "short" for r in lots)
+        stop = min(stops) if is_short else max(stops)
+        entry["stop_current"] = stop
+        entry["stop_current_disagrees"] = len(stops) > 1
+        # Only meaningful when every lot agrees; otherwise the dates describe
+        # different decisions and reporting one as if it covered all would assert
+        # a provenance that is wrong for part of the position.
+        set_dates = {(r.get("stop_current_set") or "").strip() for r in lots
+                     if (r.get("stop_current_set") or "").strip()}
+        entry["stop_current_set"] = set_dates.pop() if len(set_dates) == 1 else None
+        # Signed so "through the stop" is always negative, both directions: a long
+        # is through when price falls below, a short when price rises above. There
+        # is no risk left *to* a level already passed, and a positive number there
+        # would read as room that does not exist.
+        per_share = (stop - last) if is_short else (last - stop)
+        if entry["qty"]:
+            entry["risk_to_stop"] = per_share * entry["qty"]
+        entry["stop_distance_pct"] = (stop / last - 1.0) * 100.0 if last else None
+        if atr:
+            entry["stop_distance_atr"] = per_share / atr
+        entry["through_stop"] = per_share < 0
     return entry
 
 
@@ -853,6 +999,18 @@ def _review_flags(e: dict, earn: dict | None) -> list[dict]:
     if e.get("lots_without_thesis"):
         flags.append({"key": "no_thesis", "level": "info",
                       "text": f"No thesis recorded on {e['lots_without_thesis']} lot(s)"})
+
+    if e.get("through_stop"):
+        flags.append({"key": "through_stop", "level": "warn",
+                      "text": f"Price {e['last']:.2f} is below the managed stop "
+                              f"{e['stop_current']:.2f} (set {e.get('stop_current_set') or 'n/a'})"})
+    elif e.get("stop_distance_atr") is not None and e["stop_distance_atr"] <= LEVEL_PROXIMITY_ATR:
+        flags.append({"key": "near_stop", "level": "warn",
+                      "text": f"Within {e['stop_distance_atr']:.1f} ATR of the managed stop "
+                              f"{e['stop_current']:.2f}"})
+    if e.get("stop_current_disagrees"):
+        flags.append({"key": "stop_disagrees", "level": "info",
+                      "text": "Open lots carry different stop_current values; showing the tightest"})
 
     sup, res = e.get("nearest_support"), e.get("nearest_resistance")
     if sup and sup.get("distance_atr") is not None and sup["distance_atr"] <= LEVEL_PROXIMITY_ATR:
@@ -935,10 +1093,15 @@ def build_position_review(force: bool = False) -> dict:
         if e["excluded"]:
             # No flags and no risk math: excluded by instruction, still reported.
             e.pop("risk_to_support", None)
+            e.pop("risk_to_stop", None)
             e["flags"] = []
             excluded.append(e)
         else:
             e["flags"] = _review_flags(e, earn)
+            # Reviewed holdings only. An excluded position is reported for its
+            # weight and nothing else, so fetching its headlines would be calls
+            # spent on a row the page deliberately does not comment on.
+            e["news"] = review_news(symbol, force=force)
             reviewed.append(e)
 
     # Closest to its support first: that is the position where the level the
@@ -980,6 +1143,14 @@ def build_position_review(force: bool = False) -> dict:
             by_group[g] = by_group.get(g, 0.0) + e["market_value"]
 
     risk = sum(e["risk_to_support"] for e in reviewed if e.get("risk_to_support"))
+    # Only positions that actually have a stop contribute, and only the ones
+    # still above it -- summing a negative from a position already through its
+    # stop would understate what the remaining stops are protecting.
+    stop_risk = sum(e["risk_to_stop"] for e in reviewed
+                    if e.get("risk_to_stop") and e["risk_to_stop"] > 0)
+    # Per-lot, not per-symbol: a symbol with 3 lots and 2 stops protects 2, and the
+    # figure sits beside a dollar risk that only covers those.
+    lots_with_stop_current = sum(e.get("lots_with_stop_current") or 0 for e in reviewed)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "feed": FEED,
@@ -992,7 +1163,16 @@ def build_position_review(force: bool = False) -> dict:
         "totals": t_rev,
         "book_market_value": book_mv,
         "risk_to_support": risk,
+        "risk_to_stop": stop_risk,
+        "risk_to_stop_pct_of_book": (stop_risk / book_mv * 100.0) if book_mv else None,
+        "lots_with_stop_current": lots_with_stop_current,
         "risk_to_support_pct_of_book": (risk / book_mv * 100.0) if book_mv else None,
+        # Read back from the hand-scored log, not computed here. It answers a
+        # different question from everything else on the page -- whether the
+        # reason for holding this sleeve still stands -- and the two are meant to
+        # be read together, so it travels with the review rather than only
+        # living in its own view.
+        "cycle": cycle_status(),
         "group_exposure": [
             {"group": g, "market_value": v,
              "pct_of_book": (v / book_mv * 100.0) if book_mv else None}
@@ -1027,6 +1207,78 @@ def get_position_review(force: bool = False) -> dict:
             with _lock:
                 _cache["review"] = data
                 _cache["review_ts"] = time.time()
+    return data
+
+
+# The concrete case this view was built for; every group is equally usable,
+# this is only what loads before a client picks one explicitly.
+DEFAULT_SECTOR_GROUP = "AI Robotics"
+DEFAULT_SECTOR_BENCHMARK = "SPY"
+# Same window get_stock() uses for a single symbol: ~2y of calendar days gives
+# comfortable margin over the 200 trading days breadth's SMA200 check needs,
+# with headroom left for the 63-session relative-strength window and the
+# volatility/dispersion lookback on top.
+SECTOR_LOOKBACK_DAYS = 760
+
+
+def build_sector_scorecard(group_key: str, benchmark: str | None = None, *, force: bool = False) -> dict:
+    """Leading-indicator scorecard for one universe.py group.
+
+    Generic over any group name universe.all_groups() returns -- nothing here
+    is specific to a sector or theme. One batched bars fetch for the whole
+    group plus the benchmark, then sector_signals does the rest with no I/O.
+    """
+    groups = universe.all_groups()
+    cfg = groups.get(group_key)
+    if not cfg:
+        return {"error": f"unknown group {group_key!r}", "available_groups": sorted(groups)}
+
+    constituents = cfg.get("constituents") or []
+    bench_symbol = benchmark or cfg.get("etf") or DEFAULT_SECTOR_BENCHMARK
+    symbols = list(dict.fromkeys([*constituents, bench_symbol]))  # de-dup, keep order
+
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=SECTOR_LOOKBACK_DAYS)
+    try:
+        bars = fetch_daily_bars(symbols, start, end)
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e), "available_groups": sorted(groups)}
+
+    bars_by_symbol = {s: (bars.get(s) or []) for s in constituents}
+    benchmark_bars = bars.get(bench_symbol) or None
+
+    scorecard = sector_signals.compute_sector_scorecard(
+        bars_by_symbol, benchmark_bars, level_proximity_atr=LEVEL_PROXIMITY_ATR,
+    )
+    scorecard.update({
+        "group": group_key,
+        "kind": cfg.get("kind"),
+        "benchmark": bench_symbol,
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "feed": FEED,
+        "feed_note": FEED_NOTE,
+        "available_groups": sorted(groups),
+    })
+    return scorecard
+
+
+def get_sector_scorecard(group_key: str, benchmark: str | None = None, *, force: bool = False) -> dict:
+    """Cached wrapper, keyed by (group, benchmark). Same build-lock pattern as
+    the board, the calendar, and the review."""
+    cache_key = f"{group_key}::{benchmark or ''}"
+    with _lock:
+        entry = _cache["sector"].get(cache_key)
+        if entry and not force and time.time() - entry["ts"] < STOCK_TTL:
+            return entry["data"]
+    with _sector_build_lock:
+        with _lock:
+            entry = _cache["sector"].get(cache_key)
+            if entry and not force and time.time() - entry["ts"] < STOCK_TTL:
+                return entry["data"]
+        data = build_sector_scorecard(group_key, benchmark, force=force)
+        if not data.get("error"):
+            with _lock:
+                _cache["sector"][cache_key] = {"data": data, "ts": time.time()}
     return data
 
 
@@ -1173,6 +1425,44 @@ def get_earnings_calendar(horizon_days: int = DEFAULT_HORIZON_DAYS,
 
 
 # --------------------------------------------------------------------------
+# Cycle score (the monthly thesis log; see cycle.py)
+# --------------------------------------------------------------------------
+# A review row is a date, seven digits and three short text fields. Anything
+# larger than this is not a review.
+MAX_POST_BYTES = 64 * 1024
+
+
+def cycle_post(body: bytes, content_type: str) -> tuple[int, dict]:
+    """Validate and store one review. Returns (status code, JSON payload).
+
+    Kept free of the socket so the tests can drive it directly. Requiring a
+    JSON content type is also the CSRF guard: the server is loopback-only, but a
+    page in another tab could still fire a form POST at it, and a form cannot
+    send application/json without a preflight this server never answers.
+    """
+    if "application/json" not in (content_type or "").lower():
+        return 415, {"error": "send the review as application/json"}
+    try:
+        data = json.loads(body.decode("utf-8") or "{}")
+    except (UnicodeDecodeError, ValueError):
+        return 400, {"error": "body is not valid JSON"}
+    if not isinstance(data, dict):
+        return 400, {"error": "body must be a JSON object"}
+    try:
+        cycle.upsert_row(data)
+        return 200, cycle.build_cycle()
+    except cycle.CycleError as e:
+        return 400, {"error": str(e)}
+    except OSError as e:
+        return 500, {"error": f"could not write {cycle.LOG_PATH.name}: {e}"}
+    except Exception as e:  # noqa: BLE001 - the form must always get an answer
+        # Anything else would propagate out of do_POST, and socketserver's
+        # response to an unhandled exception is a traceback on stderr and a
+        # closed socket -- the form would show "Failed to fetch" with no reason.
+        return 500, {"error": f"{type(e).__name__}: {e}"}
+
+
+# --------------------------------------------------------------------------
 # Cache persistence (last-good survives restarts; a failed fetch never wipes it)
 # --------------------------------------------------------------------------
 def save_cache() -> None:
@@ -1211,6 +1501,94 @@ def load_cache() -> None:
         print("[info] loaded cached board" if _cache["board"] else "[info] cache had no board")
     except Exception as e:  # noqa: BLE001
         print(f"[warn] could not load cache: {e}", file=sys.stderr)
+
+
+def run_schwab_helper(*args: str) -> dict:
+    """Run the guarded helper and return only its JSON public response."""
+    if not SCHWAB_TRADE_HELPER.is_file():
+        return {"ok": False, "message": "Schwab trade helper is unavailable."}
+    try:
+        run = subprocess.run(
+            [sys.executable, str(SCHWAB_TRADE_HELPER), *args],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {"ok": False, "message": "Schwab request could not complete."}
+    try:
+        payload = json.loads(run.stdout)
+    except (json.JSONDecodeError, TypeError):
+        return {"ok": False, "message": "Schwab helper returned an invalid response."}
+    if not isinstance(payload, dict):
+        return {"ok": False, "message": "Schwab helper returned an invalid response."}
+    return payload
+
+
+def schwab_status() -> dict:
+    """Return the guarded trade helper's public readiness report.
+
+    The helper intentionally emits no keys, tokens, account numbers, or hashes.
+    Keeping the dashboard behind that boundary also means it cannot submit an
+    order merely because the page is open; submission still requires a separate
+    preview and the helper's exact confirmation phrase.
+    """
+    payload = run_schwab_helper("status")
+    payload["execution_mode"] = "guarded_preview"
+    payload["broker_ready"] = bool(payload.get("ok"))
+    payload["dashboard_submission_enabled"] = False
+    return payload
+
+
+def schwab_preview_post(data: dict) -> tuple[int, dict]:
+    """Create a broker preview. This endpoint has no live-submit counterpart."""
+    required = ("side", "symbol", "quantity", "order_type", "duration")
+    missing = [key for key in required if data.get(key) in (None, "")]
+    if missing:
+        return 400, {"ok": False, "error": f"missing field(s): {', '.join(missing)}"}
+    args = [
+        "preview",
+        "--side", str(data["side"]),
+        "--symbol", str(data["symbol"]),
+        "--quantity", str(data["quantity"]),
+        "--order-type", str(data["order_type"]),
+        "--duration", str(data["duration"]),
+    ]
+    if data.get("account_last4") not in (None, ""):
+        args.extend(("--account-last4", str(data["account_last4"])))
+    if data.get("limit_price") not in (None, ""):
+        args.extend(("--limit-price", str(data["limit_price"])))
+    result = run_schwab_helper(*args)
+    return (200 if result.get("ok") else 400), result
+
+
+def build_paper_recommendations(force: bool = False) -> dict:
+    """Build transparent paper proposals for the explicitly permitted sleeve."""
+    rows = []
+    held = open_positions()
+    for symbol in paper_agent.PERMITTED_SYMBOLS:
+        try:
+            stock = get_stock(symbol, force=force)
+            if stock.get("error"):
+                rows.append({"symbol": symbol, "available": False, "reason": stock["error"]})
+            else:
+                proposal = paper_agent.recommend(symbol, stock)
+                proposal["held_shares"] = (held.get(symbol) or {}).get("qty")
+                rows.append(proposal)
+        except Exception as exc:  # noqa: BLE001 - one symbol must not hide the other three
+            rows.append({"symbol": symbol, "available": False, "reason": str(exc)})
+    return {
+        "mode": "paper",
+        "human_approval_required": True,
+        "broker_submission": False,
+        "permitted_symbols": list(paper_agent.PERMITTED_SYMBOLS),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "feed": FEED,
+        "feed_note": FEED_NOTE,
+        "recommendations": rows,
+    }
 
 
 # --------------------------------------------------------------------------
@@ -1287,9 +1665,67 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": str(e)}, 502)
             return
 
+        if path == "/api/session-vwap":
+            try:
+                self._json(session_vwap.get(
+                    list(open_positions()), lambda url: _get(url, retries=2),
+                    force=qs.get("force", ["0"])[0] == "1"))
+            except Exception:
+                self._json({"error": "Could not load session VWAP."}, 502)
+            return
+
+        if path == "/api/enterprise-ai-briefing":
+            try:
+                with ENTERPRISE_AI_BRIEFING_PATH.open(encoding="utf-8") as fh:
+                    briefing = json.load(fh)
+                if not isinstance(briefing, dict) or not isinstance(briefing.get("stocks"), list):
+                    raise ValueError("invalid briefing document")
+                self._json(briefing)
+            except Exception:
+                self._json({"error": "Enterprise AI briefing is unavailable."}, 503)
+            return
+
         if path == "/api/review":
             try:
                 self._json(get_position_review(force=qs.get("force", ["0"])[0] == "1"))
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": str(e)}, 502)
+            return
+
+        if path == "/api/schwab/status":
+            self._json(schwab_status())
+            return
+
+        if path == "/api/schwab/positions":
+            account = (qs.get("account_last4") or [""])[0].strip()
+            args = ["positions"]
+            if account:
+                args.extend(("--account-last4", account))
+            payload = run_schwab_helper(*args)
+            self._json(payload, 200 if payload.get("ok") else 503)
+            return
+
+        if path == "/api/paper/recommendations":
+            self._json(build_paper_recommendations(force=qs.get("force", ["0"])[0] == "1"))
+            return
+
+        if path == "/api/cycle":
+            # No cache: the log is a few hundred bytes and a stale read here
+            # would show a review the owner just saved as missing.
+            try:
+                self._json(cycle.build_cycle())
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": str(e)}, 500)
+            return
+
+        if path == "/api/sector":
+            group = (qs.get("group") or [""])[0] or DEFAULT_SECTOR_GROUP
+            benchmark = (qs.get("benchmark") or [None])[0]
+            try:
+                self._json(get_sector_scorecard(
+                    group, benchmark,
+                    force=qs.get("force", ["0"])[0] == "1",
+                ))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
             return
@@ -1309,11 +1745,55 @@ class Handler(BaseHTTPRequestHandler):
                     "has_credentials": bool(HEADERS["APCA-API-KEY-ID"]),
                     "cached_board": _cache.get("board") is not None,
                     "cached_symbols": len(_cache.get("stocks", {})),
+                    # Published so app.js can key its highlight off the same
+                    # number the near_stop / at_support flags use.
+                    "level_proximity_atr": LEVEL_PROXIMITY_ATR,
                 }
             )
             return
 
         self._send(404, b"not found", "text/plain")
+
+    def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        path = urllib.parse.urlparse(self.path).path
+        # Every early return below answers without reading the body. On an
+        # HTTP/1.1 keep-alive socket the unread bytes would be parsed as the
+        # *next* request line, so the connection is closed instead: a 70 KB
+        # POST followed by GET /api/health on the same socket came back 414.
+        if path not in ("/api/cycle", "/api/schwab/preview"):
+            self.close_connection = True
+            self._send(404, b"not found", "text/plain")
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        if length < 0:
+            self.close_connection = True
+            self._json({"error": "Content-Length must be a non-negative integer"}, 400)
+            return
+        if length > MAX_POST_BYTES:
+            self.close_connection = True
+            self._json({"error": f"request body must be at most {MAX_POST_BYTES} bytes"}, 413)
+            return
+        body = self.rfile.read(length) if length else b""
+        if path == "/api/schwab/preview":
+            if "application/json" not in self.headers.get("Content-Type", ""):
+                self._json({"ok": False, "error": "Content-Type must be application/json"}, 415)
+                return
+            try:
+                data = json.loads(body or b"{}")
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                self._json({"ok": False, "error": "body must be valid JSON"}, 400)
+                return
+            if not isinstance(data, dict):
+                self._json({"ok": False, "error": "body must be a JSON object"}, 400)
+                return
+            code, payload = schwab_preview_post(data)
+            self._json(payload, code)
+            return
+        code, payload = cycle_post(body, self.headers.get("Content-Type", ""))
+        self._json(payload, code)
 
 
 def main() -> None:

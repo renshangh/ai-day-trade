@@ -15,8 +15,31 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+# Only the upstream repository publishes this site. Two reasons a fork must not:
+#
+#   1. `docsrc/_extra/CNAME` contains `lumibot.lumiwealth.com`, and `conf.py`
+#      copies `_extra/` into the build root via `html_extra_path`. Pages sets a
+#      repository's custom domain from a CNAME found in the deployed artifact, so
+#      running this on a fork attempts to claim a domain the fork does not own
+#      and cannot verify -- against a site that is live from Lumiwealth/lumibot.
+#   2. The build job commits `llms.txt` back to `dev`, which on a fork means CI
+#      pushing commits into somebody's working branch.
+#
+# Skipped rather than failed: a job whose `if` is false reports as skipped, so a
+# fork's checks go quiet instead of red.
+#
+# The repository is named literally in each job's `if` rather than held in an
+# `env` var, because GitHub does not expose the `env` context to job-level `if`
+# conditions -- a variable here would read as the source of truth while the
+# expressions silently ignored it.
+#
+# `docsrc/_extra/CNAME` is deliberately left in place: gating the workflow keeps
+# the fork byte-identical to upstream here, so merges from Lumiwealth do not
+# conflict and do not silently reintroduce publishing.
+
 jobs:
   build:
+    if: github.repository == 'Lumiwealth/lumibot'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -60,7 +83,10 @@ jobs:
           path: docsrc/_build/html
 
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    if: >-
+      github.repository == 'Lumiwealth/lumibot'
+      && github.event_name == 'push'
+      && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     needs: build
     environment:

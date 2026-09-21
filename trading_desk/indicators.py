@@ -168,6 +168,44 @@ def true_daily_range(highs: list[float], lows: list[float], period: int = 14) ->
     return out
 
 
+def ulcer_index(closes: list[float], period: int = 14) -> Series:
+    """Ulcer Index: the root-mean-square drawdown from the window's running peak.
+
+    Peter Martin's measure of how much it hurts to hold something (Martin &
+    McCann, 1989). Where ATR and standard deviation treat an upward move as
+    just as much "volatility" as a downward one, this counts only the downside
+    -- and squaring the drawdowns means it rises with both the *depth* of a
+    decline and how *long* price stays under water. Two names that fell 20% are
+    not equally painful if one recovered in a week and the other spent three
+    months there.
+
+    Returned in percent, always >= 0, with 0 meaning the series made a new high
+    on every bar of the window. The peak is the running maximum *within* the
+    window, which is what makes the period the whole of the claim: UI(14) says
+    nothing about a drawdown that began 60 sessions ago.
+
+    A non-positive close is a feed defect rather than a price, so that window
+    is reported undefined instead of dividing by it.
+    """
+    out: Series = [None] * len(closes)
+    if period <= 0 or len(closes) < period:
+        return out
+    for i in range(period - 1, len(closes)):
+        peak = 0.0
+        squares = 0.0
+        for c in closes[i - period + 1 : i + 1]:
+            if c <= 0:
+                break
+            peak = max(peak, c)
+            drawdown = (c / peak - 1.0) * 100.0  # <= 0
+            squares += drawdown * drawdown
+        else:
+            # Only reached when no bar in the window broke out above, i.e. every
+            # close in it was a real price.
+            out[i] = (squares / period) ** 0.5
+    return out
+
+
 def stochastic(
     highs: list[float], lows: list[float], closes: list[float], k_period: int = 14, d_period: int = 3
 ) -> dict[str, Series]:

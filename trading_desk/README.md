@@ -4,7 +4,7 @@ Local dashboard that screens sectors and themes over short horizons — for mome
 or for reversals — and charts the resulting movers with the standard technical
 indicator set.
 
-**Last Updated:** 2026-08-14
+**Last Updated:** 2026-09-14
 **Status:** Active
 **Audience:** Both
 
@@ -142,7 +142,7 @@ need a browser reload.
 
 | Section | What it shows |
 |---|---|
-| View tabs | Momentum / Reversal candidates / Earnings timing / Daily review. The first two scope the hero, ranking, movers strip and table; the last two replace them. |
+| View tabs | Momentum / Reversal candidates / Earnings timing / Daily review / Cycle / Sector. The first two scope the hero, ranking, movers strip and table; the last four replace them. |
 | Lookback tabs | 1D–5D for momentum, 2D–5D for reversal. Scopes the whole board. |
 | Hottest group | Mean, median, breadth, vs SPY, and the ETF proxy return. |
 | Top reversal candidate | Prior decline, bounce, reversal breadth, vs SPY today, volume ratio. |
@@ -151,7 +151,9 @@ need a browser reload.
 | Detail chart | Candlesticks + overlays, with volume, RSI and MACD panes on a shared crosshair. |
 | Company detail | Market cap, trailing P/E, 52-week range, volatility, SEC filings, news, research links. |
 | Earnings timing | Upcoming prints (including today's, before they land) with an uncertainty window, expected timing, 1-day and 1-week reaction stats, and held-position alerts. |
-| Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, and the journal's own recorded gaps. |
+| Daily review | Every open lot in the journal against its own levels: P&L, nearest support/resistance in ATR as well as percent, downside to support, how deep and prolonged each name's own drawdown is, and the journal's own recorded gaps. |
+| Cycle | The monthly AI data center cycle score: the latest GREEN / YELLOW / RED reading and total, the eight indicator scores against the criteria they were scored on, a trend of past reviews, the history table, and the form that writes the next review to the log. |
+| Sector | A scorecard of measured facts about one universe.py group's own recent price/volume history -- relative strength vs its benchmark (and whether that excess is widening or narrowing), breadth above its own moving averages, new highs/lows, participation, volatility, pain (how deep and how prolonged its drawdown is, against the benchmark's own), dispersion, and how many constituents sit near a level. Any group is selectable; nothing here is scored, banded, or turned into a call. See Sector scorecard below. |
 | Ranking table | The same board in text form — every value readable without color. |
 
 ### Company detail
@@ -367,7 +369,65 @@ Regenerate the underlying history with:
 python3 trading_desk/research/earnings_dates.py
 ```
 
+### Split events (research only)
+
+Nothing on the page uses this yet; it is a measurement kept next to the drift
+study so the next person does not redo it. `research/split_study.py` pulls two
+years of forward and reverse splits from Alpaca's corporate-actions feed, tags
+each as listed stock / ETF / OTC, and measures the close-to-close change over
+the 1, 2, 3 and 5 sessions ending on the last pre-split close, plus the 1, 2, 3,
+5 and 10 sessions starting on the first post-split close (raw bars throughout,
+so neither window is ever contaminated by the split itself; mis-dated vendor
+bars are skipped, never patched).
+
+Headline from the 2024-09 to 2026-09 run: listed **stocks** see about **37
+forward splits a year** and **470-620 reverse splits a year**; ETFs add another
+30-60 forward and 70-180 reverse; OTC names are counted but have no Alpaca bars.
+
+Forward splits (2:1 or larger, n=57) show **no pre-split drift** and no
+post-split drift either -- every median from 1 to 10 sessions out sits within
+about 1% of flat, roughly half positive either direction.
+
+Reverse splits (n=1074 stock events) fall hard into the event and **keep
+falling after it**:
+
+| | median | % positive |
+|---|---|---|
+| T-2 to T-1 (last 2 pre-split sessions) | -12% | 19% |
+| ex-date session alone | -1% | 46% |
+| ex-date to +2 sessions | -6% | 30% |
+| ex-date to +5 sessions | -9% | 31% |
+| ex-date to +10 sessions | -11% | 32% |
+
+So the announcement drop (T-2) is not a one-day event that then stabilizes;
+roughly 70% of these names are still lower ten sessions after the split than
+they closed on the split's first day. The mean is much noisier than the median
+here -- occasional 100%+ bounces pull the post-10-day mean to only -3% against
+a -11% median -- so read the median and hit rate, not the mean. This is a raw
+continuation number, not baselined against the population's own normal
+volatility: these are sub-$1 names (median pre-split close $0.30) that were
+already declining before the split, so "down after the split" and "this
+population is generally down" are not separated here. Nasdaq requires public
+notice at least two business days before a reverse split takes effect, which
+is why the T-2 session (not T-1) carries most of the announcement reaction.
+
+```bash
+python3 trading_desk/research/split_study.py
+```
+
+Writes `research/split_events.csv` (one row per event) and
+`research/split_study.json` (counts and return tables).
+
 ### Daily review
+
+**Today's VWAP** shows every open holding except SNDL, including IBIT, against
+its regular-session volume-weighted price. The separate panel uses consolidated
+SIP minute bars delayed at least 17 minutes, even when the daily board uses IEX.
+It shows the session cutoff, fetch time and each symbol's last bar time; prices
+and VWAP use the same window. Refresh VWAP forces a new pull, and the visible
+review refreshes this panel every two minutes. Holidays, early closes, unavailable
+data and the distinction from the chart's rolling VWAP 20 are documented in
+`../docs/TRADING_DESK_VWAP.md` and `../docsrc/TRADING_DESK.rst`.
 
 A per-position screen for the one question the ranking board cannot answer:
 *where does what I already own actually stand?* Positions come from
@@ -386,6 +446,7 @@ there is no second, subtly different calculation to reconcile.
 | `Last` | Latest close, with the day's change beneath it. |
 | `Avg entry` | Cost basis across all open lots in that symbol. |
 | `Unrealised` | Dollars and percent against that basis. |
+| `Pain` | This name's own Ulcer Index over 14 sessions, with the 252-session reading beneath it. Both are **percentages, not counts of days** — the RMS distance below the name's own running peak across that window. Same measure and horizons as the Sector view's [Pain](#pain----how-much-it-hurts-to-hold-this-group) tile. |
 | `% book` | Share of the reviewed book **plus** excluded holdings, at market value. Cash is not included, so this is position weight, not account weight. |
 | `Resistance above` / `Support below` | Nearest level on each side, with distance in percent **and in ATR**. |
 | `To support` | Dollars between today's price and the nearest support. |
@@ -400,6 +461,30 @@ Distance is reported in ATR as well as percent because percent alone is not
 comparable across the book. AXTI at 14% ATR and POWL at 6% are not equally close
 to a level 5% away; in ATR terms the first is a third of a day's move and the
 second is nearly a full one.
+
+#### Pain is not the same fact as unrealised P&L
+
+The two columns sit close together and disagree on purpose. `Unrealised` is
+measured from whatever this desk happened to pay; `Pain` is measured from the
+name's **own** peak and knows nothing about the entry. So a position bought
+cheaply can show a healthy profit while the stock is 25% below its high and
+grinding sideways, and a name that merely dipped this week can show a loss. The
+entry price is a fact about the desk, not about the stock, and it should not be
+what decides whether a drawdown gets mentioned.
+
+There is no benchmark column and no percentile here, unlike the Sector view's
+tile. Both of those survive at group level and neither survives the move to a
+single name: a lone stock set against SPY is the apples-to-oranges comparison
+the group's equal-weight index exists to avoid, and a per-name percentile
+inherits the same overlapping-window problem that suppresses the group's
+252-session rank. The raw number is comparable across the book, which is what
+the review needs it for.
+
+The same two horizons drive both views, from `PAIN_SHORT_SESSIONS` and
+`PAIN_LONG_SESSIONS` in `sector_signals.py`, via `symbol_pain()`.
+`test_symbol_pain_reads_the_same_two_horizons_as_the_group_metric` pins it —
+the word "pain" meaning one span on the Sector view and another on the review,
+with nothing on either page to show it, is the failure worth a test.
 
 #### Downside to support is not risk taken
 
@@ -421,22 +506,99 @@ view does not pretend to an edge: it surfaces facts and stops there.
 #### Held but not reviewed
 
 `REVIEW_EXCLUDE` in `server.py` lists holdings kept out of the risk math and the
-flags by instruction. They are still reported, in their own section with their
-book weight — silently dropping a position would make the concentration figures
-actively misleading, which is worse than showing something the owner has asked
-not to be advised on.
+flags by instruction. They are still reported in their own section with their
+book weight, so the account view never silently loses a real position.
 
 It is a mapping, not a set, so the reason travels with the symbol and renders on
-the page. "Excluded" covers two different cases and a bare set would flatten
-them:
+the page:
 
 | Symbol | Reason |
 |---|---|
-| `IBIT` | Bitcoin position, held by choice — not part of the swing book. Over half the book by weight, so omitting it entirely would be misleading. |
 | `SNDL` | Residual position, too small to act on. Sorted near the top on ATR distance despite being 0.0% of the book, pushing real positions down the page. |
 
 Every entry must carry a non-empty reason; `test_excluded_symbols_are_reported_but_carry_no_risk_math`
 asserts it, because an unexplained exclusion is indistinguishable from a bug.
+
+#### Schwab execution readiness
+
+Daily Review also displays the public readiness result from
+`scripts/schwab_trade.py status`. The dashboard never receives credentials,
+tokens, account hashes, or full account numbers. Opening or refreshing the page
+cannot place an order: execution remains a guarded preview flow and requires the
+preview's exact confirmation phrase before the helper can submit it.
+
+When the personal Schwab app and OAuth token are available, this section also
+reads the selected account's live positions and can request a broker-side order
+preview. SNDL is filtered from the displayed Individual-account positions. There
+is intentionally no dashboard route that submits an order. The **Submit** button
+is a handoff control: it copies the exact phrase from a successful preview so the
+user can send it in a later chat turn. Only that later, exact confirmation can
+authorize submission through the single-use guarded helper.
+
+#### Paper agent
+
+The human-in-the-loop paper agent is restricted to `FN`, `AXTI`, `COHR`, and
+`LITE`. For each symbol it derives a proposed entry band from the nearest support
+plus 0.35 ATR, an exit band from the nearest resistance minus 0.35 ATR, and a
+risk reference 0.50 ATR below support. A missing last price, ATR, support, or
+resistance makes the proposal unavailable; the agent never estimates a missing
+level.
+
+Sizing is expressed as 25%, 50%, 75%, or 100% of the shares currently reported
+by Schwab, with the local journal used only when live positions are unavailable.
+Partial sizes round down to whole shares and 100% uses the exact held quantity.
+**Buy review** loads the top of the entry band into the guarded
+Schwab form; **Sell review** loads the bottom of the exit band. Both use
+LIMIT/DAY and only populate the form. The owner must review every field and
+press **Review at Schwab**, which still does not submit an order. After a
+successful preview, **Submit** copies the exact authorization phrase for the
+user to send in a later chat turn. Live placement remains a separate
+exact-confirmation step outside the dashboard.
+
+#### Live execution runbook
+
+Use this sequence whenever an order moves from a Daily Review proposal to
+Schwab. A recommendation, a populated form, and a preview are never live-order
+authorization.
+
+1. In **Daily review**, choose 25%, 50%, 75%, or 100% beside the permitted
+   symbol. Confirm the resulting whole-share quantity.
+2. Press **Buy review** or **Sell review**. This only populates the Schwab form.
+   Check the account ending, side, symbol, quantity, order type, limit price,
+   and duration. Do not assume the measured entry or exit band is still suitable.
+3. Press **Review at Schwab**. Schwab validates the proposed order and the page
+   displays **Preview only — no order submitted**. No order exists at Schwab yet.
+4. Read the returned summary and any Schwab warning or rejection. If anything is
+   wrong, do not continue; change the form and create a new preview. Previews
+   expire after ten minutes and are single-use.
+5. Press **Submit** beneath the successful preview. Despite its short label, this
+   does not call a placement endpoint: it copies the exact authorization phrase.
+6. Paste that complete phrase into a new chat turn without editing it. For
+   example, the format is
+   `PLACE SELL <shares> <symbol> LIMIT <price> DAY IN ACCOUNT <last4>`.
+   “Yes”, “confirm”, a paraphrase, or an instruction from the preview turn is not
+   sufficient.
+7. The trading agent verifies that the preview is still active and matches the
+   phrase. For a sell, it also checks the live long position again. It then calls
+   the placement helper exactly once.
+8. If Schwab accepts the order, record the returned order ID and open Schwab
+   **Trade → Order Status**. Acceptance means Schwab received the order; it does
+   not mean the order filled.
+
+If a preview is no longer wanted, ask the agent to discard it. Discarding only
+invalidates the local preview and never sends an order. If a live order has
+already been accepted, the dashboard cannot cancel or replace it; use Schwab's
+**Trade → Order Status** page to review and cancel an eligible open order.
+
+Never automatically retry a placement after a timeout, connection error, or an
+`uncertain` result. First inspect Schwab open orders and order history using the
+account website. Retrying before resolving the outcome can create a duplicate
+order.
+
+A closed market is not a paper environment. A live DAY order submitted while the
+market is closed may be rejected, queued, or become eligible when the next normal
+session opens, according to Schwab's handling. Use **Review at Schwab** for a
+no-submission test; do not place a live order merely to test the workflow.
 
 #### Theme exposure
 
@@ -445,6 +607,381 @@ two groups counts in both (POWL is in Industrials *and* AI Power / Datacenter
 Buildout), so the percentages deliberately do not sum to 100%. The excluded
 holdings are left out entirely rather than filed under `(ungrouped)`, since
 inventing a theme for them would be worse than omitting them.
+
+#### Thesis strip
+
+The latest hand-entered score from the Cycle view, read back from
+`trading_records/cycle-score.csv` and shown at the top of the review. Nothing on
+the review computes it. It is here because the two halves answer different
+questions and are meant to be read together: the rest of the page says where each
+position sits against its levels *today*, and this says whether the reason for
+holding it still stands. A position can sit on support with the thesis GREEN, or
+run well above its levels with the thesis RED.
+
+A score older than `CYCLE_STALE_DAYS` (35) is marked overdue, since the dashboard
+describes itself as a monthly check. An unscored thesis reports "not scored"
+rather than defaulting to a passing grade —
+`test_cycle_status_says_so_when_nothing_is_logged` asserts there is no `status`
+key at all in that case, because a default GREEN would be a fabricated judgment.
+
+#### Sizing worksheet
+
+A calculator, not a suggestion. You pick the symbol, the dollar amount, and the
+risk budget as a percent of book; it works out:
+
+| Row | Meaning |
+|---|---|
+| Shares / actual cost | `floor(amount ÷ last)`, and what those shares cost |
+| Risk per share to stop | `last − stop_current` for that position |
+| Dollars at risk | shares × risk per share |
+| That is % of book | the same figure against `book_market_value` |
+| Your budget | `risk % × book`, from the number you typed |
+| Shares that fit the budget | the inverse: `floor(budget ÷ risk per share)` |
+| Weight after / theme after | concentration if the trade were done |
+
+**It deliberately does not rank the symbols, mark any of them preferable, or
+propose an amount.** The select is in table order, which is proximity to support,
+not desirability. Choosing what to trade and how much is the desk owner's
+decision; this converts that decision into risk and concentration terms so it can
+be made with the numbers in view. Nothing here is investment advice, and the
+standing disclaimer under the review says so on the page itself.
+
+If a position has no `stop_current`, dollars at risk reports an em dash and the
+worksheet says why, rather than silently substituting ATR — a risk number
+measured against a level nobody set would be worse than no number.
+
+#### Recent headlines
+
+Up to three per reviewed position, straight from the Alpaca news feed, newest
+first, linked out, with source and date.
+
+**Not scored, ranked, or summarised.** A sentiment number here would be a guess
+wearing the clothes of a signal — the same reason the cycle dashboard is
+hand-entered rather than computed.
+`test_headlines_are_passed_through_unscored` asserts no `sentiment` or `score`
+key ever appears on a headline. Excluded holdings get no headlines, since the
+page deliberately does not comment on them.
+
+Cached for `REVIEW_NEWS_TTL` (120s), shorter than `REVIEW_TTL` — a print at 09:05
+matters at 09:06, and daily bars do not move that fast. The block degrades on its
+own: a dead feed shows "news unavailable" on that column and leaves the rest of
+the review intact.
+
+### Cycle
+
+The fifth view, and the only one with nothing to compute. The Daily review asks
+where each position stands against its levels today;
+[`AI_DATA_CENTER_CYCLE_DASHBOARD.md`](AI_DATA_CENTER_CYCLE_DASHBOARD.md) asks
+the slower question underneath it: does the reason for owning the optical and
+power names still hold? It scores eight indicators of the hyperscaler buildout
+from 0 to 2 once a month, sums them to a GREEN / YELLOW / RED reading out of 16,
+and ends on one question: starting from cash, would you still own AXTI, LITE,
+COHR, FN and POWL at their current weights? The document's "How this fits the
+desk" section says what the rest of the desk supplies to that judgment: the
+Earnings timing view already projects the hyperscaler prints where capex
+guidance changes, and the Daily review's theme exposure is the two equity
+sleeves the framework maps.
+
+The view is the front end for that document's monthly log,
+`trading_records/cycle-score.csv` -- tracked in git and pushed, unlike the
+trade journal, since it holds judgment scores and research notes rather
+than positions or account details:
+
+- the latest review's status and total, its answer to the core question and
+  what assumption changed, with the move since the previous review;
+- one tile per indicator: the score, the level it meets, and the criterion
+  that level is defined by, taken from the document;
+- a trend of every logged total, and the history table, whose column headers
+  are the CSV's own column names so it doubles as a key to the file;
+- a form that writes the next review. Each indicator shows its three criteria
+  beside the score select, with the chosen one marked, and the document's
+  "what to track" list folded away beneath.
+
+None of it is market data, and the page says so on every render. What
+`cycle.py` does is read and write the log and parse the document:
+
+- **The criteria come from the document, not from code.** `rubric()` reads the
+  eight numbered sections, their `### GREEN / YELLOW / RED` paragraphs and the
+  core question out of the markdown. `tests/test_cycle.py` asserts the parse
+  succeeds and that the document's score table, its bands and the CSV template
+  agree with `cycle.INDICATORS`, `cycle.BANDS` and `cycle.COLUMNS`. Editing the
+  framework changes the page; restructuring it fails a test rather than
+  quietly blanking a rubric.
+- **Blank is blank.** A skipped indicator is written as an empty cell and is
+  never pre-filled from last month: switching the form's date to one without a
+  review starts from nothing. A review with any blank has no total and no
+  status, both cells stay empty in the file, and the page reads
+  "Incomplete · 7 of 8 scored" rather than a number.
+- **Reads are tolerant, writes are strict.** A hand-edited file is read with
+  warnings on the page: a bad cell reads as blank, a stored total that
+  disagrees with its scores is reported and the scores win, an extra column is
+  ignored, a file that is not UTF-8 is named as such. But the view will not
+  *write* to a file whose header differs from `TEMPLATE-cycle-score.csv`, which
+  has a row with the wrong number of cells, or which it cannot decode. It
+  refuses with the reason rather than rewriting a layout it did not produce,
+  and rows it did not write are preserved verbatim, wrong stored total included.
+  Dates are held to one spelling, `YYYY-MM-DD`, because `20260831` would sort
+  after every hyphenated date and never match a later save of the same day.
+- **One row per date.** Saving with a date that already has a review replaces
+  that row, and the form says so before you save; if what the form shows
+  differs from the logged row it says that too and offers to load it. Any
+  other date appends. Rows are kept oldest first; saves take a lock, since the
+  server is threaded and a save is a read-modify-write of the whole file; and
+  the write is atomic (a private temp file, then rename), the same as the board
+  cache.
+- **Changing the date never touches what is typed.** A date input fires its
+  change event on every keyboard step, so rebuilding the form on change would
+  wipe eight scores per arrow key. The form only re-reads the log for the new
+  date when it is empty; otherwise the banner offers to load the logged review.
+  A new date in a month that already has a review gets a nudge toward that
+  review's date, because the framework's mid-month re-score after a print means
+  editing the month's row, not adding a second one; where two reviews do share
+  a month, the trend labels them by day instead of by month.
+- **`POST /api/cycle` is the server's only write route.** It accepts JSON
+  only, which is also the CSRF guard for a loopback server: a form on some
+  other page cannot send `application/json` without a preflight this server
+  never answers. The body is capped at 64 KB. A validation error comes back as
+  400 carrying the message the form shows.
+
+### Sector scorecard
+
+Cycle asks a hand-scored monthly question about the whole buildout thesis.
+Sector answers a different, faster one from data the desk already has: is
+whatever group you point it at actually leading or lagging right now, measured
+against its own recent history and a benchmark -- not against a target price
+or a rating.
+
+Every metric on the view is a `sector_signals.py` function over plain daily
+bars, computed live on every load (subject to the same `STOCK_TTL` cache as a
+single stock, keyed by group *and* benchmark so flipping between two
+benchmarks for one group cannot serve one's numbers back under the other's
+label):
+
+- **Relative strength** -- equal-weighted group return minus the benchmark's,
+  at 5/21/63 sessions, plus whether the 5-session excess is widening or
+  narrowing versus the 5 sessions before it. The trend is the point: a group
+  outperforming by a shrinking margin is a different fact than one
+  outperforming by a growing one, and the level alone does not distinguish
+  them.
+- **Breadth** -- the share of constituents above their own 20/50/200-day
+  average. Narrow breadth under a rising benchmark is the classic divergence;
+  this reports the number, not the divergence story.
+- **New highs / lows** -- constituents at a new 20-session extreme. Twenty
+  sessions, not 52 weeks: a 52-week extreme is rare enough that a 4-13 name
+  group would show zero on most days, which is not useful for something meant
+  to move with the tape.
+- **Participation** -- aggregate dollar volume, trailing 5 sessions against
+  trailing 20. Dollar volume, not share count, so one high-price low-share-count
+  name cannot be swamped by a cheap, heavily-traded one in the sum.
+- **Volatility** -- average ATR% now against 20 sessions ago. Expansion
+  precedes a resolution without saying which way it resolves.
+- **Pain** -- the Ulcer Index of the group at 14 and 252 sessions, each against
+  the benchmark's own and against the group's own history. How far under water
+  the group is and how long it has been there. See
+  [Pain](#pain----how-much-it-hurts-to-hold-this-group) below.
+- **Dispersion** -- how much constituents moved together *today* versus their
+  own trailing-20-session norm, not against a fixed universal threshold. A
+  ratio under 1 means today was driven by something shared across the whole
+  group -- a rate move, a sector-wide print -- rather than any one name's own
+  news; a ratio near or above 1 means the day was closer to normal, name-by-name
+  dispersion. This is the computed, generic version of a question that comes up
+  by hand in the Daily review whenever every held position moves the same way
+  on the same day.
+- **At a level** -- constituents currently within `LEVEL_PROXIMITY_ATR` of a
+  support or resistance, the same proximity the Daily review's `at_support` /
+  `at_resistance` flags use, applied across the whole group instead of one
+  position.
+
+Every group `universe.py` knows is selectable from the dropdown, sector or
+theme alike -- nothing here is written for one sector specifically. The
+benchmark resolves in order: an explicit `?benchmark=` query param, then the
+group's own `etf` field (`SMH` for Semiconductors, `XLK` for Technology), then
+`SPY` for a theme group with no ETF of its own (`AI Optical / Interconnect`,
+`AI Power / Datacenter Buildout`). `DEFAULT_SECTOR_GROUP` in `server.py` is
+which group loads before a client picks one -- currently the one this view was
+built to look at, and a plain constant to update by hand on the rare occasion
+the desk's answer to "which theme matters most" actually changes, rather than
+anything the server tries to detect on its own.
+
+As with every other flag on this desk: **these are facts about the group's own
+history, not a score, a rank, or a call on direction.** A dashboard that
+combined relative strength, breadth, and dispersion into one number would be
+manufacturing a composite edge none of these measurements individually claims
+to have.
+
+#### Pain -- how much it hurts to hold this group
+
+The question the other tiles cannot answer: *the broad market is calm, but is
+this particular sector in trouble?* Volatility counts a violent rally the same
+as a violent decline; relative strength over a window reads flat for a group
+that fell early and then stabilised. Neither says how far under water a group
+is, or how long it has been there.
+
+The measure is the **Ulcer Index** (Peter Martin, 1989): the root-mean-square
+drawdown from the running peak over a window, in percent. It is 0 when the
+series makes a new high every bar, and it rises with **both** the depth of a
+decline and its **duration** -- squaring the drawdowns is what makes a
+three-month slump score worse than a one-week dip of the same depth. That
+duration term is the whole reason it is the right measure for "pain" rather
+than a plain drawdown number: a 20% loss recovered in a week and a 20% loss sat
+on for a quarter are not the same experience for whoever is holding it.
+
+Two windows, because they answer different questions -- the same reason the
+earnings view shows a 1-day and a 1-week reaction:
+
+| Window | Reads |
+|---|---|
+| **14 sessions** | Acute stress. How much the group is hurting *right now*. |
+| **252 sessions** | Accumulated damage over a trading year, the daily-bar equivalent of the 52 weeks the cycle stage uses. |
+
+A group that halved six months ago and has flatlined since reads near zero on
+the short window and high on the long one. Both are true, and a single number
+would have to hide one of them.
+
+**The group is measured as an index, not as an average of its names.** The
+constituents' daily returns are equal-weighted and chained into one series
+first, and the Ulcer Index is taken from that. Averaging each name's own Ulcer
+Index would compare a basket of single stocks against SPY, and single stocks
+are more volatile than any index nearly by construction -- so the group would
+have read as more painful than the benchmark essentially always, including in
+the months when it plainly was not. Chaining first makes both sides of the
+comparison the same kind of object.
+`test_pain_measures_the_group_index_not_the_average_constituent` pins this.
+
+**There is no "Extreme Fear" band.** The Ulcer Index has no published
+thresholds, so any cutoff would be invented here and then displayed with the
+authority of a standard -- precisely the mistake the moving-average cycle
+classifier was rewritten to remove. Instead each reading is ranked against the
+group's **own** prior readings ("above 75% of its own 506 prior readings"),
+which invents nothing and answers the question "is this unusually bad *for
+them*" directly. Ties count as half, the conventional percentile rank -- a
+group that sat at its highs all year has every reading at exactly 0.0, and
+counting only values strictly below would rank it last while it is tied with
+everything.
+
+**The percentile is gated on independent spans, not on readings.** Consecutive
+Ulcer Index readings share all but one bar of their window, so counting them is
+self-deception: the ~520 bars this view fetches yield 268 UI(252) readings that
+span only `520 / 252 = 1.07` independent years. Quoting "above 52% of its own
+268 prior readings" off that states a distribution which does not exist -- the
+same failure as inventing a band, wearing a sample size instead of a label. So
+a percentile is quoted only where the history covers
+`PAIN_MIN_INDEPENDENT_SPANS` (20) non-overlapping windows. In practice the
+**14-session window gets a percentile** (36 spans available) and the
+**252-session window does not**, reporting its level and its honest reading
+count with no rank attached.
+
+Measured on 2026-09-14, which is the case this was built for:
+
+| Group | 14d | benchmark | 252d | benchmark |
+|---|---:|---:|---:|---:|
+| AI Optical / Interconnect | 6.31 | SPY 0.96 | 9.92 | 2.12 |
+| AI Power / Datacenter Buildout | 3.60 | SPY 0.96 | 10.99 | 2.12 |
+| Technology | 2.07 | XLK 1.41 | 6.20 | 6.23 |
+| Utilities | 1.59 | XLU 1.91 | 5.18 | 5.19 |
+
+The broad market was not in distress and AI Optical was, at roughly 6.5x SPY's
+reading -- while Utilities sat *below* its own benchmark. That separation is
+the entire point of the tile.
+
+**Still not a signal.** A high reading says a group is deep in a drawdown and
+has been for a while. It does not say the group is cheap, that the decline is
+over, or that anything should be bought or sold.
+
+#### Cycle stage -- the one exception, and why it is handled differently
+
+Below the tiles is a panel classifying each constituent into one of seven cycle
+stages, in the order the wheel turns:
+
+```
+Local Peak -> Correction -> Markdown -> Bottoming -> Recovery -> Extended/Uptrend -> Local Euphoria/Peak -> (back to Local Peak)
+```
+
+**Why seven and not six.** The taxonomy started at six, with one `Correction`
+stage covering every decline. That put `AXTI` at -54% and `ANET` at -10% under
+the same word -- and it contradicted the very convention the thresholds below
+come from, which reserves *correction* for a 10-20% decline and calls anything
+past 20% a *bear market*. `Markdown` (Wyckoff's term for that leg, and one that
+does not imply anything about the whole market) is that seventh stage.
+
+Measured on `AI Optical / Interconnect` the day the split landed (figures are
+that snapshot, not current state): 10 of 13 names read "Correction" before,
+2 after, with 8 moving to `Markdown` and the group label changing from
+`Correction` to `Markdown`. The point does not depend on those numbers -- one
+label spanning -10% to -54% is the problem regardless of how many names sit
+at each end on any given day.
+
+This **is** a classification, not a raw measurement -- it turns several numbers
+into one label. That is a real departure from every other number on this view,
+so it earns different treatment rather than being dressed up as another fact
+tile.
+
+**The thresholds are the published ones, not numbers this desk invented.** An
+earlier version of this classifier used moving-average positions (price vs
+SMA50/SMA200, whether SMA50 was rising) with hand-picked cutoffs. It produced
+a genuinely wrong read -- `GLW`, sitting 36% below the high it set three months
+earlier, was labelled a "Peak" -- and the cutoffs behind it were defensible-
+sounding but arbitrary. The rule now rests on the definitions these words
+already have in the industry:
+
+| Threshold | Meaning | Source |
+|---|---|---|
+| **10%** off the peak | Below this is noise; 10-20% is a **correction** | The 10/20 split traces to Alan Shaw at Smith Barney; still the definition used by [Morningstar](https://www.morningstar.com/markets/whats-difference-between-bear-market-correction), [Schwab](https://www.schwab.com/learn/story/market-correction-what-does-it-mean), and [Fisher](https://www.fisherinvestments.com/en-us/resource-library/market-cycles/bear-markets) |
+| **20%** off the peak | Past this is a **bear market** | Same convention |
+| **+20%** off the trough | What starts a **new bull market** | The other half of the same convention ([U.S. Bank](https://www.usbank.com/financialiq/invest-your-money/market-perspectives/bull-market-to-bear-market.html)) |
+
+**Read off weekly closes, not daily ones.** A stage is a trend-level call, and
+weekly is the resolution that convention was itself defined against -- daily
+closes carry a week's worth of noise a stage classification has no business
+reacting to. Each name's daily bars are collapsed to one close per ISO
+calendar week (the week's last available close) before any of the numbers
+below are taken.
+
+The rule, in order, over four numbers taken straight off those weekly closes
+(drawdown from the name's own peak, rally off its own trough, which extreme
+came last, and its return over the last month):
+
+| Condition | Stage |
+|---|---|
+| Within 10% of its peak, at a fresh peak, up 15%+ in a month | `Local Euphoria/Peak` |
+| Within 10% of its peak, advance stalled | `Local Peak` |
+| Within 10% of its peak, still advancing | `Extended/Uptrend` |
+| 10-20% off its peak | `Correction` |
+| Past 20% off its peak, but +20% off a **newer** trough | `Recovery` |
+| Past 20% off its peak, still falling hard | `Markdown` |
+| Past 20% off its peak, no longer falling | `Bottoming` |
+
+Design notes worth keeping:
+
+- **No moving averages, no oscillators, no benchmark.** Only closing prices
+  against a name's own peak and trough. `test_stage_rule_uses_no_moving_averages_or_oscillators`
+  asserts this by inspecting the rule's own source, so an indicator cannot
+  quietly reappear in it.
+- **Which extreme came last matters.** A name 40% below a peak set last month
+  is falling; the same 40% gap with the trough more recent means it already
+  bottomed and is climbing. The drawdown alone cannot tell those apart, so
+  `Recovery` additionally requires the trough to be the newer extreme --
+  without that, `GLW`, up 120% off a year-old low while 36% below its peak,
+  would read as "Recovery".
+- **"Still falling" beats "near the low".** A name down 45% and still dropping
+  29% in a month is mid-decline, not a base forming, however close to its low
+  it sits. This is the split the moving-average version got wrong for `FN`.
+- **Two numbers have no published standard**, and are labelled as such in the
+  code: what counts as a stalled advance near a peak (`STALL_MOVE_PCT`) and
+  what counts as still falling (`STILL_FALLING_PCT`). The literature describes
+  the distribution phase only qualitatively -- "sideways and range-bound after
+  an extended uptrend" -- so these are this desk's operationalization of that
+  sentence rather than a convention anyone else shares.
+- **The group label is the most common stage, and a tie is reported as a tie.**
+  Six stages have no numeric mean; forcing a winner out of 4 `Correction` and 4
+  `Bottoming` would assert a consensus that does not exist.
+- **A name needs enough history to classify** (`RECENT_MOVE_WINDOW_WEEKS + 1`
+  weeks) and is otherwise reported unclassified, never guessed. The window the
+  peak and trough come from is reported per name (`window_weeks`), so a name
+  without a full 52 weeks does not silently claim one.
+- **Still not a forecast.** `Bottoming` says a name is well off its peak and no
+  longer falling -- where it is, not that it turns up from here.
+
 
 ### Indicators
 
@@ -490,11 +1027,19 @@ clusters down at \$2. A name at record highs correctly reports no resistance.
 | `GET /api/stock?symbol=X` | ~2 years of daily bars plus every indicator series. |
 | `GET /api/detail?symbol=X` | Fundamentals, price stats, news, and research links. |
 | `GET /api/earnings?horizon=N` | Projected prints within N days (1-400, default 30), nearest first, with held-position flags. |
-| `GET /api/review` | Per-holding review: levels, downside to support, theme exposure, journal gaps. `?force=1` rebuilds. |
+| `GET /api/review` | Per-holding review: levels, downside to support, risk to the managed stop, `pain` (that name's own Ulcer Index at both horizons), theme exposure, journal gaps, up to three headlines per reviewed holding, and the latest hand-entered cycle score. `?force=1` rebuilds. |
+| `GET /api/session-vwap` | Today's consolidated regular-session VWAP, same-window prices, volume and timestamps for open holdings except SNDL. Two-minute memory cache; `?force=1` bypasses it. |
+| `GET /api/cycle` | The cycle log (every review, oldest first, totals derived from the scores), the rubric parsed from the framework document, the bands, and any file warnings. Never cached. |
+| `POST /api/cycle` | Write one review (JSON: `review_date`, `scores`, `core_question`, `assumption_changed`, `notes`), replacing a row with the same date. Returns the rebuilt payload, or 400 with the reason. |
+| `GET /api/sector?group=X&benchmark=Y` | Leading-indicator scorecard for one universe.py group (`X` defaults to `DEFAULT_SECTOR_GROUP`; `benchmark` defaults to the group's own `etf`, then `SPY`). Cached like `/api/stock`; `?force=1` bypasses it. Unknown group returns `error` plus `available_groups`. |
+| — | The same response carries `pain`: the group's Ulcer Index at 14 and 252 sessions, each with the benchmark's own reading, the excess, and the percentile against the group's own history. See Sector scorecard → Pain. |
+| — | The same response also carries `cycle_stages`: per-name cycle stage, each name's drawdown from its own peak, rally off its own trough, which extreme came last, and recent move (`context`), a count per stage, and the group's majority label (ties reported as ties). See Sector scorecard → Cycle stage. |
 | `GET /api/health` | Credential and cache status. |
 
 Board and per-symbol routes cache for 5 minutes; the review caches for 2 (it reuses
-the per-symbol cache, so a rebuild is cheap and prices stay live). Only the board is persisted to `cache.json`
+the per-symbol cache, so a rebuild is cheap and prices stay live), and headlines for 2
+minutes on their own shorter timer (`REVIEW_NEWS_TTL`), since a print matters within the
+minute and daily bars do not. Only the board is persisted to `cache.json`
 (~60 KB); per-symbol payloads stay in memory behind a 60-entry LRU. Persisting
 them meant re-serializing tens of megabytes under the global lock on every
 cache-miss, and they are cheap to refetch after a restart.
@@ -538,8 +1083,15 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 | `indicators.py` | Indicator math (pure stdlib) |
 | `fundamentals.py` | SEC filings, TTM EPS reconstruction, news, research links |
 | `index.html` / `app.js` / `style.css` | Dashboard UI |
+| `research/split_study.py` | Split-event counts and pre-split return study (see Split events) |
+| `sector_signals.py` | Sector scorecard math: relative strength, breadth, new highs/lows, participation, volatility, pain (Ulcer Index of the group's equal-weight index), dispersion, level proximity, seven-stage cycle classification. Pure functions over bars, no I/O |
+| `cycle.py` | Cycle score log: read, validate and write `cycle-score.csv`; parse the framework document for the rubric |
+| `AI_DATA_CENTER_CYCLE_DASHBOARD.md` | The framework the Cycle view scores against: eight 0-2 indicators, GREEN/YELLOW/RED bands, the core question |
 | `tests/test_reversal.py` | Reversal qualification regression tests |
 | `tests/test_review.py` | Daily-review arithmetic and flag-rule tests |
+| `tests/test_cycle.py` | Cycle log rules (blank stays blank, strict writes, tolerant reads), document/template/code agreement, POST validation |
+| `tests/test_sector_signals.py` | Sector scorecard math on synthetic bars: relative strength, breadth, new highs/lows, participation, volatility, pain (Ulcer Index depth/duration, index-not-average, percentile), dispersion, level proximity |
+| `tests/test_sector_route.py` | `/api/sector` benchmark resolution (own etf, fallback, override), missing-constituent handling, cache keying and TTL, error-not-raised |
 | `tests/test_ports.py` | Per-branch port mapping, HEAD parsing, launcher agreement, stale-server detection |
 
 ## Tests
@@ -547,6 +1099,9 @@ Per `AGENTS.md` RULE #1, nothing here fabricates market data:
 ```bash
 python3 trading_desk/tests/test_reversal.py       # no pytest needed
 python3 trading_desk/tests/test_review.py         # daily review
+python3 trading_desk/tests/test_cycle.py          # cycle score log and rubric
+python3 trading_desk/tests/test_sector_signals.py # sector scorecard math
+python3 trading_desk/tests/test_sector_route.py   # sector scorecard route
 python3 trading_desk/tests/test_ports.py          # port pinning
 python3 -m pytest trading_desk/tests/             # or under pytest
 ```

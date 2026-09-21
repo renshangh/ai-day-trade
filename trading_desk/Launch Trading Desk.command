@@ -34,6 +34,15 @@ running_branch() {
   health_json "$1" | sed -n 's/.*"branch": *"\([^"]*\)".*/\1/p' | head -1
 }
 
+# Healthy means /api/health answers 200; what the JSON says is the branch
+# comparison's business. The readiness loop below kept calling this after the
+# port-pinning refactor removed the old definition -- with `set -u` but no
+# `set -e`, every iteration printed "command not found", the loop never saw the
+# server become ready, and the launcher killed a server that was fine.
+is_healthy() {
+  health_json "$1" >/dev/null
+}
+
 # One fixed port per branch. Scanning a range for the first free port is what made
 # the dashboard turn up somewhere different most times it started -- and worse,
 # let a stale server keep answering on the port you expected.

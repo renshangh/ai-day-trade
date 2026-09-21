@@ -86,6 +86,9 @@ _QUEUE_SUBMISSION_LIMIT_BY_SLUG = {
 }
 
 
+from tests._credentials import is_configured
+
+
 def _is_ci() -> bool:
     return (os.environ.get("GITHUB_ACTIONS", "").lower() == "true") or bool(os.environ.get("CI"))
 
@@ -97,13 +100,74 @@ def _is_release_workflow() -> bool:
     return os.environ.get("GITHUB_WORKFLOW", "") == "Release (PyPI + GitHub)"
 
 
+_REQUIRED_S3 = (
+    "LUMIBOT_CACHE_S3_BUCKET",
+    "LUMIBOT_CACHE_S3_PREFIX",
+    "LUMIBOT_CACHE_S3_REGION",
+    "LUMIBOT_CACHE_S3_ACCESS_KEY_ID",
+    "LUMIBOT_CACHE_S3_SECRET_ACCESS_KEY",
+)
+_REQUIRED_DOWNLOADER = (
+    "DATADOWNLOADER_BASE_URL",
+    "DATADOWNLOADER_API_KEY",
+)
+_REQUIRED_THETADATA = (
+    "THETADATA_USERNAME",
+    "THETADATA_PASSWORD",
+)
+# Every var any acceptance case can require. Checked as a whole to tell an
+# environment that was never set up for acceptance backtests from one that was
+# set up and has since lost a key -- see _require_env.
+# Tuples so an in-place append in one branch cannot extend the constant for every
+# later case in the same pytest process.
+_ALL_ACCEPTANCE_ENV = _REQUIRED_S3 + _REQUIRED_DOWNLOADER + _REQUIRED_THETADATA
+
+# The repository these secrets belong to. Inside it, their absence is a broken
+# configuration; anywhere else it just means acceptance backtests are not set up.
+# GITHUB_REPOSITORY is injected by Actions on every run, so this needs no new
+# variable of our own.
+_CANONICAL_REPOSITORY = "Lumiwealth/lumibot"
+
+
+def _is_canonical_repository() -> bool:
+    return os.environ.get("GITHUB_REPOSITORY", "") == _CANONICAL_REPOSITORY
+
+
+def _acceptance_env_never_configured() -> bool:
+    """True when not one usable acceptance secret is present anywhere in the env.
+
+    Uses the suite-wide credential rule, so a copied example env full of
+    `username`/`password` placeholders reads as unconfigured rather than as a
+    configured environment that has lost eight of nine keys.
+    """
+    return not any(is_configured(key) for key in _ALL_ACCEPTANCE_ENV)
+
+
 def _require_env(keys: list[str]) -> None:
-    missing = [k for k in keys if not os.environ.get(k)]
+    missing = [k for k in keys if not is_configured(k)]
     if not missing:
         return
     message = f"Missing required env vars for acceptance backtests: {missing}"
+    # Failing hard in CI exists so a CI that is *supposed* to carry these secrets
+    # says so loudly instead of going quietly green. That must survive. But a fork
+    # -- or any checkout never configured for acceptance backtests -- has none of
+    # them, and failing there makes every shard permanently red for a reason a
+    # contributor cannot fix, drowning out the real failures beside it.
+    #
+    # Two independent reasons to shout, so neither gap is left open:
+    #
+    #   * the canonical repository, where these secrets are always expected. This
+    #     is what catches them disappearing *wholesale* -- a renamed `environment:`
+    #     or a protection rule blocking the job leaves all nine empty, and a
+    #     presence check alone would call that "never configured" and go green.
+    #   * partial configuration anywhere: some keys set and others missing means
+    #     somebody dropped one, whoever owns the fork.
+    #
+    # Neither holds => this environment simply does not run acceptance backtests,
+    # and the honest outcome is a skip carrying the reason.
     if _is_ci() and not _is_release_workflow():
-        pytest.fail(message)
+        if _is_canonical_repository() or not _acceptance_env_never_configured():
+            pytest.fail(message)
     pytest.skip(message)
 
 
@@ -278,36 +342,20 @@ def _assert_settings_match_window(case: _BaselineCase, payload: dict[str, object
 
 
 def _require_acceptance_env(case: _BaselineCase) -> None:
-    required_s3 = [
-        "LUMIBOT_CACHE_S3_BUCKET",
-        "LUMIBOT_CACHE_S3_PREFIX",
-        "LUMIBOT_CACHE_S3_REGION",
-        "LUMIBOT_CACHE_S3_ACCESS_KEY_ID",
-        "LUMIBOT_CACHE_S3_SECRET_ACCESS_KEY",
-    ]
-    required_downloader = [
-        "DATADOWNLOADER_BASE_URL",
-        "DATADOWNLOADER_API_KEY",
-    ]
-    required_thetadata_creds = [
-        "THETADATA_USERNAME",
-        "THETADATA_PASSWORD",
-    ]
-
     if case.data_source == "thetadata":
-        _require_env(required_thetadata_creds + required_downloader + required_s3)
+        _require_env(list(_REQUIRED_THETADATA + _REQUIRED_DOWNLOADER + _REQUIRED_S3))
         return
 
     if case.data_source == "ibkr":
         # IBKR acceptance runs are still cache-backed (warm S3 invariant). They should be able to
         # run without touching the downloader, but we still require downloader wiring so any
         # accidental network usage fails loudly and is actionable.
-        _require_env(required_downloader + required_s3)
+        _require_env(list(_REQUIRED_DOWNLOADER + _REQUIRED_S3))
         return
 
     # Other data sources (e.g. yahoo) don't require downloader/cache secrets, but they still require
     # non-empty ThetaData credentials due to Strategy.backtest() validation in shared code paths.
-    _require_env(required_thetadata_creds)
+    _require_env(list(_REQUIRED_THETADATA))
 
 
 def _run_subprocess(

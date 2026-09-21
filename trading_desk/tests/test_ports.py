@@ -175,6 +175,41 @@ def test_print_port_reports_the_branch_port_and_exits():
     assert int(printed) == srv.port_for_branch(srv.current_branch())
 
 
+def test_command_launcher_defines_every_helper_it_calls():
+    """Regression: the port-pinning refactor removed `is_healthy()` but left the
+    readiness loop calling it. bash runs the launcher with `set -u` and no
+    `set -e`, so each iteration printed "command not found", the loop never saw
+    the server become ready, and the launcher killed a server that was fine --
+    the one-click start could not start anything.
+
+    Every `name` invoked in command position (`if name ...`, `name ...` at the
+    start of a line, `$(name ...)`) must be a function the script defines, a
+    shell builtin or keyword, or a program on PATH.
+    """
+    import shutil
+    script = (REPO_ROOT / "trading_desk" / "Launch Trading Desk.command").read_text()
+    defined = set(re.findall(r"^([A-Za-z_][A-Za-z0-9_]*)\(\)\s*\{", script, re.M))
+    assert "is_healthy" in defined, "the readiness loop calls is_healthy; define it"
+    builtins = {"if", "then", "else", "elif", "fi", "for", "do", "done", "while", "until",
+                "break", "continue", "exit", "return", "echo", "read", "set", "cd", "trap",
+                "wait", "kill", "command", "local", "export", "shift", "true", "false", "test",
+                "eval", "exec", "source", "printf", "pwd", "type", "cat", "in"}
+    calls = set()
+    # Join backslash-continued lines first: the embedded `python3 -c "import ..."`
+    # continues onto a line that starts with `import`, which is Python, not a
+    # shell command.
+    for line in script.replace("\\\n", " ").splitlines():
+        code = line.split("#", 1)[0]
+        for m in re.finditer(r"(?:^\s*(?:if\s+!?\s*|!\s*)?|\$\(\s*)([A-Za-z_][A-Za-z0-9_]*)(?=\s|$)", code):
+            name = m.group(1)
+            if name and name not in builtins and "=" not in code.split(name, 1)[1][:1]:
+                calls.add(name)
+    unknown = sorted(c for c in calls
+                     if c not in defined and c not in builtins and shutil.which(c) is None
+                     and not c.isupper())   # variables like PORT=... are not calls
+    assert not unknown, f"launcher calls helpers it never defines: {unknown}"
+
+
 def test_health_reports_the_branch_so_a_stale_server_is_detectable():
     """"Is it alive" was never the useful question; "is it this code" is.
 

@@ -63,6 +63,9 @@
 
   --up: #0ca30c;
   --down: #d03b3b;
+  /* The dark theme's amber reads at ~1.8:1 on white. This one is ~5:1, so
+     YELLOW status, the earnings TODAY tag and the warn notices stay legible. */
+  --warning: #9a6700;
 
   --band: rgba(42, 120, 214, 0.10);
   --band-line: rgba(42, 120, 214, 0.45);
@@ -577,6 +580,17 @@ tr.earn-row.today td:first-child { box-shadow: inset 3px 0 0 var(--warning); fon
 /* ---------------------------------------------------------------- daily review
    Colors come from the same tokens as the rest of the desk, so light/dark and
    the up/down palette stay consistent with the board and the charts. */
+.session-vwap {
+  margin: 18px 0 24px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-3);
+}
+.session-vwap .rev-h3 { margin: 0; }
+.vwap-tbl th, .vwap-tbl td { white-space: nowrap; }
+.vwap-tbl th:first-child { text-align: left; }
+.vwap-tbl td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .rev-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -683,3 +697,293 @@ td.muted, .muted { color: var(--text-muted); }
   .rev-bar-row { grid-template-columns: 1fr; gap: 3px; }
   .rev-bar-val { text-align: left; }
 }
+
+/* Managed-stop cell. `warn-txt` is price within 1 ATR of the stop; `neg` (shared
+   with P&L) is already through it. `lvl-none` mutes an absent stop so a missing
+   value cannot be mistaken for a level of zero. */
+.rev-tbl .warn-txt { color: var(--warning); }
+.rev-tbl .lvl-none { color: var(--text-muted); }
+
+/* ------------------------------------------------------------------ cycle view
+   The monthly thesis score. GREEN / YELLOW / RED reuse the desk's up / warning /
+   down tokens, and every coloured mark carries its word beside it, so status is
+   never colour alone. `st-none` is an unscored indicator or an incomplete review:
+   an absence, styled as muted rather than as any level. */
+.st-green { --st: var(--up); color: var(--st); }
+.st-yellow { --st: var(--warning); color: var(--st); }
+.st-red { --st: var(--down); color: var(--st); }
+.st-none { --st: var(--axis); color: var(--text-muted); }
+
+.cyc-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 9px;
+  border-radius: 20px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.cyc-badge.sm { font-size: 10px; padding: 1px 6px; letter-spacing: 0.05em; }
+
+.cyc-hero { margin: 4px 0 6px; }
+.cyc-status-line { display: flex; align-items: center; gap: 14px; margin: 6px 0 4px; }
+.cyc-total {
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.cyc-of { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+.cyc-q { max-width: 400px; }
+.cyc-q .cyc-q-v { font-size: 15px; font-weight: 600; line-height: 1.35; }
+.cyc-q .meta { margin-top: 3px; line-height: 1.4; }
+.cyc-empty .lede { font-size: 14px; font-weight: 600; }
+
+.cyc-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+.cyc-tile {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px 10px 14px;
+  color: var(--text-primary);
+}
+/* Left rule in the level's hue; the word sits next to the number. The tile
+   itself keeps body text colour, so `.st-*` here only supplies --st. */
+.cyc-tile[class*="st-"] { color: var(--text-primary); box-shadow: inset 3px 0 0 var(--st); }
+.cyc-tile .k { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.cyc-tile .v {
+  font-size: 22px;
+  font-weight: 650;
+  margin-top: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.cyc-tile .cyc-lvl { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: var(--st); }
+.cyc-tile.st-none .cyc-lvl { color: var(--text-muted); font-weight: 500; }
+.cyc-tile .n { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+/* Trend: one column per logged review, oldest first. Height is total / 14; an
+   incomplete review has no total and so no height, only its label. */
+.cyc-trend { display: flex; gap: 10px; align-items: flex-end; overflow-x: auto; padding-bottom: 4px; }
+.cyc-col { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 46px; }
+.cyc-col-val { font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.cyc-col-track {
+  width: 22px;
+  height: 72px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.cyc-col-fill { width: 100%; background: var(--st, var(--axis)); }
+/* A complete review scoring 0 is the case the framework exists to catch; it must
+   not draw as the empty track an incomplete review gets. */
+.cyc-col-fill:not(.st-none) { min-height: 3px; }
+#cyc-banner button { margin-left: 6px; font-size: 11px; padding: 2px 8px; }
+.cyc-col-lbl { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+
+.cyc-tbl td.cyc-txt, .cyc-tbl th.cyc-txt {
+  font-family: var(--sans);
+  white-space: normal;
+  text-align: left;
+  max-width: 220px;
+  line-height: 1.4;
+}
+.cyc-tbl td.cyc-notes { max-width: 360px; }
+
+/* Scoring form. One block per indicator: the select, then the three criteria
+   with the chosen one marked, then the doc's "what to track" list folded away. */
+.cyc-form { display: flex; flex-direction: column; gap: 14px; }
+.cyc-fmeta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cyc-form label { font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; }
+.cyc-fmeta label { flex-direction: row; align-items: center; gap: 8px; }
+.cyc-form input, .cyc-form select, .cyc-form textarea {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 9px;
+}
+.cyc-form textarea { resize: vertical; line-height: 1.45; }
+.cyc-form input:focus-visible, .cyc-form select:focus-visible, .cyc-form textarea:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 1px;
+}
+.cyc-frows { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+.cyc-frow {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.cyc-fhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.cyc-fhead label { font-size: 12px; font-weight: 600; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; }
+.cyc-frow select { width: 100%; }
+.cyc-rubric { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.cyc-crit {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  padding-left: 7px;
+  border-left: 2px solid transparent;
+}
+/* A criterion row is muted text with its level word in the level's hue; the
+   chosen one turns primary and gets a left rule in that hue. */
+.cyc-crit[class*="st-"] { color: var(--text-muted); }
+.cyc-crit b { font-weight: 600; letter-spacing: 0.04em; color: var(--st); }
+.cyc-crit.on { color: var(--text-primary); border-left-color: var(--st); }
+.cyc-track { margin-top: 8px; }
+.cyc-track summary { cursor: pointer; font-size: 11px; color: var(--text-muted); }
+.cyc-track ul { margin: 4px 0 0; padding-left: 16px; font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+.cyc-ftext { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cyc-ftext label:last-child { grid-column: 1 / -1; }
+.cyc-fsave { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cyc-fsave .meta { font-size: 12px; }
+button.primary { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+button.primary:hover { background: var(--series-1); opacity: 0.88; color: #fff; }
+button.primary:disabled { opacity: 0.5; cursor: default; }
+.notice.ok { border-color: var(--up); color: var(--text-secondary); }
+
+@media (max-width: 720px) {
+  .cyc-ftext { grid-template-columns: 1fr; }
+  .cyc-status-line { flex-wrap: wrap; }
+}
+
+/* --- Thesis status strip (read back from the hand-scored cycle log) -------- */
+.rev-cycle-row {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px;
+  padding: 10px 12px; margin: 10px 0;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.rev-cycle-lbl { font-weight: 600; color: var(--text-secondary); }
+/* GREEN/YELLOW/RED are the log's own three levels, not a computed signal. */
+.cyc-green  { color: var(--up); font-weight: 600; }
+.cyc-yellow { color: var(--warning); font-weight: 600; }
+.cyc-red    { color: var(--down); font-weight: 600; }
+
+/* --- Sizing worksheet ----------------------------------------------------- */
+.size-form { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; }
+.size-form label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px; color: var(--text-secondary);
+}
+.size-form input, .size-form select {
+  font: inherit; font-family: var(--mono);
+  padding: 5px 7px; min-width: 8em;
+  color: var(--text-primary); background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 4px;
+}
+/* Two columns: a label column that sizes to content and a value column, so the
+   worksheet reads as a list of results rather than a data grid. */
+.size-tbl { width: auto; min-width: min(30em, 100%); }
+.size-tbl th[scope="row"] {
+  text-align: left; font-weight: 400; color: var(--text-secondary); padding-right: 18px;
+}
+.size-tbl td { font-family: var(--mono); text-align: right; }
+
+/* --- Headlines ------------------------------------------------------------ */
+.rev-news-wrap {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(15em, 1fr));
+}
+.rev-news-col {
+  padding: 10px 12px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.rev-news-list { margin: 6px 0 0; padding-left: 16px; }
+.rev-news-list li { margin-bottom: 8px; line-height: 1.35; }
+.rev-news-list a { color: var(--text-primary); }
+.rev-news-list .lvl-meta { display: block; }
+
+/* Cycle-stage panel in the Sector view. Deliberately distinct from .rev-stats
+   -- those are measurements, this is a rule-based classification, and the
+   visual break signals "read this one differently" rather than "another fact
+   tile". */
+.cyc-stage-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 12px 14px;
+  margin: 4px 0 18px;
+}
+.cyc-stage-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.cyc-stage-label-k {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cyc-stage-label-v {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.cyc-stage-rows { display: flex; flex-direction: column; gap: 4px; }
+.cyc-stage-row {
+  display: grid;
+  grid-template-columns: 140px 28px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cyc-stage-row:last-child { border-bottom: none; }
+.cyc-stage-row-empty { color: var(--text-muted); }
+.cyc-stage-name { font-weight: 500; }
+.cyc-stage-count { color: var(--text-muted); text-align: right; }
+.cyc-stage-names { color: var(--text-secondary); overflow-wrap: anywhere; }
+.cyc-stage-warn { color: var(--warning); }
+
+/* Enterprise AI briefing -------------------------------------------------- */
+.enterprise-ai-summary { margin: 4px 0 14px; color: var(--text-secondary); }
+.enterprise-ai-stocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+.enterprise-ai-stock {
+  display: block;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+.enterprise-ai-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.enterprise-ai-symbol { font: 600 14px var(--mono); color: var(--accent); background: transparent; border: 0; padding: 0; cursor: pointer; }
+.enterprise-ai-symbol:hover, .enterprise-ai-symbol:focus-visible { text-decoration: underline; }
+.enterprise-ai-quote { font: 11px var(--mono); color: var(--text-secondary); text-align: right; }
+.enterprise-ai-name { font-weight: 600; }
+.enterprise-ai-role { color: var(--text-muted); font-size: 11px; }
+.enterprise-ai-stock p { margin: 8px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+
+.sector-practical-read {
+  margin: 12px 0 16px;
+  padding: 11px 13px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  line-height: 1.45;
+  font-size: 13px;
+}
+.sector-practical-read strong { color: var(--text-primary); }

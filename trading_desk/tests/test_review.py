@@ -10,6 +10,7 @@ what a reader of the review will actually trust.
 from __future__ import annotations
 
 import csv
+import re
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -17,7 +18,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import server as srv  # noqa: E402
+import server as srv
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent  # noqa: E402
 
 
 # ----------------------------------------------------------------- fixtures
@@ -117,6 +120,39 @@ def test_no_support_below_price_reports_absence_rather_than_a_guess():
     assert "no_support" in keys
 
 
+def test_pain_measures_the_name_s_own_drawdown_not_the_position_s_pnl():
+    """The reason this column earns its place beside `Unrealised`.
+
+    `pnl_pct` is measured from whenever this desk happened to buy, so a name
+    deep in its own drawdown can still show a profit. Here the position is up
+    200% and the name is 25% below the peak it set two weeks ago; both facts
+    are true and the review reports them separately rather than letting the
+    entry price decide whether a decline gets mentioned.
+    """
+    closes = [100.0] * 20 + [200.0] + [150.0] * 13
+    held = {"qty": 10.0, "cost": 500.0, "avg_entry": 50.0, "lots": 1}
+    e = review_one(stub_stock(closes, []), held)
+
+    assert e["pnl_pct"] > 100.0, "fixture should be well in profit"
+    assert e["pain"]["short"] > 10.0, (
+        f"a 25% drawdown inside the window read as {e['pain']['short']}")
+    assert e["pain"]["short_sessions"] == 14
+
+
+def test_pain_long_window_is_undefined_on_a_short_history():
+    """34 bars is not a trailing year. The column reports nothing for that
+    window rather than quietly showing the 14-session figure in its place."""
+    e = review_one(stub_stock([100.0] * 34, []), HELD)
+    assert e["pain"]["short"] is not None
+    assert e["pain"]["long"] is None
+
+
+def test_pain_survives_a_name_sitting_at_its_highs():
+    """Zero is a real reading -- at highs, no drawdown -- not a missing one."""
+    e = review_one(stub_stock([100.0 + i for i in range(30)], []), HELD)
+    assert e["pain"]["short"] == 0.0
+
+
 def test_journal_gaps_are_counted_per_lot():
     lots = [
         {"symbol": "TEST", "stop": "", "thesis": "", "setup": "momentum"},
@@ -179,9 +215,10 @@ def test_flags_never_tell_the_reader_what_to_do():
 def test_excluded_symbols_are_reported_but_carry_no_risk_math():
     # The exclusion list is the documented contract, and every entry must carry
     # a reason -- an unexplained exclusion is indistinguishable from a bug.
-    for sym in ("IBIT", "SNDL"):
+    for sym in ("SNDL",):
         assert sym in srv.REVIEW_EXCLUDE, f"{sym} should be excluded"
         assert (srv.REVIEW_EXCLUDE[sym] or "").strip(), f"{sym} excluded without a reason"
+    assert "IBIT" not in srv.REVIEW_EXCLUDE, "Individual-account holdings include IBIT"
     e = review_one(stub_stock([90.0, 95.0], [{"level": 90.0}]), HELD)
     assert e["excluded"] is False
     original = srv.REVIEW_EXCLUDE
@@ -209,6 +246,59 @@ def test_missing_journal_is_reported_as_absence_not_an_empty_review():
 def test_stale_quote_is_surfaced():
     e = review_one(stub_stock([90.0, 95.0], [], stale=True), HELD)
     assert "stale_quote" in {f["key"] for f in srv._review_flags(e, None)}
+
+
+def test_review_table_header_and_row_declare_the_same_columns():
+    """app.js builds the heading row and the body row as two separate template
+    strings, so a column added, removed or moved in one but not the other
+    shifts every value to its right under the wrong heading -- silently, on a
+    page that still renders perfectly. Nothing server-side can see that, and
+    the review is read for money decisions, so it is pinned here the same way
+    SWING_WINDOW_DAYS and CYCLE_STAGE_ORDER are.
+
+    The error row is checked too: it spans the table with one cell for the
+    symbol plus a colspan for the rest, which has to stay in step with the
+    real column count or a failed symbol's message runs short or long.
+    """
+    js = (Path(__file__).resolve().parent.parent / "app.js").read_text()
+
+    # Anchored on the review table's own class. `<thead><tr>\s*<th>Symbol</th>`
+    # alone also matches the earnings calendar table, which likewise opens with
+    # a Symbol heading -- and which happens to have the same column count, so
+    # this assertion passed against the wrong table until a mutation check
+    # showed it surviving a bogus extra heading.
+    head = re.search(r'<table class="rev-tbl">\s*<thead><tr>(.*?)</tr></thead>', js, re.S)
+    assert head, "review thead not found in app.js -- was the table rewritten?"
+    headers = re.findall(r"<th[^>]*>([^<]*)</th>", head.group(1))
+
+    row = re.search(r'<tr class="rev-row" data-sym="\$\{e\.symbol\}" tabindex="0">(.*?)</tr>',
+                    js, re.S)
+    assert row, "review row template not found in app.js"
+    cells = re.findall(r"<td[^>]*>|\$\{rev\w+Cell\(", row.group(1))
+
+    assert len(headers) == len(cells), (
+        f"review table header and row disagree on column count:\n"
+        f"  {len(headers)} headers: {headers}\n"
+        f"  {len(cells)} row cells")
+
+    err = re.search(r'<td colspan="(\d+)" class="neg">\$\{e\.error\}', js)
+    assert err, "review error row not found in app.js"
+    assert int(err.group(1)) + 1 == len(headers), (
+        f"error row spans {int(err.group(1))} + 1 symbol cell, "
+        f"but the table has {len(headers)} columns")
+
+
+def test_pain_column_sits_next_to_unrealised():
+    """Not cosmetic. The column exists to be read against `Unrealised` -- pain
+    is measured from the name's own peak and P&L from whatever this desk paid,
+    so a name can be profitable and deep in a drawdown at once. Separated by
+    eight columns in a table that scrolls horizontally, the two were never on
+    screen together and the comparison was unavailable, which is how it
+    shipped the first time.
+    """
+    js = (Path(__file__).resolve().parent.parent / "app.js").read_text()
+    assert "<th>Unrealised</th><th>Pain</th>" in js, (
+        "the Pain heading no longer follows Unrealised")
 
 
 def test_swing_window_matches_the_client_constant():
@@ -363,6 +453,447 @@ def test_open_positions_can_aggregate_rows_without_touching_the_file():
     assert held["FN"]["qty"] == 22.0
     assert abs(held["FN"]["cost"] - (11 * 426.50 + 11 * 437.00)) < 1e-9
     assert held["FN"]["entry_date"] == "2026-08-25"   # earliest across the lots
+
+
+def test_managed_stop_is_reported_separately_from_the_entry_stop():
+    """`stop_current` must not silence the entry-stop flag.
+
+    trading_records/README.md keys "trades with no stop" on the stop set **at
+    entry**, because that is what r_multiple divides by. A stop decided today is
+    a real risk decision but a different fact, so both are reported.
+    """
+    lots = [{"symbol": "FN", "status": "open", "qty": "11", "entry_price": "488.00",
+             "stop": "", "stop_current": "376.77", "stop_current_set": "2026-09-04",
+             "thesis": "t", "setup": "s"}]
+    held = {"qty": 11.0, "cost": 5368.0, "lots": 1, "avg_entry": 488.0, "entry_date": "2026-08-18"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([400.0, 405.72], [{"level": 404.32}])
+    try:
+        e = srv._review_one("FN", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["stop_current"] == 376.77
+    assert e["stop_current_set"] == "2026-09-04"
+    # The entry-stop gap is still counted -- filling stop_current does not fix it.
+    assert e["lots_without_stop"] == 1
+    # Risk to the managed stop, from today's price.
+    assert abs(e["risk_to_stop"] - (405.72 - 376.77) * 11) < 1e-6
+    assert e["through_stop"] is False
+
+
+def test_price_through_the_managed_stop_is_flagged_not_reported_as_room():
+    """Past the stop there is no risk *to* it; a positive number would mislead."""
+    lots = [{"symbol": "POWL", "status": "open", "qty": "45", "entry_price": "216.32",
+             "stop": "", "stop_current": "200.00", "stop_current_set": "2026-09-04",
+             "thesis": "t", "setup": "s"}]
+    held = {"qty": 45.0, "cost": 9734.4, "lots": 1, "avg_entry": 216.32, "entry_date": "2026-08-03"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([195.0, 180.14], [{"level": 122.13}])
+    try:
+        e = srv._review_one("POWL", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["through_stop"] is True
+    assert e["risk_to_stop"] < 0, "through the stop, the figure must be negative"
+    flags = {f["key"] for f in srv._review_flags(e, None)}
+    assert "through_stop" in flags
+    assert "near_stop" not in flags, "through and near are mutually exclusive"
+
+
+def test_disagreeing_lot_stops_take_the_tightest_and_say_so():
+    """Averaging into a level nobody set would be inventing a decision."""
+    lots = [
+        {"symbol": "COHR", "status": "open", "qty": "50", "entry_price": "302.00",
+         "stop": "", "stop_current": "256.41", "stop_current_set": "2026-09-04",
+         "thesis": "t", "setup": "s"},
+        {"symbol": "COHR", "status": "open", "qty": "48", "entry_price": "265.25",
+         "stop": "", "stop_current": "250.00", "stop_current_set": "2026-09-04",
+         "thesis": "t", "setup": "s"},
+    ]
+    held = {"qty": 98.0, "cost": 27832.0, "lots": 2, "avg_entry": 284.0, "entry_date": "2026-08-27"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([270.0, 279.50], [{"level": 254.97}])
+    try:
+        e = srv._review_one("COHR", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["stop_current"] == 256.41, "tightest of the two"
+    assert e["stop_current_disagrees"] is True
+    assert "stop_disagrees" in {f["key"] for f in srv._review_flags(e, None)}
+
+
+def test_positions_without_a_managed_stop_report_none_not_zero():
+    """A missing stop is an absence, and 0.0 would be a price."""
+    lots = [{"symbol": "IBIT", "status": "open", "qty": "300", "entry_price": "59.53",
+             "stop": "", "stop_current": "", "thesis": "", "setup": ""}]
+    held = {"qty": 300.0, "cost": 17859.0, "lots": 1, "avg_entry": 59.53, "entry_date": "2025-01-23"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([44.0, 44.88], [{"level": 40.0}])
+    try:
+        e = srv._review_one("IBIT", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert "stop_current" not in e
+    assert "risk_to_stop" not in e
+    assert "through_stop" not in e
+
+
+def test_unparseable_stop_current_does_not_take_down_the_review():
+    """A hand-edited cell must not blank every position.
+
+    This parsing runs past the get_stock guard, so an uncaught ValueError escapes
+    _review_one's documented "raises nothing" contract and /api/review returns
+    502 for one bad character in one cell.
+    """
+    lots = [{"symbol": "FN", "status": "open", "qty": "11", "entry_price": "488.00",
+             "side": "long", "stop": "", "stop_current": "n/a", "thesis": "t", "setup": "s"},
+            {"symbol": "FN", "status": "open", "qty": "11", "entry_price": "426.50",
+             "side": "long", "stop": "", "stop_current": "376.77", "thesis": "t", "setup": "s"}]
+    held = {"qty": 22.0, "cost": 10059.5, "lots": 2, "avg_entry": 457.25, "entry_date": "2026-08-18"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([400.0, 405.72], [{"level": 404.32}])
+    try:
+        e = srv._review_one("FN", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    # The good lot still drives the number; the bad one is reported, not fatal.
+    assert e["stop_current"] == 376.77
+    assert e["stop_current_unparsed"] == ["n/a"]
+    assert e["lots_with_stop_current"] == 2  # both cells are filled, one is junk
+
+
+def test_short_position_takes_the_lowest_stop_and_inverts_through():
+    """Tightest depends on direction, and so does "through".
+
+    For a short the stop sits above, so the lowest is tightest and price *rising*
+    past it is the breach. Keying off max() and `last < stop` silently picks the
+    loosest stop and never fires the flag.
+    """
+    lots = [{"symbol": "XYZ", "status": "open", "qty": "100", "entry_price": "50.00",
+             "side": "short", "stop": "", "stop_current": "55.00",
+             "stop_current_set": "2026-09-04", "thesis": "t", "setup": "s"},
+            {"symbol": "XYZ", "status": "open", "qty": "100", "entry_price": "50.00",
+             "side": "short", "stop": "", "stop_current": "58.00",
+             "stop_current_set": "2026-09-04", "thesis": "t", "setup": "s"}]
+    held = {"qty": 200.0, "cost": 10000.0, "lots": 2, "avg_entry": 50.0, "entry_date": "2026-09-01"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([52.0, 53.00], [{"level": 48.0}])
+    try:
+        e = srv._review_one("XYZ", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["stop_current"] == 55.00, "lowest is tightest for a short"
+    assert e["risk_to_stop"] == (55.00 - 53.00) * 200, "risk measured upward"
+    assert e["through_stop"] is False
+
+    # Now price rises through the short's stop.
+    srv.get_stock = lambda sym, force=False: stub_stock([54.0, 56.00], [{"level": 48.0}])
+    try:
+        e2 = srv._review_one("XYZ", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+    assert e2["through_stop"] is True
+    assert e2["risk_to_stop"] < 0
+    assert "through_stop" in {f["key"] for f in srv._review_flags(e2, None)}
+
+
+def test_stop_set_date_is_withheld_when_lots_disagree():
+    """Reporting one date as though it covered the position asserts a false provenance."""
+    base = {"symbol": "COHR", "status": "open", "qty": "50", "entry_price": "302.00",
+            "side": "long", "stop": "", "stop_current": "256.41", "thesis": "t", "setup": "s"}
+    lots = [dict(base, stop_current_set="2026-09-04"), dict(base, stop_current_set="2026-09-08")]
+    held = {"qty": 100.0, "cost": 30000.0, "lots": 2, "avg_entry": 300.0, "entry_date": "2026-08-27"}
+
+    original = srv.get_stock
+    srv.get_stock = lambda sym, force=False: stub_stock([270.0, 279.50], [{"level": 254.97}])
+    try:
+        e = srv._review_one("COHR", held, lots, {}, force=False)
+    finally:
+        srv.get_stock = original
+
+    assert e["stop_current"] == 256.41, "prices agree, so no disagreement on the level"
+    assert e["stop_current_disagrees"] is False
+    assert e["stop_current_set"] is None, "dates differ -- report none rather than one of them"
+
+
+def test_level_proximity_matches_the_client_constant():
+    """app.js highlights amber off this number; the near_stop flag fires off it.
+
+    They drifted once -- the table used 1.0 while the server used 0.5, so a
+    position at 0.8 ATR rendered amber with no matching flag.
+    """
+    import re
+    src = (Path(__file__).resolve().parent.parent / "app.js").read_text()
+    m = re.search(r"const LEVEL_PROXIMITY_ATR = ([0-9.]+);", src)
+    assert m, "app.js must declare LEVEL_PROXIMITY_ATR"
+    assert float(m.group(1)) == srv.LEVEL_PROXIMITY_ATR
+    assert "atr <= LEVEL_PROXIMITY_ATR" in src, "the cell must use the constant, not a literal"
+
+
+def test_headlines_are_passed_through_unscored():
+    """No sentiment, no ranking, no summary -- just what the feed said.
+
+    Scoring a headline would invent a number the feed does not carry and present
+    a guess as a signal. The cycle dashboard is hand-entered for the same reason.
+    """
+    calls = []
+
+    def fake_get_news(sym, key, secret, limit=12):
+        calls.append((sym, limit))
+        return [
+            {"headline": "A", "source": "s1", "url": "https://x/1", "created_at": "2026-09-08T12:00:00Z"},
+            {"headline": "B", "source": "s2", "url": "", "created_at": "2026-09-07T12:00:00Z"},
+            {"headline": "C", "source": "s3", "url": "https://x/3", "created_at": "2026-09-06T12:00:00Z"},
+            {"headline": "D", "source": "s4", "url": "https://x/4", "created_at": "2026-09-05T12:00:00Z"},
+        ]
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = fake_get_news
+    srv._cache["review_news"].clear()
+    try:
+        out = srv.review_news("AXTI", limit=3, force=True)
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert out["error"] is None
+    assert [i["headline"] for i in out["items"]] == ["A", "B", "C"], "limit applied"
+    for item in out["items"]:
+        assert "sentiment" not in item and "score" not in item
+    assert calls == [("AXTI", 3)]
+
+
+def test_news_failure_degrades_without_killing_the_review():
+    """A dead feed is one empty block, not a blank page."""
+    def boom(sym, key, secret, limit=12):
+        raise RuntimeError("news feed down")
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = boom
+    srv._cache["review_news"].clear()
+    try:
+        out = srv.review_news("FN", force=True)
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert out["items"] == []
+    assert "news feed down" in out["error"]
+
+
+def test_news_is_cached_so_a_re_render_is_not_a_re_fetch():
+    calls = []
+
+    def counting(sym, key, secret, limit=12):
+        calls.append(sym)
+        return []
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = counting
+    srv._cache["review_news"].clear()
+    try:
+        srv.review_news("COHR", force=True)
+        srv.review_news("COHR")
+        srv.review_news("COHR")
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert len(calls) == 1, f"expected one fetch inside the TTL, got {len(calls)}"
+
+
+def test_news_ttl_is_shorter_than_the_review_ttl():
+    """Headlines age faster than daily bars, so they must not inherit REVIEW_TTL."""
+    assert 0 < srv.REVIEW_NEWS_TTL < srv.REVIEW_TTL
+
+
+def test_cycle_status_is_read_back_not_computed():
+    """The status must be whatever was entered, including a RED on a rising book."""
+    import tempfile
+
+    csv_text = (
+        "review_date,capex,construction,vacancy,power,monetization,optical,electrical,"
+        "agent_capability,total,status,core_question,assumption_changed,notes\n"
+        "2026-01-15,0,0,0,0,0,0,0,0,0,RED,q,a,n\n"
+    )
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as fh:
+        fh.write(csv_text)
+        path = Path(fh.name)
+
+    original = srv.cycle.LOG_PATH
+    srv.cycle.LOG_PATH = path
+    try:
+        out = srv.cycle_status()
+    finally:
+        srv.cycle.LOG_PATH = original
+        path.unlink(missing_ok=True)
+
+    assert out["available"] is True
+    assert out["status"] == "RED", "the entered level, not one inferred from prices"
+    assert out["total"] == 0
+    assert out["review_date"] == "2026-01-15"
+    # Scored in January and read much later: a monthly check is overdue.
+    assert out["stale"] is True
+    assert out["days_since"] > srv.CYCLE_STALE_DAYS
+
+
+def test_cycle_status_says_so_when_nothing_is_logged():
+    """An unscored thesis is an absence, and must not read as a passing grade."""
+    import tempfile
+
+    missing = Path(tempfile.mkdtemp()) / "not-created.csv"
+    original = srv.cycle.LOG_PATH
+    srv.cycle.LOG_PATH = missing
+    try:
+        out = srv.cycle_status()
+    finally:
+        srv.cycle.LOG_PATH = original
+
+    assert out["available"] is False
+    assert "status" not in out, "no status at all, rather than a default GREEN"
+    assert out["reason"]
+
+
+def test_news_failures_are_not_cached():
+    """A blip must not pin "news unavailable" for the whole TTL.
+
+    `get_earnings_calendar` states the rule this follows: never cache a failure,
+    or the page keeps showing the error after the source has recovered.
+    """
+    state = {"fail": True}
+
+    def flaky(sym, key, secret, limit=12):
+        if state["fail"]:
+            raise RuntimeError("transient")
+        return [{"headline": "recovered", "source": "s", "url": "", "created_at": ""}]
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = flaky
+    srv._cache["review_news"].clear()
+    try:
+        first = srv.review_news("AXTI")
+        assert first["error"] and first["items"] == []
+        assert "AXTI" not in srv._cache["review_news"], "a failure must not be cached"
+        # The feed comes back; the very next call must see it, with no force flag.
+        state["fail"] = False
+        second = srv.review_news("AXTI")
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert second["error"] is None
+    assert [i["headline"] for i in second["items"]] == ["recovered"]
+
+
+def test_news_cache_is_bounded_like_its_siblings():
+    """The helper takes any symbol, so the bound cannot rely on the call site."""
+    def ok(sym, key, secret, limit=12):
+        return [{"headline": sym, "source": "s", "url": "", "created_at": ""}]
+
+    original = srv.fundamentals.get_news
+    srv.fundamentals.get_news = ok
+    srv._cache["review_news"].clear()
+    try:
+        for i in range(srv.REVIEW_NEWS_CACHE_MAX + 12):
+            srv.review_news(f"SYM{i}")
+        size = len(srv._cache["review_news"])
+    finally:
+        srv.fundamentals.get_news = original
+        srv._cache["review_news"].clear()
+
+    assert size <= srv.REVIEW_NEWS_CACHE_MAX, f"cache grew to {size}, unbounded"
+
+
+def test_only_reviewed_holdings_get_headlines():
+    """Excluded rows are reported for weight and nothing else.
+
+    Fetching their headlines would spend calls on rows the page deliberately
+    does not comment on -- and this was enforced only by a comment.
+    """
+    fetched = []
+
+    def spy(sym, key, secret, limit=12):
+        fetched.append(sym)
+        return []
+
+    rows = [
+        {"symbol": "FN", "status": "open", "qty": "10", "entry_price": "400",
+         "stop": "", "thesis": "t", "setup": "s"},
+        {"symbol": "SNDL", "status": "open", "qty": "100", "entry_price": "2",
+         "stop": "", "thesis": "", "setup": ""},
+    ]
+    import tempfile, csv as _csv
+    header = ["trade_id", "status", "setup", "group", "symbol", "side", "qty",
+              "entry_date", "entry_price", "stop", "thesis"]
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, newline="") as fh:
+        w = _csv.DictWriter(fh, fieldnames=header)
+        w.writeheader()
+        for i, r in enumerate(rows, 1):
+            w.writerow({"trade_id": str(i), "entry_date": "2026-01-01", "side": "long",
+                        "group": "", **r})
+        path = Path(fh.name)
+
+    orig_journal, orig_stock, orig_news = srv.JOURNAL_PATH, srv.get_stock, srv.fundamentals.get_news
+    srv.JOURNAL_PATH = path
+    srv.get_stock = lambda sym, force=False: stub_stock([100.0, 105.0], [{"level": 95.0}])
+    srv.fundamentals.get_news = spy
+    srv._cache["review_news"].clear()
+    try:
+        out = srv.build_position_review(force=True)
+    finally:
+        srv.JOURNAL_PATH, srv.get_stock = orig_journal, orig_stock
+        srv.fundamentals.get_news = orig_news
+        srv._cache["review_news"].clear()
+        path.unlink(missing_ok=True)
+
+    assert fetched == ["FN"], f"headlines fetched for {fetched}; SNDL is excluded"
+    assert "news" in out["positions"][0]
+    assert all("news" not in e for e in out["excluded"])
+
+
+def test_feed_fields_are_never_interpolated_into_markup():
+    """Headlines are third-party text, so they must not reach innerHTML.
+
+    This shipped wrong once: the block interpolated `it.headline` and
+    `href="${it.url}"` into an innerHTML string, which makes
+    `<img src=x onerror=...>` executable and lets a quote in a URL inject
+    attributes -- while `renderCompany` had rendered the same feed safely with
+    createElement/textContent all along.
+    """
+    src = (REPO_ROOT / "trading_desk" / "app.js").read_text()
+    # Each of these is a construction this block actually shipped with, not a
+    # general ban on the identifier: `textContent = `...${n.error}`` is safe, and
+    # so is the Cycle view's `class="cyc-badge ${stClass(s)}"` with `esc(status)`
+    # inside. Broad patterns flagged both of those as false positives, so the
+    # list stays specific to the unsafe forms.
+    banned = [
+        "${it.headline}",
+        'href="${it.url}"',
+        "${it.source}",
+        "${cy.status}",
+    ]
+    for pattern in banned:
+        assert pattern not in src, (
+            f"{pattern!r} interpolates untrusted feed or log content into markup; "
+            f"assign it to textContent, or wrap it in esc() (app.js:105, whose "
+            f"docstring already covers the cycle log)"
+        )
+    # And the safe construction is actually present.
+    assert "head.textContent = it.headline" in src
+    assert "head.href = it.url" in src, "the URL must be a property, not an attribute"
+    assert "CYCLE_LEVELS.includes(cy.status)" in src, "status must be whitelisted first"
 
 
 def _main() -> int:

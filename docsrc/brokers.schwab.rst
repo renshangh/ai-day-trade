@@ -72,6 +72,22 @@ Supported functionality
 
 Multi-leg option spreads, advanced orders (OCO/OTO), and futures trades are not yet implemented.
 
+Guarded chat order helper
+-------------------------
+
+This repository also includes ``scripts/schwab_trade.py`` for a personal,
+chat-invoked Schwab workflow. It is intentionally separate from the Trading
+Desk and from an automated LumiBot strategy. The helper supports only
+whole-share stock/ETF BUY and SELL orders using MARKET/DAY or LIMIT with
+DAY/GTC during the normal session.
+
+Every live order requires a fresh Schwab ``previewOrder`` response and a later,
+exact confirmation phrase. Previews expire after ten minutes and are single-use.
+The helper checks a SELL against the live long position before preview and again
+before submission, never retries an ambiguous submission, and never treats
+broker acceptance as a fill. See ``docs/SCHWAB_API.md`` in the repository for
+setup and invocation examples.
+
 Example ``.env``
 ----------------
 

@@ -66,6 +66,7 @@ data/SRNE_Minute.csv
 .env
 token.json
 schwab_token.json
+.secrets/schwab_order_previews/
 
 # AI assistant instruction files (contain local paths)
 CLAUDE.md
@@ -106,6 +107,9 @@ trading_desk/__pycache__/
 trading_records/*
 !trading_records/README.md
 !trading_records/TEMPLATE.csv
+!trading_records/TEMPLATE-cycle-score.csv
+!trading_records/cycle-score.csv
 trading_desk/research/earnings_dates.json
 trading_desk/research/drift_results.json
 trading_desk/research/drift_robustness.json
+trading_desk/research/morning-checkin/
