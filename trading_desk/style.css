@@ -976,3 +976,14 @@ button.primary:disabled { opacity: 0.5; cursor: default; }
 .enterprise-ai-name { font-weight: 600; }
 .enterprise-ai-role { color: var(--text-muted); font-size: 11px; }
 .enterprise-ai-stock p { margin: 8px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+
+.sector-practical-read {
+  margin: 12px 0 16px;
+  padding: 11px 13px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  line-height: 1.45;
+  font-size: 13px;
+}
+.sector-practical-read strong { color: var(--text-primary); }

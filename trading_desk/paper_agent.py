@@ -31,20 +31,29 @@ def recommend(symbol: str, stock: dict) -> dict:
 
     bars = stock.get("bars") or []
     last = _finite(bars[-1].get("c")) if bars else None
-    atr = _finite((stock.get("indicators") or {}).get("atr14", [None])[-1])
+    # `or [None]` on the *value*, not as .get's default: an empty list is a real
+    # value, so the default never fires for it and `[-1]` raised IndexError --
+    # which the route then reported to the dashboard as "list index out of
+    # range". `indicators.compute_all([])` returns exactly that empty list.
+    atr_series = (stock.get("indicators") or {}).get("atr14") or [None]
+    atr = _finite(atr_series[-1])
+    # Validated before the levels are read, not after: the comprehensions below
+    # compare against `last`, and re-testing it per level to cover the window
+    # where it might be None only hid that the check belongs up here.
+    if last is None or atr is None or atr <= 0:
+        return {"symbol": symbol, "available": False, "reason": "last price or ATR is unavailable"}
+
     levels = stock.get("levels") or []
     supports = sorted(
         value for level in levels
         if level.get("kind") == "support" and (value := _finite(level.get("level"))) is not None
-        and last is not None and value < last
+        and value < last
     )
     resistances = sorted(
         value for level in levels
         if level.get("kind") == "resistance" and (value := _finite(level.get("level"))) is not None
-        and last is not None and value > last
+        and value > last
     )
-    if last is None or atr is None or atr <= 0:
-        return {"symbol": symbol, "available": False, "reason": "last price or ATR is unavailable"}
     if not supports or not resistances:
         return {"symbol": symbol, "available": False, "reason": "support or resistance is unavailable"}
 

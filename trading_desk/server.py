@@ -1619,7 +1619,26 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, obj: dict, code: int = 200) -> None:
         self._send(code, json.dumps(obj).encode(), "application/json; charset=utf-8")
 
+    def _host_is_local(self) -> bool:
+        """Reject requests whose Host is not a loopback name for this port.
+
+        Binding to 127.0.0.1 keeps other machines out but does nothing against
+        DNS rebinding: a page the user visits can point its own hostname at
+        127.0.0.1 and then read this server same-origin. That mattered little
+        when the desk served public market data and a local CSV; it matters now
+        that `/api/schwab/status` and `/api/schwab/positions` return live
+        brokerage account data. The browser always sends the name it dialled, so
+        checking it is what closes the hole.
+        """
+        host = (self.headers.get("Host") or "").strip()
+        hostname = host.rsplit(":", 1)[0].strip("[]").lower() if host else ""
+        return hostname in {"127.0.0.1", "localhost", "::1", ""}
+
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        if not self._host_is_local():
+            self.close_connection = True
+            self._send(403, b"forbidden host", "text/plain")
+            return
         parsed = urllib.parse.urlparse(self.path)
         path, qs = parsed.path, urllib.parse.parse_qs(parsed.query)
 
@@ -1755,6 +1774,10 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        if not self._host_is_local():
+            self.close_connection = True
+            self._send(403, b"forbidden host", "text/plain")
+            return
         path = urllib.parse.urlparse(self.path).path
         # Every early return below answers without reading the body. On an
         # HTTP/1.1 keep-alive socket the unread bytes would be parsed as the

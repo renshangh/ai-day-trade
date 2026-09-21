@@ -571,16 +571,16 @@ function renderSchwabTrade() {
   const price = form && form.elements.limit_price;
   const duration = form && form.elements.duration;
   if (!form) return;
-  const submitHandoff = $('schwab-submit-handoff');
-  if (submitHandoff) {
-    submitHandoff.onclick = async () => {
+  const copyConfirmation = $('schwab-copy-confirmation');
+  if (copyConfirmation) {
+    copyConfirmation.onclick = async () => {
       const phrase = result && result.confirmation_phrase;
       if (!phrase) return;
       try {
         await navigator.clipboard.writeText(phrase);
-        submitHandoff.textContent = 'Copied — send in chat';
+        copyConfirmation.textContent = 'Copied — send in chat';
       } catch (_error) {
-        submitHandoff.textContent = 'Copy phrase above';
+        copyConfirmation.textContent = 'Copy phrase above';
       }
     };
   }
