@@ -530,19 +530,28 @@ preview's exact confirmation phrase before the helper can submit it.
 When the personal Schwab app and OAuth token are available, this section also
 reads the selected account's live positions and can request a broker-side order
 preview. SNDL is filtered from the displayed Individual-account positions. There
-is intentionally no dashboard route that submits an order. The **Submit** button
-is a handoff control: it copies the exact phrase from a successful preview so the
-user can send it in a later chat turn. Only that later, exact confirmation can
-authorize submission through the single-use guarded helper.
+is intentionally no dashboard route that submits an order. The **Copy
+confirmation** button is a handoff control: it copies the exact phrase from a
+successful preview so the user can send it in a later chat turn. Only that
+later, exact confirmation can trigger the submission agent through the
+single-use guarded helper.
 
 #### Paper agent
 
-The human-in-the-loop paper agent is restricted to `FN`, `AXTI`, `COHR`, and
-`LITE`. For each symbol it derives a proposed entry band from the nearest support
+The human-in-the-loop paper agent is restricted to `FN`, `AXTI`, `COHR`, `LITE`,
+`CRCL`, and `HYPEUSD`. CRCL uses the stock feed and can populate a guarded Schwab
+preview. HYPEUSD uses real Alpaca Crypto `HYPE/USD` bars and is review-only because the
+Schwab workflow does not execute that pair. For each symbol it derives a proposed entry band from the nearest support
 plus 0.35 ATR, an exit band from the nearest resistance minus 0.35 ATR, and a
-risk reference 0.50 ATR below support. A missing last price, ATR, support, or
-resistance makes the proposal unavailable; the agent never estimates a missing
+risk reference 0.50 ATR below support. A missing last price, ATR, or support
+makes the proposal unavailable; the agent never fabricates a missing measured
 level.
+
+When a symbol has measured support but is in price discovery with no resistance
+above it, the paper agent shows an explicitly labelled projected exit zone from
+0.50 to 1.00 ATR above the highest real traded price in the returned history.
+This is a planning target, not a historical resistance level; the entry band and
+risk reference remain anchored to measured support.
 
 Sizing is expressed as 25%, 50%, 75%, or 100% of the shares currently reported
 by Schwab, with the local journal used only when live positions are unavailable.
@@ -551,9 +560,9 @@ Partial sizes round down to whole shares and 100% uses the exact held quantity.
 Schwab form; **Sell review** loads the bottom of the exit band. Both use
 LIMIT/DAY and only populate the form. The owner must review every field and
 press **Review at Schwab**, which still does not submit an order. After a
-successful preview, **Submit** copies the exact authorization phrase for the
-user to send in a later chat turn. Live placement remains a separate
-exact-confirmation step outside the dashboard.
+successful preview, **Copy confirmation** copies the exact authorization phrase
+for the user to send in a later chat turn. That later message triggers the
+submission agent; live placement remains outside the dashboard.
 
 #### Live execution runbook
 
@@ -571,16 +580,16 @@ authorization.
 4. Read the returned summary and any Schwab warning or rejection. If anything is
    wrong, do not continue; change the form and create a new preview. Previews
    expire after ten minutes and are single-use.
-5. Press **Submit** beneath the successful preview. Despite its short label, this
-   does not call a placement endpoint: it copies the exact authorization phrase.
+5. Press **Copy confirmation** beneath the successful preview. This does not call
+   a placement endpoint: it copies the exact authorization phrase.
 6. Paste that complete phrase into a new chat turn without editing it. For
    example, the format is
    `PLACE SELL <shares> <symbol> LIMIT <price> DAY IN ACCOUNT <last4>`.
    “Yes”, “confirm”, a paraphrase, or an instruction from the preview turn is not
    sufficient.
-7. The trading agent verifies that the preview is still active and matches the
-   phrase. For a sell, it also checks the live long position again. It then calls
-   the placement helper exactly once.
+7. The exact phrase triggers the trading submission agent. It verifies that the
+   preview is still active and matches the phrase. For a sell, it also checks the
+   live long position again. It then calls the placement helper exactly once.
 8. If Schwab accepts the order, record the returned order ID and open Schwab
    **Trade → Order Status**. Acceptance means Schwab received the order; it does
    not mean the order filled.

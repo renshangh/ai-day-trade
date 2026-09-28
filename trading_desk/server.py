@@ -48,6 +48,10 @@ import universe  # noqa: E402
 import session_vwap  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
+COINGECKO_API = "https://api.coingecko.com/api/v3"
+CRYPTO_IDS = {"ETHUSD": "ethereum", "HYPEUSD": "hyperliquid", "NEAR": "near", "TAO": "bittensor", "RENDER": "render-token", "FET": "artificial-superintelligence-alliance", "AKT": "akash-network", "HYPE": "hyperliquid", "ZEC": "zcash", "ONDO": "ondo-finance", "ARB": "arbitrum", "OP": "optimism", "POL": "polygon-ecosystem-token", "STRK": "starknet", "ZK": "zksync"}
+COINBASE_PRODUCTS = {"ONDOUSD": "ONDO-USD", "NEARUSD": "NEAR-USD"}
+ALPACA_CRYPTO_SYMBOLS = {"HYPEUSD": "HYPE/USD"}
 CACHE_PATH = HERE / "cache.json"
 ENTERPRISE_AI_BRIEFING_PATH = HERE / "enterprise_ai_briefing.json"
 SCHWAB_TRADE_HELPER = REPO_ROOT / "scripts" / "schwab_trade.py"
@@ -575,6 +579,74 @@ def get_stock(symbol: str, force: bool = False) -> dict:
                 del stocks[old]
     # Deliberately no save_cache() here -- see save_cache's docstring.
     return data
+
+
+def get_crypto(symbol: str) -> dict:
+    """Return real daily crypto OHLCV bars from the symbol's configured venue."""
+    symbol = symbol.upper().strip()
+    alpaca_symbol = ALPACA_CRYPTO_SYMBOLS.get(symbol)
+    if alpaca_symbol:
+        end = datetime.now(timezone.utc)
+        params = {
+            "symbols": alpaca_symbol,
+            "timeframe": "1Day",
+            "start": (end - timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "limit": 1000,
+            "sort": "asc",
+        }
+        payload = _get(
+            f"{ALPACA_DATA}/v1beta3/crypto/us/bars?{urllib.parse.urlencode(params)}",
+            retries=2,
+        )
+        source_bars = (payload.get("bars") or {}).get(alpaca_symbol) or []
+        bars = [
+            {"t": str(row["t"])[:10], "o": float(row["o"]), "h": float(row["h"]),
+             "l": float(row["l"]), "c": float(row["c"]), "v": float(row["v"])}
+            for row in source_bars
+            if all(key in row for key in ("t", "o", "h", "l", "c", "v"))
+        ]
+        if not bars:
+            return {"symbol": symbol, "bars": [], "indicators": {},
+                    "error": "no Alpaca crypto bars returned"}
+        return {"symbol": symbol, "feed": "Alpaca Crypto",
+                "feed_note": f"daily {alpaca_symbol} OHLC and volume",
+                "bars": bars, "indicators": indicators.compute_all(bars),
+                "levels": indicators.support_resistance(bars), "stale": False}
+    product_id = COINBASE_PRODUCTS.get(symbol)
+    if product_id:
+        candles = _get(f"https://api.exchange.coinbase.com/products/{product_id}/candles?granularity=86400", retries=2) or []
+        bars = [{"t": datetime.fromtimestamp(row[0], timezone.utc).date().isoformat(),
+                 "o": float(row[3]), "h": float(row[2]), "l": float(row[1]),
+                 "c": float(row[4]), "v": float(row[5])}
+                for row in candles if len(row) >= 6]
+        bars.sort(key=lambda bar: bar["t"])
+        if not bars:
+            return {"symbol": symbol, "bars": [], "indicators": {}, "error": "no Coinbase crypto bars returned"}
+        return {"symbol": symbol, "feed": "Coinbase", "feed_note": "daily crypto OHLC and volume",
+                "bars": bars, "indicators": indicators.compute_all(bars),
+                "levels": indicators.support_resistance(bars), "stale": False}
+    coin_id = CRYPTO_IDS.get(symbol)
+    if not coin_id:
+        return {"symbol": symbol, "bars": [], "indicators": {}, "error": "crypto symbol is not in the desk universe"}
+    ohlc = _get(f"{COINGECKO_API}/coins/{coin_id}/ohlc?vs_currency=usd&days=365", retries=2) or []
+    volumes = _get(f"{COINGECKO_API}/coins/{coin_id}/market_chart?vs_currency=usd&days=365&interval=daily", retries=2).get("total_volumes") or []
+    volume_by_day = {datetime.fromtimestamp(row[0] / 1000, timezone.utc).date().isoformat(): float(row[1])
+                     for row in volumes if len(row) > 1}
+    bars = []
+    for row in ohlc:
+        if len(row) < 5:
+            continue
+        day = datetime.fromtimestamp(row[0] / 1000, timezone.utc).date().isoformat()
+        if day not in volume_by_day:
+            continue
+        bars.append({"t": day, "o": float(row[1]), "h": float(row[2]), "l": float(row[3]),
+                     "c": float(row[4]), "v": volume_by_day[day]})
+    if not bars:
+        return {"symbol": symbol, "bars": [], "indicators": {}, "error": "no crypto bars returned"}
+    return {"symbol": symbol, "feed": "CoinGecko", "feed_note": "daily crypto OHLC and volume",
+            "bars": bars, "indicators": indicators.compute_all(bars),
+            "levels": indicators.support_resistance(bars), "stale": False}
 
 
 def get_detail(symbol: str, force: bool = False) -> dict:
@@ -1570,12 +1642,17 @@ def build_paper_recommendations(force: bool = False) -> dict:
     held = open_positions()
     for symbol in paper_agent.PERMITTED_SYMBOLS:
         try:
-            stock = get_stock(symbol, force=force)
-            if stock.get("error"):
-                rows.append({"symbol": symbol, "available": False, "reason": stock["error"]})
+            is_crypto = symbol in CRYPTO_IDS or symbol in COINBASE_PRODUCTS
+            market_data = get_crypto(symbol) if is_crypto else get_stock(symbol, force=force)
+            if market_data.get("error"):
+                rows.append({"symbol": symbol, "available": False, "reason": market_data["error"],
+                             "asset_type": "crypto" if is_crypto else "stock",
+                             "broker_preview_available": not is_crypto})
             else:
-                proposal = paper_agent.recommend(symbol, stock)
+                proposal = paper_agent.recommend(symbol, market_data)
                 proposal["held_shares"] = (held.get(symbol) or {}).get("qty")
+                proposal["asset_type"] = "crypto" if is_crypto else "stock"
+                proposal["broker_preview_available"] = not is_crypto
                 rows.append(proposal)
         except Exception as exc:  # noqa: BLE001 - one symbol must not hide the other three
             rows.append({"symbol": symbol, "available": False, "reason": str(exc)})
@@ -1654,6 +1731,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/board":
             try:
                 self._json(get_board(force=qs.get("force", ["0"])[0] == "1"))
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": str(e)}, 502)
+            return
+
+        if path == "/api/crypto":
+            sym = (qs.get("symbol") or [""])[0].upper().strip()
+            try:
+                self._json(get_crypto(sym))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
             return
