@@ -160,10 +160,11 @@ python3 scripts/schwab_trade.py previews
 The Trading Desk Daily Review calls the same sanitized boundaries to show readiness,
 read live positions, and request a broker-side preview. It does not receive
 credentials, OAuth tokens, account hashes, or full account numbers, and the dashboard
-has no order-placement endpoint. Its **Submit** button only copies the preview's
-exact confirmation phrase; it does not call Schwab. Loading, refreshing, previewing,
-or pressing that button therefore cannot place an order. Placement remains available
-only through the later-turn exact-confirmation workflow described above.
+has no order-placement endpoint. Its **Copy confirmation** button only copies the
+preview's exact confirmation phrase; it does not call Schwab. Loading, refreshing,
+previewing, or pressing that button therefore cannot place an order. Sending the
+exact phrase in a later chat turn triggers the guarded submission agent described
+above.
 
 Until the developer app reads **Ready For Use**, `status` will explain the remaining
 setup step and no order can be previewed or placed.
