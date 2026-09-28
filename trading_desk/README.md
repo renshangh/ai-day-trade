@@ -1,4 +1,12 @@
-# Trading Desk — Hot Sector Board
+# Trading Desk
+
+The **AI Trading Desk v3** is the default page at `/`. It provides the CIO Brief,
+AI Economy Score, AI Coins & Agent Economy, Thesis Tracker, Opportunity Pipeline,
+Decision Log, and links into the existing market views. See [V3.md](V3.md) for
+its scoring and data rules. The Hot Sector Board documented below remains at
+`/board`.
+
+## Hot Sector Board
 
 Local dashboard that screens sectors and themes over short horizons — for momentum
 or for reversals — and charts the resulting movers with the standard technical

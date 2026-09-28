@@ -139,7 +139,7 @@ const OVERLAYS = [
 ];
 
 const state = {
-  view: 'momentum',   // see VIEWS -- ranked screens plus the solo views
+  view: VIEWS.find(v => v.key === new URLSearchParams(location.search).get('view'))?.key || 'momentum',
   lookback: 1,
   range: '6M',
   board: null,

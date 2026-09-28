@@ -46,6 +46,7 @@ import paper_agent  # noqa: E402
 import sector_signals  # noqa: E402
 import universe  # noqa: E402
 import session_vwap  # noqa: E402
+import v3_store  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -53,6 +54,7 @@ CRYPTO_IDS = {"ETHUSD": "ethereum", "HYPEUSD": "hyperliquid", "NEAR": "near", "T
 COINBASE_PRODUCTS = {"ONDOUSD": "ONDO-USD", "NEARUSD": "NEAR-USD"}
 ALPACA_CRYPTO_SYMBOLS = {"HYPEUSD": "HYPE/USD"}
 CACHE_PATH = HERE / "cache.json"
+V3_STORE = v3_store.DeskStore(HERE / "v3_state.json")
 ENTERPRISE_AI_BRIEFING_PATH = HERE / "enterprise_ai_briefing.json"
 SCHWAB_TRADE_HELPER = REPO_ROOT / "scripts" / "schwab_trade.py"
 
@@ -1672,12 +1674,12 @@ def build_paper_recommendations(force: bool = False) -> dict:
 # HTTP
 # --------------------------------------------------------------------------
 STATIC = {
-    "/": ("index.html", "text/html; charset=utf-8"),
-    "/index.html": ("index.html", "text/html; charset=utf-8"),
-    "/preview-v3": ("preview_v3.html", "text/html; charset=utf-8"),
-    "/preview_v3.css": ("preview_v3.css", "text/css; charset=utf-8"),
-    "/preview_v3_logic.js": ("preview_v3_logic.js", "application/javascript; charset=utf-8"),
-    "/preview_v3.js": ("preview_v3.js", "application/javascript; charset=utf-8"),
+    "/": ("v3.html", "text/html; charset=utf-8"),
+    "/index.html": ("v3.html", "text/html; charset=utf-8"),
+    "/v3.css": ("v3.css", "text/css; charset=utf-8"),
+    "/v3_logic.js": ("v3_logic.js", "application/javascript; charset=utf-8"),
+    "/v3.js": ("v3.js", "application/javascript; charset=utf-8"),
+    "/board": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
 }
@@ -1860,6 +1862,13 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        if path == "/api/v3/state":
+            try:
+                self._json(V3_STORE.read())
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                self._json({"error": f"desk data unavailable: {exc}"}, 500)
+            return
+
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
@@ -1872,7 +1881,7 @@ class Handler(BaseHTTPRequestHandler):
         # HTTP/1.1 keep-alive socket the unread bytes would be parsed as the
         # *next* request line, so the connection is closed instead: a 70 KB
         # POST followed by GET /api/health on the same socket came back 414.
-        if path not in ("/api/cycle", "/api/schwab/preview"):
+        if path not in ("/api/cycle", "/api/schwab/preview", "/api/v3/state"):
             self.close_connection = True
             self._send(404, b"not found", "text/plain")
             return
@@ -1884,11 +1893,39 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection = True
             self._json({"error": "Content-Length must be a non-negative integer"}, 400)
             return
-        if length > MAX_POST_BYTES:
+        limit = v3_store.MAX_DOCUMENT_BYTES if path == "/api/v3/state" else MAX_POST_BYTES
+        if length > limit:
             self.close_connection = True
-            self._json({"error": f"request body must be at most {MAX_POST_BYTES} bytes"}, 413)
+            self._json({"error": f"request body must be at most {limit} bytes"}, 413)
             return
         body = self.rfile.read(length) if length else b""
+        if path == "/api/v3/state":
+            if "application/json" not in self.headers.get("Content-Type", ""):
+                self._json({"error": "Content-Type must be application/json"}, 415)
+                return
+            origin = self.headers.get("Origin")
+            if origin:
+                try:
+                    parsed_origin = urllib.parse.urlparse(origin)
+                    same_local_origin = (parsed_origin.hostname in {"127.0.0.1", "localhost", "::1"}
+                                         and parsed_origin.port == self.server.server_address[1]
+                                         and parsed_origin.scheme == "http")
+                except ValueError:
+                    same_local_origin = False
+                if not same_local_origin:
+                    self._json({"error": "cross-origin writes are not allowed"}, 403)
+                    return
+            try:
+                data = json.loads(body)
+                result = V3_STORE.update(data.get("expectedRevision"), data.get("data"))
+                self._json(result)
+            except (json.JSONDecodeError, UnicodeDecodeError, AttributeError, ValueError) as exc:
+                self._json({"error": str(exc)}, 400)
+            except v3_store.ConflictError as exc:
+                self._json({"error": str(exc), "revision": exc.revision}, 409)
+            except OSError as exc:
+                self._json({"error": f"could not save desk data: {exc}"}, 500)
+            return
         if path == "/api/schwab/preview":
             if "application/json" not in self.headers.get("Content-Type", ""):
                 self._json({"ok": False, "error": "Content-Type must be application/json"}, 415)
