@@ -1597,6 +1597,9 @@ def build_paper_recommendations(force: bool = False) -> dict:
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
+    "/preview-v3": ("preview_v3.html", "text/html; charset=utf-8"),
+    "/preview_v3.css": ("preview_v3.css", "text/css; charset=utf-8"),
+    "/preview_v3.js": ("preview_v3.js", "application/javascript; charset=utf-8"),
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
 }
