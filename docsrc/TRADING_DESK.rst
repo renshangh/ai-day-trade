@@ -80,3 +80,6 @@ Kraken charts show completed UTC daily candles and token volume; today's forming
 candle is excluded. The feed and latest bar date appear with the chart. Missing
 or invalid data clears the previous chart and displays unavailable. Some tokens
 lack a configured daily feed; their external market page remains accessible.
+
+Crypto chart ranges use calendar months ending at the latest completed candle.
+Stock charts retain their trading-session ranges. Missing dates stay missing.

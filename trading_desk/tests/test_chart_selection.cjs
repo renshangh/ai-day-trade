@@ -31,3 +31,17 @@ test('stock and crypto selection dispatch independently and reveal the lower cha
   context.selectOnchainSymbol('CCCAUSD','crypto');
   assert.deepEqual(calls,[['stock','COIN',false],['scroll','detail-card'],['crypto','CCCAUSD',false],['scroll','detail-card']]);
 });
+
+
+test('crypto ranges use calendar months with gaps and month-end clamping; stock ranges keep sessions',()=>{
+  const context=vm.createContext({});
+  vm.runInContext(source.slice(source.indexOf('function chartStartIndex('),source.indexOf('function visibleSlice(')),context);
+  const bars=['2025-08-30','2025-08-31','2025-12-01','2026-02-28','2026-03-01','2026-05-31','2026-08-31'].map(t=>({t}));
+  const crypto={bars,asset_type:'crypto'};
+  assert.equal(context.chartStartIndex(crypto,{key:'6M',bars:126}),3);
+  assert.equal(context.chartStartIndex(crypto,{key:'3M',bars:63}),5);
+  assert.equal(context.chartStartIndex(crypto,{key:'1Y',bars:252}),1);
+  assert.equal(context.chartStartIndex(crypto,{key:'2Y',bars:Infinity}),0);
+  assert.equal(context.chartStartIndex({bars},{key:'3M',bars:3}),4);
+  assert.equal(context.chartStartIndex({bars},{key:'2Y',bars:Infinity}),0);
+});
