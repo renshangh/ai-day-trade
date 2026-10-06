@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import os
 import statistics
 import subprocess
@@ -831,6 +832,46 @@ def journal_open_rows() -> list[dict]:
     return rows
 
 
+def review_holdings(rows: list[dict], broker: dict | None) -> tuple[dict, dict, list[dict]]:
+    """Use Schwab's current holdings when available; keep journal-only context separate.
+
+    A journal quantity mismatch means its lot stops cannot safely describe the
+    whole live position. Do not apply those stops to newly bought shares.
+    """
+    journal = open_positions(rows)
+    if not broker or not broker.get("ok") or not isinstance(broker.get("positions"), list):
+        return journal, {s: [r for r in rows if (r.get("symbol") or "").strip().upper() == s]
+                         for s in journal}, []
+
+    held, lots_by_symbol, gaps = {}, {}, []
+    for position in broker["positions"]:
+        try:
+            symbol = str(position["symbol"]).strip().upper()
+            qty = float(position["quantity"])
+            avg = position.get("average_price")
+            avg = float(avg) if avg is not None else None
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not symbol or not math.isfinite(qty) or qty <= 0:
+            continue
+        if avg is not None and (not math.isfinite(avg) or avg <= 0):
+            avg = None
+        journal_qty = (journal.get(symbol) or {}).get("qty", 0.0)
+        contributions = position.get("account_positions") or []
+        matched = abs(journal_qty - qty) < 1e-8 and len(contributions) <= 1
+        lots = [r for r in rows if (r.get("symbol") or "").strip().upper() == symbol] if matched else []
+        held[symbol] = {
+            "qty": qty, "avg_entry": avg, "cost": qty * avg if avg is not None else None,
+            "lots": len(lots), "entry_date": (journal.get(symbol) or {}).get("entry_date") if matched else None,
+            "source": "schwab", "journal_gap": not matched,
+            "account_positions": contributions,
+        }
+        lots_by_symbol[symbol] = lots
+        if not matched:
+            gaps.append({"symbol": symbol, "broker_qty": qty, "journal_qty": journal_qty})
+    return held, lots_by_symbol, gaps
+
+
 def _symbol_groups() -> dict[str, list[str]]:
     """symbol -> group names, so the review can report theme concentration."""
     out: dict[str, list[str]] = {}
@@ -1075,8 +1116,11 @@ def _review_flags(e: dict, earn: dict | None) -> list[dict]:
     dressed these up as signals would be pretending to an edge none of them has.
     """
     flags: list[dict] = []
+    if e.get("journal_gap"):
+        flags.append({"key": "journal_gap", "level": "warn",
+                      "text": "Schwab holding differs from the trade journal; lot stops and entry date are unavailable"})
     if e.get("error"):
-        return [{"key": "no_data", "level": "warn", "text": f"No market data: {e['error']}"}]
+        return flags + [{"key": "no_data", "level": "warn", "text": f"No market data: {e['error']}"}]
 
     if e.get("lots_without_stop"):
         n, total = e["lots_without_stop"], e.get("lots") or 0
@@ -1141,25 +1185,24 @@ def _review_flags(e: dict, earn: dict | None) -> list[dict]:
     return flags
 
 
-def build_position_review(force: bool = False) -> dict:
+def build_position_review(force: bool = False, broker: dict | None = None) -> dict:
     """Per-holding state, levels, risk-to-support and journal gaps.
 
     Deliberately reuses `get_stock`, so a review right after browsing the board
     is nearly free and the numbers cannot disagree with the chart.
     """
+    if broker is not None and not broker.get("ok"):
+        return {"error": broker.get("message") or "Combined Schwab holdings unavailable",
+                "holdings_source": "schwab", "positions": [], "excluded": []}
     rows = journal_open_rows()
-    held = open_positions(rows)
+    held, lots_by_symbol, journal_gaps = review_holdings(rows, broker)
     if not held:
+        source = "Schwab" if broker and broker.get("ok") else JOURNAL_PATH.name
         return {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "positions": [], "excluded": [],
-            "error": f"No open positions in {JOURNAL_PATH.name}. "
-                     "Record entries there and the review fills in.",
+            "error": f"No open positions in {source}.",
         }
-
-    lots_by_symbol: dict[str, list[dict]] = {}
-    for r in rows:
-        lots_by_symbol.setdefault((r.get("symbol") or "").strip().upper(), []).append(r)
 
     groups = _symbol_groups()
     events = earnings.load_event_file()
@@ -1169,6 +1212,9 @@ def build_position_review(force: bool = False) -> dict:
     for symbol in sorted(held):
         e = _review_one(symbol, held[symbol], lots_by_symbol.get(symbol, []), groups,
                         force=force)
+        e["account_positions"] = held[symbol].get("account_positions", [])
+        e["source"] = held[symbol].get("source", "journal")
+        e["journal_gap"] = bool(held[symbol].get("journal_gap"))
         earn = None
         if symbol in events:
             try:
@@ -1205,7 +1251,7 @@ def build_position_review(force: bool = False) -> dict:
 
     def totals(items: list[dict]) -> dict:
         mv = sum(i["market_value"] for i in items if i.get("market_value"))
-        cost = sum(i["cost"] for i in items if i.get("cost"))
+        cost = sum(i["cost"] for i in items) if all(i.get("cost") is not None for i in items) else None
         return {
             "market_value": mv, "cost": cost,
             # Presence, not truthiness: a legitimate 0.0 must not read as missing.
@@ -1242,6 +1288,10 @@ def build_position_review(force: bool = False) -> dict:
         "feed": FEED,
         "feed_note": FEED_NOTE,
         "journal": JOURNAL_PATH.name,
+        "holdings_source": "schwab" if broker and broker.get("ok") else "journal",
+        "accounts": (broker or {}).get("accounts", []),
+        "account_count": (broker or {}).get("account_count", 0),
+        "journal_gaps": journal_gaps,
         "positions": reviewed,
         "excluded": excluded,
         "excluded_note": "Left out of the risk math and flags by instruction. "
@@ -1275,24 +1325,32 @@ def build_position_review(force: bool = False) -> dict:
     }
 
 
-def get_position_review(force: bool = False) -> dict:
+def get_position_review(force: bool = False, broker: dict | None = None) -> dict:
     """Cached wrapper. Same build-lock pattern as the board and the calendar."""
+    broker_key = (json.dumps([
+        (p.get("symbol"), p.get("quantity"), p.get("average_price"), p.get("account_positions"))
+        for p in broker["positions"]
+    ], sort_keys=True) if broker and broker.get("ok") and isinstance(broker.get("positions"), list)
+        else None)
+    if broker is not None and not broker.get("ok"):
+        return build_position_review(force=force, broker=broker)
     with _lock:
         cached = _cache.get("review")
-        if cached and not force and time.time() - _cache.get("review_ts", 0.0) < REVIEW_TTL:
+        if cached and not force and _cache.get("review_broker_key") == broker_key and time.time() - _cache.get("review_ts", 0.0) < REVIEW_TTL:
             return cached
     with _review_build_lock:
         with _lock:
             cached = _cache.get("review")
-            if cached and not force and time.time() - _cache.get("review_ts", 0.0) < REVIEW_TTL:
+            if cached and not force and _cache.get("review_broker_key") == broker_key and time.time() - _cache.get("review_ts", 0.0) < REVIEW_TTL:
                 return cached
-        data = build_position_review(force=force)
+        data = build_position_review(force=force, broker=broker)
         # A review with no positions is a legitimate answer, but an errored one
         # is not worth caching -- the fix is usually to edit the journal.
         if not data.get("error"):
             with _lock:
                 _cache["review"] = data
                 _cache["review_ts"] = time.time()
+                _cache["review_broker_key"] = broker_key
     return data
 
 
@@ -1791,8 +1849,13 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/session-vwap":
             try:
+                broker = run_schwab_helper("positions", "--all-accounts")
+                if not broker.get("ok"):
+                    self._json({"error": broker.get("message") or "Combined Schwab holdings unavailable"}, 503)
+                    return
+                held, _, _ = review_holdings(journal_open_rows(), broker)
                 self._json(session_vwap.get(
-                    list(open_positions()), lambda url: _get(url, retries=2),
+                    list(held), lambda url: _get(url, retries=2),
                     force=qs.get("force", ["0"])[0] == "1"))
             except Exception:
                 self._json({"error": "Could not load session VWAP."}, 502)
@@ -1811,7 +1874,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/review":
             try:
-                self._json(get_position_review(force=qs.get("force", ["0"])[0] == "1"))
+                broker = run_schwab_helper("positions", "--all-accounts")
+                self._json(get_position_review(force=qs.get("force", ["0"])[0] == "1",
+                                               broker=broker))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
             return
@@ -1825,6 +1890,8 @@ class Handler(BaseHTTPRequestHandler):
             args = ["positions"]
             if account:
                 args.extend(("--account-last4", account))
+            else:
+                args.append("--all-accounts")
             payload = run_schwab_helper(*args)
             self._json(payload, 200 if payload.get("ok") else 503)
             return

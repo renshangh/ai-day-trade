@@ -83,3 +83,16 @@ lack a configured daily feed; their external market page remains accessible.
 
 Crypto chart ranges use calendar months ending at the latest completed candle.
 Stock charts retain their trading-session ranges. Missing dates stay missing.
+
+Combined Schwab accounts
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Daily Review shows all linked Schwab accounts in one holdings list. Shared
+symbols combine quantities and use a quantity-weighted average cost for long
+holdings. Masked account contributions appear beneath each symbol, with no
+account tabs or separate reviews. Today's VWAP uses this same account scope.
+Missing costs remain unavailable. If one account fails to load, the combined
+review is unavailable instead of displaying a partial portfolio or the journal.
+Journal stops are not applied to a symbol shared across accounts because the
+journal does not identify the account. Chart-derived valuations retain their
+market-data dates. Trading still requires selection of one account.
