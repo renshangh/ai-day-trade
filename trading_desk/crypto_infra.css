@@ -2,31 +2,33 @@
 .crypto-infra-wrap { width: 100%; overflow-x: auto; margin: 16px 0 24px; }
 .crypto-infra-table { width: 100%; border-collapse: collapse; line-height: 1.7; }
 .crypto-infra-table th, .crypto-infra-table td { padding: 15px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border, #304453); font-size: 14px; }
-.crypto-infra-table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted, #9aabbc); }
+.crypto-infra-table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted, var(--text-muted, #9aabbc)); }
 .crypto-infra-table tbody th { width: 31%; min-width: 160px; }
-.crypto-infra-table a { color: var(--accent, #6fceca); text-decoration: underline; text-underline-offset: 3px; display: inline-block; }
+.crypto-infra-table a { color: var(--accent, var(--series-1, #6fceca)); text-decoration: underline; text-underline-offset: 3px; display: inline-block; }
 .crypto-infra-table a:hover { text-decoration-thickness: 2px; }
 .crypto-infra-table a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 2px; }
 @media (max-width: 600px) { .crypto-infra-table th, .crypto-infra-table td { padding: 11px 8px; font-size: 13px; } }
 
 .crypto-infra-table small { font-size: 11px; font-weight: normal; }
-.crypto-infra-unlisted { color: var(--muted, #9aabbc); display: inline-block; }
+.crypto-infra-unlisted { color: var(--muted, var(--text-muted, #9aabbc)); display: inline-block; }
 .onchain-review { line-height: 1.6; }
 .onchain-anchors { padding: 14px; border: 1px solid var(--border, #304453); border-radius: 8px; }
-.onchain-anchors span { display: block; color: var(--muted, #9aabbc); }
-.onchain-review a { color: var(--accent, #6fceca); text-underline-offset: 3px; }
+.onchain-anchors span { display: block; color: var(--muted, var(--text-muted, #9aabbc)); }
+.onchain-review a { color: var(--accent, var(--series-1, #6fceca)); text-underline-offset: 3px; }
 .onchain-date { display: grid; gap: 6px; max-width: 240px; margin: 18px 0; }
 .onchain-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .onchain-layer { padding: 18px; border: 1px solid var(--border, #304453); border-radius: 8px; min-width: 0; overflow-wrap: anywhere; }
 .onchain-layer h3 { margin-top: 0; }
-.onchain-watch, .onchain-empty { color: var(--muted, #9aabbc); }
+.onchain-watch, .onchain-empty { color: var(--muted, var(--text-muted, #9aabbc)); }
 .onchain-entry { border-top: 1px solid var(--border, #304453); margin-top: 16px; padding-top: 12px; }
 .onchain-entry h4 { margin: 0; }
 .onchain-editor, .onchain-legacy { margin: 22px 0; }
 .onchain-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 16px 0; }
 .onchain-form label { display: grid; gap: 6px; min-width: 0; }
-.onchain-form input, .onchain-form textarea, .onchain-form select, .onchain-date input { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--border, #304453); border-radius: 6px; color: var(--text, #eee); background: var(--surface, #12161c); font: inherit; }
+.onchain-form input, .onchain-form textarea, .onchain-form select, .onchain-date input { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--border, #304453); border-radius: 6px; color: var(--text-primary, #eee); background: var(--surface-1, #12161c); font: inherit; }
 .onchain-form input[type="date"], .onchain-date input { color-scheme: dark; }
 .onchain-form textarea { min-height: 95px; resize: vertical; }
 .onchain-form button { justify-self: start; }
 @media (max-width: 700px) { .onchain-grid, .onchain-form { grid-template-columns: 1fr; } }
+
+:root[data-theme="light"] .onchain-date input { color-scheme: light; }
