@@ -48,3 +48,24 @@ covers taxonomy, empty states, validation, escaping and calendar comparisons.
 Existing v3 store/API tests cover private revisioned persistence.
 Public instructions live in `docsrc/TRADING_DESK.rst`; UI details in
 `trading_desk/V3.md`. Existing `#coins` and `ai-crypto` links remain compatible.
+
+
+## Symbol charts and Canton
+
+Every listed stock/token in the five-layer watchlists and original map has a
+chart link. On the sector board, selecting it loads the existing chart below;
+on the main desk it opens the board with that symbol selected. The separate
+arrow retains the external market link. Unlisted companies stay unlinked.
+
+Canton uses the desk label `CCCAUSD`, mapped to Kraken `CCUSD` (CC/USD), not the
+unrelated Chemours stock `CC`. Verified Kraken USD pairs use completed daily
+UTC OHLC and base-token volumes. The last forming interval is excluded; gaps
+stay gaps, and malformed/duplicate candles are rejected. Missing feeds clear
+previous candles and show unavailable. Tokens without a configured daily feed
+still have their external market link. Public-provider requests receive no
+Alpaca credentials. No orders, secrets or environment variables are added.
+
+Pair and candle contract: `onchain_crypto.py`. Regression coverage:
+`tests/test_onchain_crypto.py` and `tests/test_crypto_infra.cjs` under
+`trading_desk/`. The North Star remains sourced, explicit thesis decisions;
+charts supply dated market context without substituting for adoption evidence.

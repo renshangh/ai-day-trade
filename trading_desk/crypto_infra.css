@@ -32,3 +32,9 @@
 @media (max-width: 700px) { .onchain-grid, .onchain-form { grid-template-columns: 1fr; } }
 
 :root[data-theme="light"] .onchain-date input { color-scheme: light; }
+
+.onchain-symbol { font-weight: 600; }
+.onchain-market { font-size: 12px; }
+.onchain-tickers { line-height: 2; }
+
+#detail-card { scroll-margin-top: 85px; }

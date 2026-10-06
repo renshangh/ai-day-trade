@@ -8,7 +8,8 @@ test('infrastructure map includes eight layers and 37 entries and 31 genuine mar
   assert.equal(layers.length, 8);
   assert.equal(layers.flatMap(([, entries]) => entries).length, 37);
   const html = render();
-  assert.equal((html.match(/<a /g) || []).length, 31);
+  assert.equal((html.match(/target="_blank"/g) || []).length, 31);
+  assert.equal((html.match(/data-chart-symbol=/g) || []).length, 31);
   assert.equal((html.match(/scope="row"/g) || []).length, 8);
   for (const [, entries] of layers) {
     for (const [, url, ticker, kind] of entries) {
@@ -85,4 +86,35 @@ test('rendering uses selected date, preserves legacy observations, and escapes e
   assert.ok(!html.includes('href="javascript:'));
   assert.ok(!html.includes('Yesterday only'));
   assert.equal(notes.length,3);
+});
+
+
+test('every market symbol routes to the right chart including Canton CCCAUSD', () => {
+  const {assetKind, chartHref, watchEntries} = require('../crypto_infra.js');
+  assert.equal(assetKind('CCCAUSD'), 'crypto');
+  assert.equal(assetKind('COIN'), 'stock');
+  assert.equal(assetKind('CC'), undefined); // not Chemours stock
+  assert.equal(assetKind('DTCC'), undefined);
+  const html=renderReview([], '2026-10-06');
+  assert.ok(html.includes('data-chart-symbol="CCCAUSD" data-chart-asset="crypto"'));
+  for (const item of [...layers.flatMap(([,rows])=>rows), ...watchEntries.flat()]) {
+    if (!item[1]) continue;
+    assert.equal(assetKind(item[2]),item[3]);
+    assert.ok(chartHref(item[2],item[3]).includes(`symbol=${encodeURIComponent(item[2])}&asset=${item[3]}`));
+  }
+});
+
+test('board clicks select charts while modified clicks retain the normal link', () => {
+  const {mount}=require('../crypto_infra.js');
+  const listeners={}, calls=[];
+  const box={addEventListener:(type,handler)=>{listeners[type]=handler;},innerHTML:''};
+  mount(box,{onSelect:(...args)=>calls.push(args)});
+  let prevented=false;
+  const link={dataset:{chartSymbol:'CCCAUSD',chartAsset:'crypto'}};
+  const event={target:{closest:()=>link},preventDefault:()=>{prevented=true;},button:0};
+  listeners.click(event);
+  assert.ok(prevented);
+  assert.deepEqual(calls,[['CCCAUSD','crypto']]);
+  listeners.click({...event,ctrlKey:true});
+  assert.equal(calls.length,1);
 });
