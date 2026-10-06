@@ -1674,6 +1674,8 @@ def build_paper_recommendations(force: bool = False) -> dict:
 # HTTP
 # --------------------------------------------------------------------------
 STATIC = {
+    "/crypto_infra.js": ("crypto_infra.js", "application/javascript; charset=utf-8"),
+    "/crypto_infra.css": ("crypto_infra.css", "text/css; charset=utf-8"),
     "/": ("v3.html", "text/html; charset=utf-8"),
     "/index.html": ("v3.html", "text/html; charset=utf-8"),
     "/v3.css": ("v3.css", "text/css; charset=utf-8"),

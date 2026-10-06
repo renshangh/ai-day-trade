@@ -7,6 +7,7 @@ const economyFactors = ['AI infrastructure','Enterprise AI','AI agent adoption',
 const healthFactors = [['BTC dominance',20],['ETH/BTC',20],['Altcoin season',15],['Stablecoin liquidity',10],['ETF flows',10],['Funding',10],['Open interest',5],['Market breadth',10]];
 const key = 'ai-trading-desk-v3';
 const legacyKey = 'ai-trading-desk-preview-v3';
+let onchainReview = null;
 let records = {reports:[], thesisReviews:{}, opportunities:[], decisions:[], healthReviews:[], observations:[]};
 let serverRevision = null;
 let syncInFlight = false;
@@ -61,7 +62,7 @@ async function hydrate(){
   records=payload.data;
   localStorage.setItem(key,JSON.stringify(records));
   localStorage.removeItem(`${key}-unsynced`);
-  renderReport();renderCoin();renderResearch();renderTheses();renderRecords();
+  renderReport();renderCoin();renderResearch();renderTheses();renderRecords();onchainReview?.refresh();
   syncStatus(`Loaded local desk file · revision ${serverRevision}`);
  } catch(error){syncStatus(`Local desk file unavailable (${error.message}). Entries remain in this browser.`);}
 }
@@ -138,13 +139,17 @@ const desk = [
  ['AI Infrastructure','Semiconductors, networking, orders, supply chain, and CapEx.','/board?view=sector','Open sector scorecard'],
  ['Data Center Build-out','Campuses, power, cooling, fiber, and construction.','/board?view=cycle','Open cycle dashboard'],
  ['Enterprise AI','Model releases, agent deployments, MCP, and adoption.','/board?view=enterprise-ai','Open Enterprise AI'],
- ['AI Coins & Agent Economy','Altcoin health, tokens, agents, blockchain, RWA, and early signals.','#coins','Open AI Coins'],
+ ['Onchain Finance Buildout','Digital money, onchain markets, TradFi bridges, infrastructure rails, and agentic finance.','#coins','Open Onchain Finance Buildout'],
  ['AI Stock Watchlist','Price action, catalysts, earnings, and relative strength.','/board?view=momentum','Open stock board'],
  ['Trading Opportunities','Setups, catalysts, risk, and decision criteria.','#pipeline','Open pipeline'],
  ['Risk Dashboard','Macro, concentration, liquidity, leverage, and thesis risk.','/board?view=review','Open daily review'],
  ['HCA Technology Watch','Physical AI, robotics, world models, and manufacturing AI.','#research','Open research queue']
 ];
 $('desk-grid').innerHTML = desk.map(([name,description,href,label],i) => `<div class="desk-item"><b>${String(i+1).padStart(2,'0')} · ${name}</b><p>${description}</p><a class="text-link" href="${href}">${label} ↗</a></div>`).join('');
+onchainReview = globalThis.CryptoFinanceInfra.mount($('crypto-infra-map'), {
+ getObservations: () => records.observations,
+ onSave: entry => { records.observations.push(entry); save(); }
+});
 const coinPanels = [
  {name:'Altcoin Health Monitor',body:`<p>Eight proposed indicators; no market state is assigned until verified observations are available.</p><div class="pill-list">${['BTC dominance · 20%','ETH/BTC · 20%','Altcoin season · 15%','Stablecoin liquidity · 10%','ETF flows · 10%','Funding · 10%','Open interest · 5%','Market breadth · 10%'].map(x=>`<span class="pill">${x}</span>`).join('')}</div><p class="muted">Each indicator: pending · overall status: unscored.</p>`},
  {name:'AI Coin Dashboard',body:''},

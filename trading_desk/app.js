@@ -25,7 +25,7 @@ const VIEWS = [
     load: () => fetchCycle(), draw: () => renderCycle() },
   { key: 'enterprise-ai', label: 'Enterprise AI', lookbacks: [], solo: true, card: 'enterprise-ai-card',
     load: () => fetchEnterpriseAI(), draw: () => renderEnterpriseAI() },
-  { key: 'ai-crypto', label: 'AI Coins & Agent Economy', lookbacks: [], solo: true, card: 'ai-crypto-card',
+  { key: 'ai-crypto', label: 'Onchain Finance Buildout', lookbacks: [], solo: true, card: 'ai-crypto-card',
     load: () => { state.aiCrypto = true; renderAiCryptoWatchlist(); }, draw: () => renderAiCryptoWatchlist() },
   { key: 'sector', label: 'Sector', lookbacks: [], solo: true, card: 'sector-card',
     load: force => fetchSector(force), draw: () => renderSector() },
@@ -318,32 +318,24 @@ function renderNotices() {
   }
 }
 
-function renderAiCryptoWatchlist() {
-  const box = $('ai-crypto-list');
+let onchainBoardReview = null;
+let onchainBoardObservations = [];
+async function renderAiCryptoWatchlist() {
+  const box = $('crypto-infra-map');
   if (!box) return;
-  box.innerHTML = AI_CRYPTO_WATCHLIST.map(item => `
-    <div class="enterprise-ai-stock">
-      <div class="enterprise-ai-head">
-        <button class="enterprise-ai-symbol" type="button" data-symbol="${item.symbol}" data-asset="${item.asset || 'crypto'}">${item.symbol}</button>
-        <span class="enterprise-ai-quote">select to chart</span>
-      </div>
-      <div class="enterprise-ai-name">${item.name}</div>
-      <div class="enterprise-ai-role">${item.role}</div>
-      <p><strong>Community:</strong> ${item.community}</p>
-      <p><strong>Coin use:</strong> ${item.usage}</p>
-      <p><a href="${item.marketUrl || item.coingecko}" target="_blank" rel="noopener noreferrer">${item.asset === 'stock' ? 'Yahoo Finance' : 'CoinGecko'} ↗</a> · <a href="${item.project}" target="_blank" rel="noopener noreferrer">Project ↗</a></p>
-    </div>`).join('');
-  box.insertAdjacentHTML('beforeend', `<div class="enterprise-ai-stock"><div class="enterprise-ai-name">Other popular research names</div><div class="enterprise-ai-role">Research links only — not part of the Top 5 universe.</div><p>${AI_CRYPTO_RESEARCH.map(([symbol, name, url]) => { const etfs = (CRYPTO_ETFS[symbol] || []).map(etf => `<a href="${etf.url}" target="_blank" rel="noopener noreferrer">${etf.ticker} ETF ↗</a>`).join(' · '); return `<a href="${url}" target="_blank" rel="noopener noreferrer">${symbol} · ${name} ↗</a>${etfs ? ` · ${etfs}` : ''}`; }).join(' · ')}</p></div>`);
-  box.insertAdjacentHTML('beforeend', `<div class="enterprise-ai-stock"><div class="enterprise-ai-name">Crypto news & catalysts</div><div class="enterprise-ai-role">Read the source before treating a headline as a trade catalyst.</div><p>${AI_CRYPTO_NEWS.map(([label, url]) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${label} ↗</a>`).join(' · ')}</p></div>`);
-  const sectorMap = $('ai-agent-sector-map');
-  if (sectorMap) sectorMap.innerHTML = `<table><thead><tr><th>Scope</th><th>Area</th><th>Anchor</th><th>Other players</th><th>Function</th></tr></thead><tbody>${AI_AGENT_SECTOR_MAP.map(([scope, area, anchor, players, role]) => `<tr><td><span class="sector-scope sector-scope-${scope.toLowerCase().replaceAll(' ', '-')}">${esc(scope)}</span></td><th scope="row">${esc(area)}</th><td><strong>${esc(anchor)}</strong></td><td>${esc(players)}</td><td>${esc(role)}</td></tr>`).join('')}</tbody></table>`;
-  const table = $('ai-crypto-research-table');
-  if (table) table.innerHTML = `<table><thead><tr><th>Coin</th><th>Use cases</th><th>Economics</th><th>ETF</th></tr></thead><tbody>${AI_CRYPTO_RESEARCH_TABLE.map(([coin, use, economics, chart, news]) => { const etfs = CRYPTO_ETFS[coin] || []; const etf = etfs.length ? etfs.map(item => `<a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.ticker}</a>`).join(' · ') : '<span class="muted">None verified</span>'; return `<tr><th scope="row"><span>${coin}</span><small><a href="${chart}" target="_blank" rel="noopener noreferrer">Chart</a> · <a href="${news}" target="_blank" rel="noopener noreferrer">News</a></small></th><td>${use}</td><td>${economics}</td><td>${etf}</td></tr>`; }).join('')}</tbody></table>`;
-  box.querySelectorAll('[data-symbol]').forEach(button => {
-    button.onclick = () => button.dataset.asset === 'stock'
-      ? fetchStock(button.dataset.symbol)
-      : fetchCrypto(button.dataset.symbol);
-  });
+  if (!onchainBoardReview) onchainBoardReview = globalThis.CryptoFinanceInfra.mount(box, {getObservations: () => onchainBoardObservations});
+  try {
+    const response = await fetch('/api/v3/state');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (!Array.isArray(payload.data?.observations)) throw new Error('Invalid research records');
+    onchainBoardObservations = payload.data.observations;
+    onchainBoardReview.refresh();
+  } catch {
+    onchainBoardObservations = [];
+    onchainBoardReview.refresh();
+    box.querySelector('.onchain-status').textContent = 'Daily research records unavailable. Open the main desk to inspect saved entries.';
+  }
 }
 
 async function fetchCrypto(symbol, force) {
@@ -400,6 +392,7 @@ function renderViewTabs() {
     reversal: 'Groups down over the prior period that turned positive on the most recent session.',
     earnings: 'When each name reports next — so a swing position is never held through a print by accident.',
     momentum: 'Groups ranked by raw return over the window.',
+    'ai-crypto': 'Onchain finance across five daily-review layers — evidence, adoption, and COIN / CRCL implications.',
     review: 'Every open position against its own levels, sorted by how close it sits to support.',
     cycle: 'Is the AI data center buildout thesis still intact? Seven indicators scored by hand once a month.',
     sector: 'Measured facts about a group\'s own recent price and volume history \u2014 not a signal, not a call.',

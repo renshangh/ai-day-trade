@@ -9,6 +9,7 @@
 - **A human-in-the-loop trade agent now covers FN, AXTI, COHR, and LITE.** It proposes transparent entry, exit, and risk-reference bands from measured support, resistance, and ATR; missing inputs remain unavailable. Sizing is selectable at 25%, 50%, 75%, or 100% of Schwab's live held shares, with the local journal as a fallback. Buy Review/Sell Review actions populate the guarded Schwab LIMIT/DAY form, Review at Schwab validates without submitting, and **Copy confirmation** copies the phrase that triggers the guarded submission agent in a later chat turn.
 
 ### Changed
+- **Trading Desk expands Crypto Finance Infra into Onchain Finance Buildout.** Both desk pages now share a five-layer daily review anchored on COIN and CRCL, with sourced entries, adoption evidence, portfolio implications, and optional metrics. Day-over-day changes require matching sourced observations from yesterday; missing inputs remain unavailable. The original eight-layer map and additional research remain expandable, and entries use existing private research storage.
 - **Daily Review now covers every Individual-account holding except SNDL.** IBIT is included in the same risk, level, headline, and concentration review as the other current holdings.
 
 ### Fixed
