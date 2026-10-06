@@ -67,3 +67,16 @@ the desk does not automatically collect them. Unreviewed layers remain labeled.
 The original eight-layer infrastructure map expands below the daily review.
 Market links retain ticker labels; associated tokens do not represent company
 equity. Additional research and saved observations remain available.
+
+Symbol charts
+~~~~~~~~~~~~~
+
+Select a stock or crypto symbol to load its chart below the sector-board review.
+Main-desk symbols link directly to the selected board chart. The adjacent arrow
+opens the external market page. Canton is listed as **CCCAUSD**, mapped to the
+Kraken **CC/USD** crypto pair rather than the unrelated CC stock.
+
+Kraken charts show completed UTC daily candles and token volume; today's forming
+candle is excluded. The feed and latest bar date appear with the chart. Missing
+or invalid data clears the previous chart and displays unavailable. Some tokens
+lack a configured daily feed; their external market page remains accessible.

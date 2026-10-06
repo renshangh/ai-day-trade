@@ -159,9 +159,9 @@
         "stock"
       ],
       [
-        "Canton/Digital Asset",
+        "Canton",
         "https://www.coingecko.com/en/coins/canton",
-        "CC",
+        "CCCAUSD",
         "crypto"
       ]
     ]
@@ -267,19 +267,36 @@
   ]
 ];
   const escape = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[ch]));
+  function chartHref(symbol, kind) {
+    return `/board?view=ai-crypto&symbol=${encodeURIComponent(symbol)}&asset=${kind}#detail-card`;
+  }
+  function marketLink(name, url, ticker, kind) {
+    if (!url) return `<span class="crypto-infra-unlisted">${escape(name)} <small>(${escape(ticker)})</small></span>`;
+    return `<a class="onchain-symbol" href="${chartHref(ticker, kind)}" data-chart-symbol="${escape(ticker)}" data-chart-asset="${kind}" title="Show ${escape(ticker)} chart">${escape(name)}${name === ticker ? "" : ` <small>(${escape(ticker)})</small>`}</a> <a class="onchain-market" href="${escape(url)}" target="_blank" rel="noopener noreferrer" aria-label="${escape(name)} market page" title="${kind === 'stock' ? 'Stock quote' : 'Associated token; not company equity'}">↗</a>`;
+  }
   function render() {
-    return `<div class="crypto-infra-wrap"><table class="crypto-infra-table"><thead><tr><th scope="col">Infrastructure layer</th><th scope="col">Companies and platforms</th></tr></thead><tbody>${layers.map(([layer, entries]) => `<tr><th scope="row">${escape(layer)}</th><td>${entries.map(([name, url, ticker, kind]) => url
-      ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer" title="${escape(ticker)} · ${kind === 'stock' ? 'stock quote' : 'associated crypto market; not company equity'}">${escape(name)} <small>(${escape(ticker)})</small></a>`
-      : `<span class="crypto-infra-unlisted">${escape(name)} <small>(${escape(ticker)})</small></span>`).join('<span class="crypto-infra-separator">, </span>')}</td></tr>`).join('')}</tbody></table></div>`;
+    return `<div class="crypto-infra-wrap"><table class="crypto-infra-table"><thead><tr><th scope="col">Infrastructure layer</th><th scope="col">Companies and platforms</th></tr></thead><tbody>${layers.map(([layer, entries]) => `<tr><th scope="row">${escape(layer)}</th><td>${entries.map(entry => marketLink(...entry)).join('<span class="crypto-infra-separator">, </span>')}</td></tr>`).join('')}</tbody></table></div>`;
   }
   const theme = 'Onchain Finance Buildout';
   const reviewLayers = [
     {name:'Digital Money', watch:'CRCL / USDC, USDT, PYUSD, bank tokens', metrics:['USDC supply','Stablecoin transaction volume','USDC market share'], question:'Is digital money growing, and who earns the economics?'},
     {name:'Onchain Markets', watch:'COIN / Base, HOOD, Ondo, Securitize, Kraken / xStocks', metrics:['Tokenized asset value','Tokenized market volume'], question:'Are tokenized stocks, bonds, funds and RWAs gaining actual usage?'},
     {name:'TradFi Bridge', watch:'Citi, JPM, BNY, DTCC, ICE / NYSE, Nasdaq', metrics:['Live institutional deployments','Settlement volume'], question:'Which partnerships, custody, settlement or regulatory developments changed access?'},
-    {name:'Infrastructure Rails', watch:'Ethereum, Base, Solana, Arbitrum, Chainlink', metrics:['Settlement volume','Network fees'], question:'Where are assets and settlement moving, and which rails capture fees?'},
+    {name:'Infrastructure Rails', watch:'Ethereum, Base, Solana, Arbitrum, Chainlink, Canton', metrics:['Settlement volume','Network fees'], question:'Where are assets and settlement moving, and which rails capture fees?'},
     {name:'Agentic Finance', watch:'x402, agent wallets, machine-to-machine payments', metrics:['Paid agent transactions','Active paying agents'], question:'Is there evidence of repeat paid usage beyond announcements?'}
   ];
+  const stock = (name, symbol) => [name, `https://finance.yahoo.com/quote/${symbol}/`, symbol, 'stock'];
+  const crypto = (name, symbol, id) => [name, `https://www.coingecko.com/en/coins/${id}`, symbol, 'crypto'];
+  const watchEntries = [
+    [stock('Circle','CRCL'), crypto('USDC','USDC','usd-coin'), crypto('Tether','USDT','tether'), stock('PayPal','PYPL'), crypto('PYUSD','PYUSD','paypal-usd')],
+    [stock('Coinbase / Base','COIN'), stock('Robinhood','HOOD'), crypto('Ondo','ONDO','ondo'), stock('Securitize','SECZ')],
+    [stock('Citi','C'), stock('JPMorgan','JPM'), stock('BNY','BK'), stock('ICE / NYSE','ICE'), stock('Nasdaq','NDAQ')],
+    [crypto('Ethereum','ETH','ethereum'), stock('Base / Coinbase','COIN'), crypto('Solana','SOL','solana'), crypto('Arbitrum','ARB','arbitrum'), crypto('Chainlink','LINK','chainlink'), crypto('Canton','CCCAUSD','canton')],
+    [stock('x402 / Coinbase','COIN')]
+  ];
+  const chartAssets = new Map([...layers.flatMap(([,entries])=>entries), ...watchEntries.flat()].filter(entry=>entry[1]).map(entry=>[entry[2], entry[3]]));
+  function assetKind(symbol) { return chartAssets.get(symbol); }
+  function marketUrl(symbol) { return [...layers.flatMap(([,entries])=>entries), ...watchEntries.flat()].find(entry=>entry[2] === symbol && entry[1])?.[1]; }
   function today() {
     const parts = new Intl.DateTimeFormat('en-US', {timeZone:'America/New_York', year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
     const part = name => parts.find(p => p.type === name).value;
@@ -319,9 +336,9 @@
   }
   function renderReview(observations = [], date = today(), editable = false) {
     const rows = observations.filter(row => row.theme === theme && row.date === date);
-    return `<div class="onchain-review"><h3>What changed since yesterday?</h3><p>How quickly is the financial system actually moving onchain, and who is capturing the economics?</p><div class="onchain-anchors"><b>Anchor securities:</b> <a href="https://finance.yahoo.com/quote/COIN/" target="_blank" rel="noopener noreferrer">COIN</a> · <a href="https://finance.yahoo.com/quote/CRCL/" target="_blank" rel="noopener noreferrer">CRCL</a><span>Review growth, competition, revenue capture and risks.</span></div><label class="onchain-date">Review date (Eastern time)<input class="onchain-date-input" type="date" value="${escape(date)}" required></label><p class="onchain-status" role="status">${rows.length ? `${rows.length} sourced entries for ${escape(date)}` : `No sourced review recorded for ${escape(date)}. Missing data does not mean no change.`}</p><div class="onchain-grid">${reviewLayers.map(layer => `<article class="onchain-layer"><h3>${escape(layer.name)}</h3><p class="onchain-watch">${escape(layer.watch)}</p><p>${escape(layer.question)}</p><p><small>Track: ${escape(layer.metrics.join(' · '))}</small></p>${rows.filter(row => row.layer === layer.name).map(row => renderEntry(row, observations)).join('') || '<p class="onchain-empty">Not reviewed for this date.</p>'}</article>`).join('')}</div>${editable ? `<details class="onchain-editor"><summary>Record a sourced daily entry</summary><p>Enter comparable metrics in consistent units and from the same scope / method. Announcements and pilots are separate from live usage. Add a separate entry for each metric.</p><form class="onchain-form"><label>Date<input name="date" type="date" required value="${escape(date)}"></label><label>Layer<select name="layer">${reviewLayers.map(layer=>`<option>${escape(layer.name)}</option>`).join('')}</select></label><label>Evidence type<select name="evidence">${['Announcement','Pilot','Live usage','Regulatory development'].map(kind=>`<option>${kind}</option>`).join('')}</select></label><label>What changed?<input name="title" required maxlength="160"></label><label>Evidence / adoption / regulatory details<textarea name="detail" required maxlength="1500"></textarea></label><label>COIN / CRCL implications; who gains or loses?<textarea name="impact" required maxlength="1000"></textarea></label><label>Metric name (optional)<input name="metric" list="onchain-metrics" maxlength="100"><datalist id="onchain-metrics">${[...new Set(reviewLayers.flatMap(layer=>layer.metrics))].map(metric=>`<option value="${escape(metric)}"></option>`).join('')}</datalist></label><label>Observed value (optional)<input name="value" type="number" min="0" step="any"></label><label>Unit / scope (e.g. USD, USDC supply)<input name="unit" maxlength="100"></label><label>Source URL<input name="source" type="url" required maxlength="2000"></label><button type="submit">Save daily entry</button></form></details>` : '<p><a href="/#coins">Record daily evidence on the main desk ↗</a></p>'}<details class="onchain-legacy"><summary>Full infrastructure reference map · eight original layers</summary>${render()}</details></div>`;
+    return `<div class="onchain-review"><h3>What changed since yesterday?</h3><p>How quickly is the financial system actually moving onchain, and who is capturing the economics?</p><div class="onchain-anchors"><b>Anchor securities:</b> ${marketLink(...stock('COIN','COIN'))} · ${marketLink(...stock('CRCL','CRCL'))}<span>Review growth, competition, revenue capture and risks.</span></div><label class="onchain-date">Review date (Eastern time)<input class="onchain-date-input" type="date" value="${escape(date)}" required></label><p class="onchain-status" role="status">${rows.length ? `${rows.length} sourced entries for ${escape(date)}` : `No sourced review recorded for ${escape(date)}. Missing data does not mean no change.`}</p><div class="onchain-grid">${reviewLayers.map((layer, i) => `<article class="onchain-layer"><h3>${escape(layer.name)}</h3><p class="onchain-watch">${escape(layer.watch)}</p><p class="onchain-tickers">${watchEntries[i].map(entry=>marketLink(...entry)).join(" · ")}</p><p>${escape(layer.question)}</p><p><small>Track: ${escape(layer.metrics.join(' · '))}</small></p>${rows.filter(row => row.layer === layer.name).map(row => renderEntry(row, observations)).join('') || '<p class="onchain-empty">Not reviewed for this date.</p>'}</article>`).join('')}</div>${editable ? `<details class="onchain-editor"><summary>Record a sourced daily entry</summary><p>Enter comparable metrics in consistent units and from the same scope / method. Announcements and pilots are separate from live usage. Add a separate entry for each metric.</p><form class="onchain-form"><label>Date<input name="date" type="date" required value="${escape(date)}"></label><label>Layer<select name="layer">${reviewLayers.map(layer=>`<option>${escape(layer.name)}</option>`).join('')}</select></label><label>Evidence type<select name="evidence">${['Announcement','Pilot','Live usage','Regulatory development'].map(kind=>`<option>${kind}</option>`).join('')}</select></label><label>What changed?<input name="title" required maxlength="160"></label><label>Evidence / adoption / regulatory details<textarea name="detail" required maxlength="1500"></textarea></label><label>COIN / CRCL implications; who gains or loses?<textarea name="impact" required maxlength="1000"></textarea></label><label>Metric name (optional)<input name="metric" list="onchain-metrics" maxlength="100"><datalist id="onchain-metrics">${[...new Set(reviewLayers.flatMap(layer=>layer.metrics))].map(metric=>`<option value="${escape(metric)}"></option>`).join('')}</datalist></label><label>Observed value (optional)<input name="value" type="number" min="0" step="any"></label><label>Unit / scope (e.g. USD, USDC supply)<input name="unit" maxlength="100"></label><label>Source URL<input name="source" type="url" required maxlength="2000"></label><button type="submit">Save daily entry</button></form></details>` : '<p><a href="/#coins">Record daily evidence on the main desk ↗</a></p>'}<details class="onchain-legacy"><summary>Full infrastructure reference map · eight original layers</summary>${render()}</details></div>`;
   }
-  function mount(container, {getObservations = () => [], onSave = null} = {}) {
+  function mount(container, {getObservations = () => [], onSave = null, onSelect = null} = {}) {
     let date = today();
     const refresh = () => { container.innerHTML = renderReview(getObservations(), date, !!onSave); };
     container.addEventListener('change', event => {
@@ -335,9 +352,15 @@
       if (error) { container.querySelector('.onchain-status').textContent = error; return; }
       onSave(entry); date = entry.date; refresh();
     });
+    container.addEventListener('click', event => {
+      const link = event.target.closest('[data-chart-symbol]');
+      if (!link || !onSelect || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button) return;
+      event.preventDefault();
+      onSelect(link.dataset.chartSymbol, link.dataset.chartAsset);
+    });
     refresh();
     return {refresh};
   }
-  root.CryptoFinanceInfra = { layers, render, theme, reviewLayers, today, validateEntry, metricDelta, renderReview, mount };
+  root.CryptoFinanceInfra = { layers, render, chartHref, assetKind, marketUrl, watchEntries, theme, reviewLayers, today, validateEntry, metricDelta, renderReview, mount };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.CryptoFinanceInfra;
 })(globalThis);

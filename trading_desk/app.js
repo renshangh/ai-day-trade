@@ -262,6 +262,7 @@ async function fetchBoard(force) {
 async function fetchStock(symbol, force) {
   const mySeq = ++state.selectionSeq;
   state.loading = true;
+  clearSelectedChart(symbol);
   $('chart-wrap').classList.add('refetching');
   try {
     const res = await fetch(`/api/stock?symbol=${encodeURIComponent(symbol)}${force ? '&force=1' : ''}`);
@@ -276,7 +277,7 @@ async function fetchStock(symbol, force) {
   } catch (e) {
     if (mySeq !== state.selectionSeq) return;
     $('d-sym').textContent = symbol;
-    $('d-px').textContent = '';
+    $('d-px').textContent = `Chart unavailable: ${e.message}`;
     showError(`Could not load ${symbol}: ${e.message}`);
   } finally {
     if (mySeq === state.selectionSeq) {
@@ -318,12 +319,38 @@ function renderNotices() {
   }
 }
 
+function clearSelectedChart(symbol) {
+  state.stock = null;
+  state.symbol = symbol;
+  state.hover = null;
+  $('d-sym').textContent = symbol;
+  $('d-px').textContent = 'Loading chart…';
+  $('d-feed').textContent = '';
+  $('chart').getContext('2d').clearRect(0, 0, $('chart').width, $('chart').height);
+  ['table-view', 'chart-legend', 'c-stats', 'c-facts', 'c-news', 'c-links'].forEach(id => $(id)?.replaceChildren());
+  $('c-title').textContent = `Research — ${symbol}`;
+  $('c-entity').textContent = '';
+  $('c-source').textContent = '';
+  $('c-facts-hint').textContent = '';
+  $('company-card').classList.remove('refetching');
+  $('tooltip').classList.remove('on');
+}
+
+function selectOnchainSymbol(symbol, kind) {
+  const load = kind === 'crypto' ? fetchCrypto : fetchStock;
+  void load(symbol, false);
+  $('detail-card').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
 let onchainBoardReview = null;
 let onchainBoardObservations = [];
 async function renderAiCryptoWatchlist() {
   const box = $('crypto-infra-map');
   if (!box) return;
-  if (!onchainBoardReview) onchainBoardReview = globalThis.CryptoFinanceInfra.mount(box, {getObservations: () => onchainBoardObservations});
+  if (!onchainBoardReview) onchainBoardReview = globalThis.CryptoFinanceInfra.mount(box, {
+    getObservations: () => onchainBoardObservations,
+    onSelect: selectOnchainSymbol,
+  });
   try {
     const response = await fetch('/api/v3/state');
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -341,22 +368,26 @@ async function renderAiCryptoWatchlist() {
 async function fetchCrypto(symbol, force) {
   const mySeq = ++state.selectionSeq;
   state.loading = true;
+  clearSelectedChart(symbol);
   $('chart-wrap').classList.add('refetching');
   try {
     const res = await fetch(`/api/crypto?symbol=${encodeURIComponent(symbol)}${force ? '&force=1' : ''}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     if (mySeq !== state.selectionSeq) return;
-    state.stock = data; state.symbol = symbol; state.hover = null;
+    state.stock = {...data, asset_type:'crypto'}; state.symbol = symbol; state.hover = null;
     $('c-title').textContent = `Crypto research — ${symbol}`;
     $('c-entity').textContent = 'Fundamentals and SEC filings are not applicable to this token.';
-    ['c-stats', 'c-filings', 'c-news', 'c-links'].forEach(id => { const el = $(id); if (el) el.innerHTML = ''; });
+    ['c-stats', 'c-facts', 'c-news', 'c-links'].forEach(id => { const el = $(id); if (el) el.innerHTML = ''; });
     const item = AI_CRYPTO_WATCHLIST.find(x => x.symbol === symbol);
     const link = $('yahoo-link');
     if (item && link) { link.href = item.coingecko; link.textContent = 'CoinGecko ↗'; link.title = `Open ${symbol} on CoinGecko`; }
     renderDetail();
   } catch (e) {
-    if (mySeq === state.selectionSeq) showError(`Could not load crypto ${symbol}: ${e.message}`);
+    if (mySeq === state.selectionSeq) {
+      $('d-px').textContent = `Chart unavailable: ${e.message}`;
+      showError(`Could not load crypto ${symbol}: ${e.message}`);
+    }
   } finally {
     if (mySeq === state.selectionSeq) { state.loading = false; $('chart-wrap').classList.remove('refetching'); }
   }
@@ -2265,6 +2296,7 @@ function renderLeaders() {
 }
 
 function selectStock(symbol) {
+  if (globalThis.CryptoFinanceInfra.assetKind(symbol) === 'crypto') return selectOnchainSymbol(symbol, 'crypto');
   document.querySelectorAll('.stock-card').forEach(c => {
     c.classList.toggle('selected', c.querySelector('.sym').textContent === symbol);
   });
@@ -3116,7 +3148,13 @@ function renderDetail() {
     `${fmtPx(last.c)} <span class="${signClass(chg)}">${fmtPct(chg)}</span>
      <span style="color:var(--text-muted)"> · ${last.t}</span>`;
 
-  updateYahooLink(s.symbol);
+  if (s.asset_type === 'crypto') {
+    const link = $('yahoo-link');
+    link.href = globalThis.CryptoFinanceInfra.marketUrl(s.symbol) || AI_CRYPTO_WATCHLIST.find(item => item.symbol === s.symbol)?.coingecko || 'https://www.coingecko.com/';
+    link.textContent = `Crypto: ${s.symbol} ↗`;
+    link.title = `Open ${s.symbol} crypto market page`;
+  } else updateYahooLink(s.symbol);
+  $('d-feed').textContent = s.feed_note || s.feed || 'Feed unavailable';
   renderRangeTabs();
   renderOverlayToggles();
   renderLegend();
@@ -3220,7 +3258,7 @@ function init() {
   $('refresh').onclick = () => {
     $('notices').innerHTML = '';
     fetchBoard(true);
-    if (state.symbol) fetchStock(state.symbol, true);
+    if (state.symbol) (state.stock?.asset_type === 'crypto' || globalThis.CryptoFinanceInfra.assetKind(state.symbol) === 'crypto' ? fetchCrypto : fetchStock)(state.symbol, true);
     // The solo views cache server-side (the cycle log is re-read per request,
     // but a row edited by hand still needs a re-pull to show up), so without
     // this Refresh left the one on screen stale with no way to force a rebuild.
@@ -3262,6 +3300,10 @@ function init() {
   renderViewTabs();
   renderLookbackTabs();
   renderAiCryptoWatchlist();
+  const chartQuery = new URLSearchParams(location.search);
+  const chartSymbol = (chartQuery.get('symbol') || '').toUpperCase();
+  const chartKind = globalThis.CryptoFinanceInfra.assetKind(chartSymbol);
+  if (state.view === 'ai-crypto' && chartKind) selectOnchainSymbol(chartSymbol, chartKind);
   fetchBoard(false);
 }
 
