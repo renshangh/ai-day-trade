@@ -71,6 +71,44 @@ def _one_lot_journal() -> Path:
 HELD = {"qty": 10.0, "cost": 1000.0, "avg_entry": 100.0, "lots": 1, "entry_date": "2026-01-01"}
 
 
+def test_live_broker_buy_appears_without_invented_journal_lot():
+    rows = [{"status": "open", "symbol": "FN", "qty": "5", "entry_price": "400",
+             "entry_date": "2026-09-01", "stop_current": "380"}]
+    broker = {"ok": True, "positions": [
+        {"symbol": "FN", "quantity": 5, "average_price": 401},
+        {"symbol": "QNT", "quantity": 10, "average_price": 49.50},
+    ]}
+    held, lots, gaps = srv.review_holdings(rows, broker)
+    assert set(held) == {"FN", "QNT"}
+    assert held["QNT"]["qty"] == 10
+    assert held["QNT"]["cost"] == 495
+    assert held["QNT"]["entry_date"] is None
+    assert held["QNT"]["journal_gap"] is True
+    assert lots["QNT"] == []
+    assert lots["FN"] == rows
+    assert gaps == [{"symbol": "QNT", "broker_qty": 10, "journal_qty": 0.0}]
+
+
+def test_broker_quantity_change_does_not_apply_old_lot_stop_to_new_shares():
+    rows = [{"status": "open", "symbol": "FN", "qty": "5", "entry_price": "400",
+             "stop_current": "380"}]
+    held, lots, gaps = srv.review_holdings(rows, {"ok": True, "positions": [
+        {"symbol": "FN", "quantity": 7, "average_price": 402},
+    ]})
+    assert held["FN"]["qty"] == 7
+    assert held["FN"]["journal_gap"] is True
+    assert lots["FN"] == []
+    assert gaps[0]["journal_qty"] == 5
+
+
+def test_unavailable_broker_keeps_journal_review():
+    rows = [{"status": "open", "symbol": "FN", "qty": "5", "entry_price": "400"}]
+    held, lots, gaps = srv.review_holdings(rows, {"ok": False})
+    assert held["FN"]["qty"] == 5
+    assert lots["FN"] == rows
+    assert gaps == []
+
+
 # -------------------------------------------------------------------- tests
 def test_pnl_and_market_value_use_the_latest_close():
     e = review_one(stub_stock([90.0, 95.0], []), HELD)

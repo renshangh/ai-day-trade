@@ -683,6 +683,10 @@ function renderSchwabStatus() {
   renderPaperAgent();
 }
 
+function accountContributions(rows = []) {
+  return rows.length ? `<span class="lvl-meta">${rows.map(row=>`${esc(row.account)}: ${row.quantity == null ? '—' : esc(row.quantity)}`).join(' · ')}</span>` : '';
+}
+
 function renderSchwabTrade() {
   const box = $('rev-schwab-trade');
   if (!box) return;
@@ -691,9 +695,9 @@ function renderSchwabTrade() {
   const ready = Boolean(s.ok);
   const positionRows = p && p.ok ? (p.positions || []).filter(row => row.symbol !== 'SNDL') : [];
   const positionHtml = p && p.ok
-    ? `<p class="sub">Live ${esc(p.account || '')} positions · ${esc(p.as_of || '')}</p>`
+    ? `<p class="sub">${p.combined ? `Combined holdings · ${p.account_count} accounts · ${esc((p.accounts || []).map(a=>a.label).join(' + '))}` : `Live ${esc(p.account || '')}`} · ${esc(p.as_of || '')}</p>`
       + `<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average</th><th>Market value</th><th>Open P/L</th></tr></thead><tbody>`
-      + positionRows.map(row => `<tr><td>${esc(row.symbol)}</td><td>${row.quantity == null ? '—' : esc(row.quantity)}</td>`
+      + positionRows.map(row => `<tr><td>${esc(row.symbol)}${accountContributions(row.account_positions)}</td><td>${row.quantity == null ? '—' : esc(row.quantity)}</td>`
         + `<td>${row.average_price == null ? '—' : fmtPx(row.average_price)}</td>`
         + `<td>${row.market_value == null ? '—' : fmtMoney0(row.market_value)}</td>`
         + `<td class="${signClass(row.open_profit_loss)}">${row.open_profit_loss == null ? '—' : fmtMoney0(row.open_profit_loss)}</td></tr>`).join('')
@@ -708,7 +712,7 @@ function renderSchwabTrade() {
           + `<button type="button" id="schwab-copy-confirmation">Copy confirmation</button>`
         : esc(result.error || result.message || 'Preview failed'))
       + `</span></div>` : '';
-  box.innerHTML = `<div class="detail-head"><h3 id="schwab-trade-title" class="rev-h3">Schwab live account & guarded preview</h3></div>`
+  box.innerHTML = `<div class="detail-head"><h3 id="schwab-trade-title" class="rev-h3">Schwab combined holdings & guarded preview</h3></div>`
     + positionHtml
     + `<form id="schwab-preview-form" class="size-form">
       <label>Account last 4 <input name="account_last4" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="optional if one account" ${ready ? '' : 'disabled'}></label>
@@ -829,6 +833,9 @@ async function fetchReviewData(force) {
       const el = $(id);
       if (el) el.textContent = '';
     });
+    state.review = null;
+    $('rev-stamp').textContent = '';
+    $('rev-sub').textContent = 'Combined account review unavailable.';
     showError(`Could not load the daily review: ${e.message}`);
   } finally {
     card.classList.remove('refetching');
@@ -1027,7 +1034,7 @@ function renderReview() {
   const stamp = d.generated_at ? new Date(d.generated_at).toLocaleTimeString('en-US') : '';
   $('rev-stamp').textContent = stamp ? `built ${stamp} · ${d.feed_note || ''}` : '';
   $('rev-sub').textContent =
-    `Every open lot in ${d.journal}, priced against the same levels the chart draws. `
+    `${d.holdings_source === 'schwab' ? `Combined Schwab holdings across ${(d.accounts || []).map(a=>a.label).join(' + ') || 'linked accounts'}` : `Open lots in ${d.journal}`}, priced against the same levels the chart draws. `
     + `Sorted by how close each position sits to its nearest support — the level a stop `
     + `would key off. Levels are prices the market actually turned at, not projections.`;
   renderSchwabStatus();
@@ -1076,7 +1083,7 @@ function renderReview() {
       const earnCls = e.earnings && e.earnings.days_until != null
         && e.earnings.days_until <= SWING_WINDOW_DAYS ? 'neg' : '';
       return `<tr class="rev-row" data-sym="${e.symbol}" tabindex="0">
-        <td><b>${e.symbol}</b><span class="lvl-meta">${e.lots} lot${e.lots === 1 ? '' : 's'}</span></td>
+        <td><b>${esc(e.symbol)}</b>${accountContributions(e.account_positions)}<span class="lvl-meta">${e.journal_gap ? 'Schwab live · journal gap' : `${e.lots} lot${e.lots === 1 ? '' : 's'}`}</span></td>
         <td>${fmtPx(e.last)}<span class="lvl-meta ${signClass(e.day_pct)}">${fmtPct(e.day_pct)}</span></td>
         <td>${fmtPx(e.avg_entry)}</td>
         <td class="${signClass(e.pnl)}">${fmtMoney0(e.pnl)}<span class="lvl-meta ${signClass(e.pnl_pct)}">${fmtPct(e.pnl_pct)}</span></td>

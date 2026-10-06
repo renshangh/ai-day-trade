@@ -166,6 +166,15 @@ previewing, or pressing that button therefore cannot place an order. Sending the
 exact phrase in a later chat turn triggers the guarded submission agent described
 above.
 
+The main Daily Review now reconciles against the same live Schwab positions on
+each review request. Schwab quantity and average cost determine which holdings
+appear and their exposure; a new filled buy can appear without editing the
+private journal. The journal still supplies entry dates, stops, and thesis
+notes only when its share count matches Schwab. A mismatch is flagged as a
+journal gap, and the desk does not apply an old lot stop to newly bought shares.
+When the combined account read fails, the daily review reports unavailable rather than substituting journal holdings.
+An accepted but unfilled order is not a holding and will not appear there.
+
 Until the developer app reads **Ready For Use**, `status` will explain the remaining
 setup step and no order can be previewed or placed.
 
@@ -232,3 +241,20 @@ local HTTPS listener, so it captures the callback without the copy-paste step.
 - `scripts/schwab_trade.py` — guarded preview/confirmation order boundary used by the chat skill
 - `trading_records/SOURCE-NOTES.md` — the manual capture process this API could replace
 - `lumibot/brokers/schwab.py`, `lumibot/tools/schwab_helper.py` — BotSpot-oriented path
+
+## Combined Daily Review
+
+Daily Review reads all authorized Schwab accounts together using
+`python3 scripts/schwab_trade.py positions --all-accounts`. Its single holdings
+list combines each shared symbol's quantity and uses the quantity-weighted
+average cost for long holdings. Masked account contributions remain beneath
+each symbol; no account tabs or separate reviews are needed. Empty accounts
+still count as linked. Missing costs and balances remain unavailable, and a
+failed account prevents partial holdings from being presented as the whole book.
+
+The same combined account scope supplies Today's VWAP. Journal stops are not
+applied to a shared symbol across accounts because the journal has no account
+provenance. The chart-derived valuation is dated and can differ from Schwab's
+reported market value. Combined balances do not imply transferable buying power.
+Order previews and trades still require one explicit account when multiple
+accounts are linked; review aggregation does not choose a trading account.

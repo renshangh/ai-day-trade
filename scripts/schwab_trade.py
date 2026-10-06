@@ -29,6 +29,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 import schwab_api  # noqa: E402
+import schwab_portfolio  # noqa: E402
 
 REPO_ROOT = SCRIPT_DIR.parent
 PREVIEW_DIR = REPO_ROOT / ".secrets" / "schwab_order_previews"
@@ -547,7 +548,10 @@ def positions(account_last4: str | None) -> dict:
     readiness = status()
     if not readiness.get("ok"):
         return readiness
-    account = resolve_account(account_last4)
+    return _account_positions(resolve_account(account_last4))
+
+
+def _account_positions(account: dict) -> dict:
     securities = account_details(account["hashValue"])
     rows = []
     raw_positions = securities.get("positions")
@@ -599,6 +603,26 @@ def positions(account_last4: str | None) -> dict:
     }
 
 
+def all_positions() -> dict:
+    """Read every linked account; never present a partial book as complete."""
+    readiness = status()
+    if not readiness.get("ok"):
+        return {**readiness, "combined": True, "positions": []}
+    entries = account_numbers()
+    snapshots = []
+    for account in entries:
+        try:
+            snapshots.append(_account_positions(account))
+        except TradeError:
+            return {"ok": False, "combined": True, "positions": [],
+                    "accounts": readiness["accounts"],
+                    "message": f"Combined holdings unavailable: account ***{account['accountNumber'][-4:]} could not be loaded."}
+    try:
+        return schwab_portfolio.combine(snapshots)
+    except ValueError as error:
+        return {"ok": False, "combined": True, "positions": [], "message": str(error)}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -623,7 +647,9 @@ def build_parser() -> argparse.ArgumentParser:
     discard.add_argument("--preview-token", required=True)
     sub.add_parser("previews", help="list active, unexpired previews")
     positions_parser = sub.add_parser("positions", help="live positions for one linked account")
-    positions_parser.add_argument("--account-last4")
+    account_selection = positions_parser.add_mutually_exclusive_group()
+    account_selection.add_argument("--account-last4")
+    account_selection.add_argument("--all-accounts", action="store_true", help="combine every linked account for review")
     return parser
 
 
@@ -638,7 +664,7 @@ def main() -> None:
         elif args.command == "discard":
             emit(discard_preview(args.preview_token))
         elif args.command == "positions":
-            emit(positions(args.account_last4))
+            emit(all_positions() if args.all_accounts else positions(args.account_last4))
         elif args.command == "preview":
             readiness = status()
             if not readiness.get("ok"):
