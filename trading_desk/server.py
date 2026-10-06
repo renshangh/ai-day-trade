@@ -47,6 +47,7 @@ import sector_signals  # noqa: E402
 import universe  # noqa: E402
 import session_vwap  # noqa: E402
 import v3_store  # noqa: E402
+import onchain_crypto  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -225,7 +226,10 @@ def _get(url: str, retries: int = 4) -> dict:
     delay = 1.0
     last_err: Exception | None = None
     for attempt in range(retries):
-        req = urllib.request.Request(url, headers=HEADERS)
+        # Broker credentials belong only on the broker's own API hosts.
+        host = urllib.parse.urlparse(url).hostname
+        headers = HEADERS if host in {"data.alpaca.markets", "paper-api.alpaca.markets", "api.alpaca.markets"} else {}
+        req = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return json.loads(resp.read().decode())
@@ -586,6 +590,14 @@ def get_stock(symbol: str, force: bool = False) -> dict:
 def get_crypto(symbol: str) -> dict:
     """Return real daily crypto OHLCV bars from the symbol's configured venue."""
     symbol = symbol.upper().strip()
+    if symbol in onchain_crypto.PAIRS:
+        bars = onchain_crypto.load(symbol, lambda url: _get(url, retries=2))
+        if not bars:
+            return {"symbol": symbol, "bars": [], "indicators": {}, "error": "no completed Kraken daily candles returned"}
+        return {"symbol": symbol, "asset_type": "crypto", "feed": "Kraken",
+                "feed_note": f"Kraken {onchain_crypto.PAIRS[symbol]} · completed UTC daily candles · volume in tokens",
+                "bars": bars, "indicators": indicators.compute_all(bars),
+                "levels": indicators.support_resistance(bars), "stale": False}
     alpaca_symbol = ALPACA_CRYPTO_SYMBOLS.get(symbol)
     if alpaca_symbol:
         end = datetime.now(timezone.utc)
