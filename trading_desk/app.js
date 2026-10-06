@@ -2351,12 +2351,24 @@ function renderLegend() {
 }
 
 // --------------------------------------------------------- the main chart
+function chartStartIndex(stock, range) {
+  const bars = stock.bars;
+  if (stock.asset_type !== 'crypto') return range.bars === Infinity ? 0 : Math.max(0, bars.length - range.bars);
+  const months = {'3M':3, '6M':6, '1Y':12, '2Y':24}[range.key];
+  const last = new Date(`${bars.at(-1).t}T00:00:00Z`);
+  const cutoff = new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth() - months, 1));
+  const monthEnd = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth() + 1, 0)).getUTCDate();
+  cutoff.setUTCDate(Math.min(last.getUTCDate(), monthEnd));
+  const date = cutoff.toISOString().slice(0,10);
+  const index = bars.findIndex(bar => bar.t >= date);
+  return index < 0 ? bars.length : index;
+}
+
 function visibleSlice() {
   const s = state.stock;
   if (!s || !s.bars || !s.bars.length) return null;
   const r = RANGES.find(x => x.key === state.range) || RANGES[1];
-  const n = s.bars.length;
-  const start = r.bars === Infinity ? 0 : Math.max(0, n - r.bars);
+  const start = chartStartIndex(s, r);
   const sliceSeries = arr => (Array.isArray(arr) ? arr.slice(start) : []);
   const ind = {};
   for (const k of Object.keys(s.indicators || {})) ind[k] = sliceSeries(s.indicators[k]);
