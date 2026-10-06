@@ -1,21 +1,112 @@
 {
-  "briefing_date": "2026-09-20",
+  "briefing_date": "2026-09-27",
   "title": "Enterprise AI & Automation Briefing",
-  "summary": "Sunday's briefing focused on robotics applications, AI-native networking, security containment, and the electrical infrastructure needed for large-scale compute.",
+  "summary": "Sunday's enterprise AI tape centered on governed agents moving from demos into control planes: Microsoft pushed Copilot toward delegated work and natural-language automation, Okta assembled a multi-vendor security architecture for agent identity and runtime controls, Accenture and Teradata emphasized operational context for production agents, and Palo Alto, Workiva, Docusign, SoundHound, Salesforce, and Siemens showed domain-specific agent deployments across cyber, regulatory, agreements, voice, and industrial workflows.",
   "stocks": [
-    {"symbol":"FFAI","name":"Faraday Future","role":"Physical AI / robotics","does":"Builds electric vehicles and embodied-AI robots.","briefing":"Launched nine robot configurations and packaged industrial solutions; an architectural signal, not proof of scale."},
-    {"symbol":"NVDA","name":"Nvidia","role":"AI compute","does":"Designs GPUs, networking, and software used to train and run AI.","briefing":"AI semiconductors led Friday's tape; NVDA gained 1.34%, supporting the view that compute demand remains intact."},
-    {"symbol":"MU","name":"Micron","role":"AI memory","does":"Makes memory and storage semiconductors, including high-bandwidth memory for AI systems.","briefing":"Cited among Friday's largest positive S&P contributors."},
-    {"symbol":"GOOGL","name":"Alphabet","role":"Enterprise AI / security","does":"Operates Google Search, Cloud, Gemini, and other internet and AI products.","briefing":"Google disclosed that Gemini accessed three real companies during a security test, highlighting the need for agent containment."},
-    {"symbol":"MSFT","name":"Microsoft","role":"Enterprise AI / software","does":"Provides Azure cloud, business software, developer tools, and Copilot AI products.","briefing":"Cited as a Friday index drag while investors demanded clearer application-layer AI monetization."},
-    {"symbol":"CSCO","name":"Cisco","role":"AI networking / security","does":"Sells networking, observability, security, and collaboration infrastructure.","briefing":"Named among companies benefiting from AI-driven demand for networking, fiber, and security controls."},
-    {"symbol":"GLW","name":"Corning","role":"Fiber / optical infrastructure","does":"Makes optical fiber, connectivity, glass, and advanced materials.","briefing":"Highlighted as part of the optical backbone supporting the AI buildout."},
-    {"symbol":"LUMN","name":"Lumen Technologies","role":"Fiber / networking","does":"Operates fiber networks and provides connectivity and managed network services.","briefing":"Cited as a beneficiary of rising demand for fiber and legacy telecom conduit."},
-    {"symbol":"COHR","name":"Coherent","role":"Optical infrastructure","does":"Makes lasers, optical components, and engineered materials for communications and industry.","briefing":"Again outperformed in the optical and networking group."},
-    {"symbol":"LITE","name":"Lumentum","role":"Optical infrastructure","does":"Makes optical and photonic products for cloud, telecom, and industrial customers.","briefing":"Named among the optical names showing relative strength."},
-    {"symbol":"CRM","name":"Salesforce","role":"Enterprise software / agents","does":"Provides CRM software and Agentforce automation for sales, service, and marketing.","briefing":"CRM fell 2.03% Friday as investors pressed application vendors for clearer AI monetization."},
-    {"symbol":"NOW","name":"ServiceNow","role":"Enterprise software / agents","does":"Runs digital workflows and enterprise operations software with AI agents.","briefing":"NOW fell 2.17% Friday, reflecting pressure on high-multiple software."},
-    {"symbol":"ORCL","name":"Oracle","role":"Cloud / enterprise AI","does":"Provides databases, cloud infrastructure, and enterprise applications.","briefing":"ORCL fell 1.98% Friday and was part of the software group lagging physical infrastructure."},
-    {"symbol":"PATH","name":"UiPath","role":"Automation / agents","does":"Provides robotic process automation and agent orchestration software.","briefing":"PATH fell 2.69%; the briefing framed it between a large orchestration opportunity and RPA-disruption risk."}
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft",
+      "role": "Enterprise AI work hub and automation platform",
+      "does": "Provides cloud infrastructure, productivity software, developer tools, cybersecurity, business applications, gaming, and AI services through Azure, Microsoft 365, GitHub, and Copilot.",
+      "briefing": "Microsoft's late-week Copilot update brought Home, Code, and Autopilot into one work hub, adding delegated task execution, natural-language app and automation building, Office file editing inside Copilot, and deeper grounding through Fabric IQ, Work IQ, and a Plugin Registry."
+    },
+    {
+      "symbol": "ACN",
+      "name": "Accenture",
+      "role": "AI transformation and process automation integrator",
+      "does": "Provides consulting, managed services, technology implementation, outsourcing, cloud, cybersecurity, data, and AI transformation services for large enterprises.",
+      "briefing": "Accenture invested in and partnered with Within to help clients map how work actually happens, identify automation opportunities, deploy AI agents, and move from process discovery into agentic operating-model reinvention."
+    },
+    {
+      "symbol": "OKTA",
+      "name": "Okta",
+      "role": "Agent identity and governance anchor",
+      "does": "Provides identity and access management software for workforce, customer, developer, machine, and AI-agent identities.",
+      "briefing": "Okta announced the Blueprint Alliance, positioning agent identity, least-privilege access, traceable delegation, runtime monitoring, and containment as shared requirements for the secure agentic enterprise."
+    },
+    {
+      "symbol": "AMZN",
+      "name": "Amazon.com",
+      "role": "Cloud infrastructure member of agent security alliance",
+      "does": "Operates e-commerce, logistics, advertising, streaming, devices, and Amazon Web Services cloud infrastructure and AI services.",
+      "briefing": "Amazon Web Services was named a founding member of Okta's Blueprint Alliance, tying AWS to the emerging reference architecture for discovering, governing, and trusting enterprise AI agents across cloud environments."
+    },
+    {
+      "symbol": "CRWD",
+      "name": "CrowdStrike",
+      "role": "Agentic enterprise security participant",
+      "does": "Provides cloud-delivered endpoint protection, threat intelligence, identity protection, cloud security, log management, and security operations through the Falcon platform.",
+      "briefing": "CrowdStrike joined Okta's Blueprint Alliance and framed its role around securing the agentic enterprise with interoperable runtime controls and security signals as enterprises deploy AI agents at scale."
+    },
+    {
+      "symbol": "GOOGL",
+      "name": "Alphabet",
+      "role": "Google Cloud agent platform and security participant",
+      "does": "Operates Google Search, YouTube, Android, advertising platforms, Google Cloud, AI models, and enterprise productivity software.",
+      "briefing": "Google Cloud was a founding Blueprint Alliance member, reinforcing Alphabet's position in enterprise agent platforms and open standards for zero-trust governance, traceable delegation, and lifecycle protection."
+    },
+    {
+      "symbol": "CRM",
+      "name": "Salesforce",
+      "role": "Agentic CRM and enterprise AI control plane",
+      "does": "Provides cloud CRM, sales, service, marketing, Slack collaboration, data, analytics, integration, and AI agent platforms for enterprises.",
+      "briefing": "Salesforce appeared in two enterprise-agent threads: it joined Okta's Blueprint Alliance through MuleSoft's Agent Fabric governance work, and its Siemens partnership uses Agentforce with Teamcenter to put engineering-grade answers into sales, service, and customer workflows."
+    },
+    {
+      "symbol": "NOW",
+      "name": "ServiceNow",
+      "role": "Workflow governance and autonomous work platform",
+      "does": "Provides cloud workflow software for IT, employee, customer, creator, security, risk, and operations service management.",
+      "briefing": "ServiceNow was named a Blueprint Alliance founding member, extending the narrative that enterprises need workflow governance, orchestration, and traceability before AI agents can act safely across systems."
+    },
+    {
+      "symbol": "ZS",
+      "name": "Zscaler",
+      "role": "Zero-trust access for AI-agent traffic",
+      "does": "Provides cloud security, secure web gateway, zero-trust network access, data protection, and threat prevention services.",
+      "briefing": "Zscaler joined Okta's Blueprint Alliance and positioned zero trust as a control layer for how AI agents connect, act, and access enterprise data across modern environments."
+    },
+    {
+      "symbol": "PANW",
+      "name": "Palo Alto Networks",
+      "role": "AI-driven cyber defense",
+      "does": "Provides network security, cloud security, endpoint protection, security operations, threat intelligence, and zero-trust cybersecurity platforms.",
+      "briefing": "Palo Alto Networks launched Unit 42 Continuous Frontier AI Defense, an annual subscription service that uses a multi-model AI harness to continuously test enterprise apps, APIs, cloud infrastructure, source repositories, and networks for exploitable exposures."
+    },
+    {
+      "symbol": "TDC",
+      "name": "Teradata",
+      "role": "Governed enterprise data agents",
+      "does": "Provides cloud data warehousing, analytics, data management, and AI services for large enterprises.",
+      "briefing": "Teradata transformed Tera into an agentic coworker for enterprise data work, adding Context Engine, Tera Harness, and Agent Skills so analysts, engineers, DBAs, and data scientists can automate governed data workflows."
+    },
+    {
+      "symbol": "SOUN",
+      "name": "SoundHound AI",
+      "role": "Embedded voice-agent platform",
+      "does": "Provides voice AI, conversational AI, restaurant ordering automation, automotive voice assistants, and agentic AI platforms for enterprise and device customers.",
+      "briefing": "SoundHound introduced OASYS Edge, bringing fully embedded agentic voice AI to vehicles and smart devices so manufacturers can build an agent once and deploy it in cloud, edge, or hybrid environments."
+    },
+    {
+      "symbol": "WK",
+      "name": "Workiva",
+      "role": "Regulatory workflow agents",
+      "does": "Provides cloud software for financial reporting, sustainability reporting, audit, risk, compliance, and regulatory disclosure workflows.",
+      "briefing": "Workiva unveiled Agent Studio at Amplify 2026, giving finance, accounting, sustainability, risk, and compliance teams tools to build, customize, deploy, and schedule governed AI agents inside Workiva workflows."
+    },
+    {
+      "symbol": "DOCU",
+      "name": "Docusign",
+      "role": "Agreement-layer agent infrastructure",
+      "does": "Provides electronic signature, contract lifecycle management, agreement workflow, identity verification, and intelligent agreement management software.",
+      "briefing": "Docusign's Agreement Layer remained in focus ahead of its September 30 MCP Server opening, which is designed to let enterprise agents act on agreement data and workflows through governed contract context."
+    },
+    {
+      "symbol": "SIEGY",
+      "name": "Siemens AG",
+      "role": "Industrial AI and digital-twin adopter",
+      "does": "Provides industrial automation, digital industries software, infrastructure technology, mobility systems, healthcare technology through Siemens Healthineers, and industrial services.",
+      "briefing": "Siemens deepened its Salesforce partnership by connecting Teamcenter Service Lifecycle Management with Agentforce, giving industrial sellers, service technicians, and customers access to engineering-grade product answers in front-office workflows."
+    }
   ]
 }

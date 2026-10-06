@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import math
 
-PERMITTED_SYMBOLS = ("FN", "AXTI", "COHR", "LITE")
+PERMITTED_SYMBOLS = ("FN", "AXTI", "COHR", "LITE", "CRCL", "HYPEUSD")
 ENTRY_ATR_WIDTH = 0.35
 EXIT_ATR_WIDTH = 0.35
 STOP_ATR_BUFFER = 0.50
+PRICE_DISCOVERY_TARGET_LOW_ATR = 0.50
+PRICE_DISCOVERY_TARGET_HIGH_ATR = 1.00
 
 
 def _finite(value) -> float | None:
@@ -54,14 +56,27 @@ def recommend(symbol: str, stock: dict) -> dict:
         if level.get("kind") == "resistance" and (value := _finite(level.get("level"))) is not None
         and value > last
     )
-    if not supports or not resistances:
-        return {"symbol": symbol, "available": False, "reason": "support or resistance is unavailable"}
+    if not supports:
+        return {"symbol": symbol, "available": False, "reason": "support is unavailable"}
 
-    support, resistance = supports[-1], resistances[0]
+    support = supports[-1]
     entry_low = support
     entry_high = support + ENTRY_ATR_WIDTH * atr
-    exit_high = resistance
-    exit_low = resistance - EXIT_ATR_WIDTH * atr
+    if resistances:
+        resistance = resistances[0]
+        exit_high = resistance
+        exit_low = resistance - EXIT_ATR_WIDTH * atr
+        exit_basis = "measured_resistance"
+    else:
+        # Price discovery has no observed resistance above the market. Anchor
+        # the projection to a real traded high and label it explicitly; this is
+        # a planning range, never a fabricated historical level.
+        observed_highs = [_finite(bar.get("h", bar.get("c"))) for bar in bars]
+        observed_high = max(value for value in observed_highs if value is not None)
+        resistance = None
+        exit_low = observed_high + PRICE_DISCOVERY_TARGET_LOW_ATR * atr
+        exit_high = observed_high + PRICE_DISCOVERY_TARGET_HIGH_ATR * atr
+        exit_basis = "atr_projection_above_observed_high"
     stop = max(0.01, support - STOP_ATR_BUFFER * atr)
 
     if last <= stop:
@@ -82,12 +97,18 @@ def recommend(symbol: str, stock: dict) -> dict:
         "atr14": round(atr, 4),
         "entry_range": {"low": round(entry_low, 2), "high": round(entry_high, 2)},
         "exit_range": {"low": round(exit_low, 2), "high": round(exit_high, 2)},
+        "exit_basis": exit_basis,
         "risk_reference": round(stop, 2),
         "basis": {
             "support": round(support, 2),
-            "resistance": round(resistance, 2),
+            "resistance": round(resistance, 2) if resistance is not None else None,
             "entry_width_atr": ENTRY_ATR_WIDTH,
             "exit_width_atr": EXIT_ATR_WIDTH,
             "stop_buffer_atr": STOP_ATR_BUFFER,
+            "observed_high": round(observed_high, 2) if resistance is None else None,
+            "price_discovery_target_atr": (
+                [PRICE_DISCOVERY_TARGET_LOW_ATR, PRICE_DISCOVERY_TARGET_HIGH_ATR]
+                if resistance is None else None
+            ),
         },
     }

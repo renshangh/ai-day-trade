@@ -46,9 +46,15 @@ import paper_agent  # noqa: E402
 import sector_signals  # noqa: E402
 import universe  # noqa: E402
 import session_vwap  # noqa: E402
+import v3_store  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
+COINGECKO_API = "https://api.coingecko.com/api/v3"
+CRYPTO_IDS = {"ETHUSD": "ethereum", "HYPEUSD": "hyperliquid", "NEAR": "near", "TAO": "bittensor", "RENDER": "render-token", "FET": "artificial-superintelligence-alliance", "AKT": "akash-network", "HYPE": "hyperliquid", "ZEC": "zcash", "ONDO": "ondo-finance", "ARB": "arbitrum", "OP": "optimism", "POL": "polygon-ecosystem-token", "STRK": "starknet", "ZK": "zksync"}
+COINBASE_PRODUCTS = {"ONDOUSD": "ONDO-USD", "NEARUSD": "NEAR-USD"}
+ALPACA_CRYPTO_SYMBOLS = {"HYPEUSD": "HYPE/USD"}
 CACHE_PATH = HERE / "cache.json"
+V3_STORE = v3_store.DeskStore(HERE / "v3_state.json")
 ENTERPRISE_AI_BRIEFING_PATH = HERE / "enterprise_ai_briefing.json"
 SCHWAB_TRADE_HELPER = REPO_ROOT / "scripts" / "schwab_trade.py"
 
@@ -575,6 +581,74 @@ def get_stock(symbol: str, force: bool = False) -> dict:
                 del stocks[old]
     # Deliberately no save_cache() here -- see save_cache's docstring.
     return data
+
+
+def get_crypto(symbol: str) -> dict:
+    """Return real daily crypto OHLCV bars from the symbol's configured venue."""
+    symbol = symbol.upper().strip()
+    alpaca_symbol = ALPACA_CRYPTO_SYMBOLS.get(symbol)
+    if alpaca_symbol:
+        end = datetime.now(timezone.utc)
+        params = {
+            "symbols": alpaca_symbol,
+            "timeframe": "1Day",
+            "start": (end - timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "limit": 1000,
+            "sort": "asc",
+        }
+        payload = _get(
+            f"{ALPACA_DATA}/v1beta3/crypto/us/bars?{urllib.parse.urlencode(params)}",
+            retries=2,
+        )
+        source_bars = (payload.get("bars") or {}).get(alpaca_symbol) or []
+        bars = [
+            {"t": str(row["t"])[:10], "o": float(row["o"]), "h": float(row["h"]),
+             "l": float(row["l"]), "c": float(row["c"]), "v": float(row["v"])}
+            for row in source_bars
+            if all(key in row for key in ("t", "o", "h", "l", "c", "v"))
+        ]
+        if not bars:
+            return {"symbol": symbol, "bars": [], "indicators": {},
+                    "error": "no Alpaca crypto bars returned"}
+        return {"symbol": symbol, "feed": "Alpaca Crypto",
+                "feed_note": f"daily {alpaca_symbol} OHLC and volume",
+                "bars": bars, "indicators": indicators.compute_all(bars),
+                "levels": indicators.support_resistance(bars), "stale": False}
+    product_id = COINBASE_PRODUCTS.get(symbol)
+    if product_id:
+        candles = _get(f"https://api.exchange.coinbase.com/products/{product_id}/candles?granularity=86400", retries=2) or []
+        bars = [{"t": datetime.fromtimestamp(row[0], timezone.utc).date().isoformat(),
+                 "o": float(row[3]), "h": float(row[2]), "l": float(row[1]),
+                 "c": float(row[4]), "v": float(row[5])}
+                for row in candles if len(row) >= 6]
+        bars.sort(key=lambda bar: bar["t"])
+        if not bars:
+            return {"symbol": symbol, "bars": [], "indicators": {}, "error": "no Coinbase crypto bars returned"}
+        return {"symbol": symbol, "feed": "Coinbase", "feed_note": "daily crypto OHLC and volume",
+                "bars": bars, "indicators": indicators.compute_all(bars),
+                "levels": indicators.support_resistance(bars), "stale": False}
+    coin_id = CRYPTO_IDS.get(symbol)
+    if not coin_id:
+        return {"symbol": symbol, "bars": [], "indicators": {}, "error": "crypto symbol is not in the desk universe"}
+    ohlc = _get(f"{COINGECKO_API}/coins/{coin_id}/ohlc?vs_currency=usd&days=365", retries=2) or []
+    volumes = _get(f"{COINGECKO_API}/coins/{coin_id}/market_chart?vs_currency=usd&days=365&interval=daily", retries=2).get("total_volumes") or []
+    volume_by_day = {datetime.fromtimestamp(row[0] / 1000, timezone.utc).date().isoformat(): float(row[1])
+                     for row in volumes if len(row) > 1}
+    bars = []
+    for row in ohlc:
+        if len(row) < 5:
+            continue
+        day = datetime.fromtimestamp(row[0] / 1000, timezone.utc).date().isoformat()
+        if day not in volume_by_day:
+            continue
+        bars.append({"t": day, "o": float(row[1]), "h": float(row[2]), "l": float(row[3]),
+                     "c": float(row[4]), "v": volume_by_day[day]})
+    if not bars:
+        return {"symbol": symbol, "bars": [], "indicators": {}, "error": "no crypto bars returned"}
+    return {"symbol": symbol, "feed": "CoinGecko", "feed_note": "daily crypto OHLC and volume",
+            "bars": bars, "indicators": indicators.compute_all(bars),
+            "levels": indicators.support_resistance(bars), "stale": False}
 
 
 def get_detail(symbol: str, force: bool = False) -> dict:
@@ -1570,12 +1644,17 @@ def build_paper_recommendations(force: bool = False) -> dict:
     held = open_positions()
     for symbol in paper_agent.PERMITTED_SYMBOLS:
         try:
-            stock = get_stock(symbol, force=force)
-            if stock.get("error"):
-                rows.append({"symbol": symbol, "available": False, "reason": stock["error"]})
+            is_crypto = symbol in CRYPTO_IDS or symbol in COINBASE_PRODUCTS
+            market_data = get_crypto(symbol) if is_crypto else get_stock(symbol, force=force)
+            if market_data.get("error"):
+                rows.append({"symbol": symbol, "available": False, "reason": market_data["error"],
+                             "asset_type": "crypto" if is_crypto else "stock",
+                             "broker_preview_available": not is_crypto})
             else:
-                proposal = paper_agent.recommend(symbol, stock)
+                proposal = paper_agent.recommend(symbol, market_data)
                 proposal["held_shares"] = (held.get(symbol) or {}).get("qty")
+                proposal["asset_type"] = "crypto" if is_crypto else "stock"
+                proposal["broker_preview_available"] = not is_crypto
                 rows.append(proposal)
         except Exception as exc:  # noqa: BLE001 - one symbol must not hide the other three
             rows.append({"symbol": symbol, "available": False, "reason": str(exc)})
@@ -1595,8 +1674,14 @@ def build_paper_recommendations(force: bool = False) -> dict:
 # HTTP
 # --------------------------------------------------------------------------
 STATIC = {
-    "/": ("index.html", "text/html; charset=utf-8"),
-    "/index.html": ("index.html", "text/html; charset=utf-8"),
+    "/crypto_infra.js": ("crypto_infra.js", "application/javascript; charset=utf-8"),
+    "/crypto_infra.css": ("crypto_infra.css", "text/css; charset=utf-8"),
+    "/": ("v3.html", "text/html; charset=utf-8"),
+    "/index.html": ("v3.html", "text/html; charset=utf-8"),
+    "/v3.css": ("v3.css", "text/css; charset=utf-8"),
+    "/v3_logic.js": ("v3_logic.js", "application/javascript; charset=utf-8"),
+    "/v3.js": ("v3.js", "application/javascript; charset=utf-8"),
+    "/board": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
 }
@@ -1654,6 +1739,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/board":
             try:
                 self._json(get_board(force=qs.get("force", ["0"])[0] == "1"))
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": str(e)}, 502)
+            return
+
+        if path == "/api/crypto":
+            sym = (qs.get("symbol") or [""])[0].upper().strip()
+            try:
+                self._json(get_crypto(sym))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
             return
@@ -1771,6 +1864,13 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        if path == "/api/v3/state":
+            try:
+                self._json(V3_STORE.read())
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                self._json({"error": f"desk data unavailable: {exc}"}, 500)
+            return
+
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
@@ -1783,7 +1883,7 @@ class Handler(BaseHTTPRequestHandler):
         # HTTP/1.1 keep-alive socket the unread bytes would be parsed as the
         # *next* request line, so the connection is closed instead: a 70 KB
         # POST followed by GET /api/health on the same socket came back 414.
-        if path not in ("/api/cycle", "/api/schwab/preview"):
+        if path not in ("/api/cycle", "/api/schwab/preview", "/api/v3/state"):
             self.close_connection = True
             self._send(404, b"not found", "text/plain")
             return
@@ -1795,11 +1895,39 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection = True
             self._json({"error": "Content-Length must be a non-negative integer"}, 400)
             return
-        if length > MAX_POST_BYTES:
+        limit = v3_store.MAX_DOCUMENT_BYTES if path == "/api/v3/state" else MAX_POST_BYTES
+        if length > limit:
             self.close_connection = True
-            self._json({"error": f"request body must be at most {MAX_POST_BYTES} bytes"}, 413)
+            self._json({"error": f"request body must be at most {limit} bytes"}, 413)
             return
         body = self.rfile.read(length) if length else b""
+        if path == "/api/v3/state":
+            if "application/json" not in self.headers.get("Content-Type", ""):
+                self._json({"error": "Content-Type must be application/json"}, 415)
+                return
+            origin = self.headers.get("Origin")
+            if origin:
+                try:
+                    parsed_origin = urllib.parse.urlparse(origin)
+                    same_local_origin = (parsed_origin.hostname in {"127.0.0.1", "localhost", "::1"}
+                                         and parsed_origin.port == self.server.server_address[1]
+                                         and parsed_origin.scheme == "http")
+                except ValueError:
+                    same_local_origin = False
+                if not same_local_origin:
+                    self._json({"error": "cross-origin writes are not allowed"}, 403)
+                    return
+            try:
+                data = json.loads(body)
+                result = V3_STORE.update(data.get("expectedRevision"), data.get("data"))
+                self._json(result)
+            except (json.JSONDecodeError, UnicodeDecodeError, AttributeError, ValueError) as exc:
+                self._json({"error": str(exc)}, 400)
+            except v3_store.ConflictError as exc:
+                self._json({"error": str(exc), "revision": exc.revision}, 409)
+            except OSError as exc:
+                self._json({"error": f"could not save desk data: {exc}"}, 500)
+            return
         if path == "/api/schwab/preview":
             if "application/json" not in self.headers.get("Content-Type", ""):
                 self._json({"ok": False, "error": "Content-Type must be application/json"}, 415)

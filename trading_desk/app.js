@@ -25,10 +25,87 @@ const VIEWS = [
     load: () => fetchCycle(), draw: () => renderCycle() },
   { key: 'enterprise-ai', label: 'Enterprise AI', lookbacks: [], solo: true, card: 'enterprise-ai-card',
     load: () => fetchEnterpriseAI(), draw: () => renderEnterpriseAI() },
+  { key: 'ai-crypto', label: 'Onchain Finance Buildout', lookbacks: [], solo: true, card: 'ai-crypto-card',
+    load: () => { state.aiCrypto = true; renderAiCryptoWatchlist(); }, draw: () => renderAiCryptoWatchlist() },
   { key: 'sector', label: 'Sector', lookbacks: [], solo: true, card: 'sector-card',
     load: force => fetchSector(force), draw: () => renderSector() },
 ];
 const HORIZONS = [14, 30, 45, 90];
+const AI_CRYPTO_WATCHLIST = [
+  {
+    symbol: 'ETHA', name: 'Ethereum ETF (iShares)', role: 'Agent identity and settlement layer; ERC-8004 ecosystem', asset: 'stock',
+    community: 'Builders of identity registries, wallets, applications, and autonomous agents.',
+    usage: 'ETH pays for Ethereum settlement and gas. ERC-8004 provides an on-chain identity and reputation foundation for agents.', marketUrl: 'https://finance.yahoo.com/quote/ETHA', project: 'https://ethereum.org/',
+  },
+  {
+    symbol: 'CRCL', name: 'Circle', role: 'Agent wallets and machine payments', asset: 'stock',
+    community: 'Developers, merchants, payment providers, and agents settling internet-native transactions.',
+    usage: 'Circle issues USDC and provides the infrastructure for agent wallets and machine-to-machine payments; Circle reports 900+ paid services connected to the ecosystem.', marketUrl: 'https://finance.yahoo.com/quote/CRCL', project: 'https://www.circle.com/',
+  },
+  {
+    symbol: 'ONDOUSD', name: 'Ondo Finance', role: 'Tokenized stocks, ETFs, and real-world assets',
+    community: 'Institutional issuers, investors, and protocols bringing compliant real-world assets on-chain.',
+    usage: 'ONDO is the protocol token associated with Ondo; the investment thesis is the asset layer, including tokenized stocks and ETFs with 24/7 on-chain access and redemption infrastructure.', marketUrl: 'https://exchange.coinbase.com/spot/ONDO-USD', project: 'https://ondo.finance/',
+  },
+  {
+    symbol: 'NEARUSD', name: 'NEAR Protocol', role: 'Agent infrastructure and application chain',
+    community: 'Developers building wallets, applications, and autonomous agents.',
+    usage: 'NEAR is included as a Coinbase spot-market reference for agent infrastructure research.', marketUrl: 'https://exchange.coinbase.com/spot/NEAR-USD', project: 'https://near.org/',
+  },
+  {
+    symbol: 'HYPG', name: 'Grayscale Hyperliquid Trust', role: 'On-chain derivatives market', asset: 'stock',
+    community: 'Traders, liquidity providers, and builders using a high-throughput perpetuals and spot venue.',
+    usage: 'HYPE powers the Hyperliquid ecosystem and captures attention from trading activity; it is primarily a market venue rather than an asset-creation protocol.', marketUrl: 'https://www.grayscale.com/crypto-products/grayscale-hyperliquid-staking-etf', project: 'https://hyperliquid.xyz/',
+  },
+];
+const AI_AGENT_SECTOR_MAP = [
+  ['Core', 'Agent identity & reputation', 'Ethereum / ERC-8004', 'Solana, Base, Arbitrum, Optimism, Polygon, ENS', 'Identity, reputation, registries, permissions, and settlement.'],
+  ['Core', 'Agent wallets & machine payments', 'Circle / USDC', 'Tether, PayPal / PYUSD, Stripe, Visa, Mastercard, Coinbase, banks', 'Stablecoin payments, programmable wallets, APIs, and machine settlement.'],
+  ['Core', 'Tokenized assets / RWA', 'Ondo Finance', 'Securitize, BlackRock / BUIDL, Franklin Templeton, Centrifuge, Maple, Superstate', 'Tokenized Treasuries, stocks, ETFs, funds, and around-the-clock settlement.'],
+  ['Core', 'Trading & derivatives markets', 'Hyperliquid', 'Binance, Bybit, OKX, Aster, Lighter, dYdX, GMX, Jupiter, Drift', 'Spot markets, perpetual futures, liquidity, and on-chain execution.'],
+  ['Support', 'Layer-2 financial infrastructure', 'Arbitrum', 'Base, Optimism, Mantle, Polygon, zkSync, Starknet, Linea', 'Scalable execution, DeFi, tokenization, and application-specific chains.'],
+  ['Support', 'Agent security & control', 'ERC-4337 smart accounts', 'Safe, OpenZeppelin, Fireblocks, Turnkey, Privy, Coinbase CDP', 'Spending limits, multisig, custody policy, recovery, and emergency controls.'],
+  ['Support', 'Data, oracles & verification', 'Chainlink', 'Pyth, RedStone, Chronicle, UMA, API3', 'Market data, external attestations, automation, and verification.'],
+  ['Support', 'Cross-chain settlement', 'Circle CCTP / CPN', 'LayerZero, Wormhole, Axelar, Chainlink CCIP, Coinbase', 'Movement and settlement of digital dollars across networks.'],
+  ['Outside core', 'Decentralized AI compute', 'Not in core watchlist', 'Bittensor, Render, Akash, Filecoin, io.net', 'Compute, model, storage, and decentralized AI infrastructure.'],
+];
+const AI_CRYPTO_RESEARCH = [
+  ['ICP', 'Internet Computer', 'https://www.coingecko.com/en/coins/internet-computer'],
+  ['VIRTUAL', 'Virtuals Protocol', 'https://www.coingecko.com/en/coins/virtual-protocol'],
+  ['INJ', 'Injective', 'https://www.coingecko.com/en/coins/injective-protocol'],
+  ['FIL', 'Filecoin', 'https://www.coingecko.com/en/coins/filecoin'],
+  ['ZEC', 'Zcash', 'https://www.coingecko.com/en/coins/zcash'],
+  ['ARB', 'Arbitrum', 'https://www.coingecko.com/en/coins/arbitrum'],
+  ['OP', 'Optimism', 'https://www.coingecko.com/en/coins/optimism'],
+  ['POL', 'Polygon', 'https://www.coingecko.com/en/coins/polygon-ecosystem-token'],
+  ['STRK', 'Starknet', 'https://www.coingecko.com/en/coins/starknet'],
+  ['ZK', 'zkSync', 'https://www.coingecko.com/en/coins/zksync'],
+  ['BASE', 'Base (no native token)', 'https://www.coingecko.com/learn/layer-2-l2'],
+];
+const CRYPTO_ETFS = {
+  HYPE: [{ ticker: 'THYP', name: '21Shares Hyperliquid ETF', url: 'https://www.21shares.com/en-us/products-us/thyp' }, { ticker: 'BHYP', name: 'Bitwise Hyperliquid ETF', url: 'https://bitwiseinvestments.com/crypto-investing/products/bhyp' }, { ticker: 'HYPG', name: 'Grayscale Hyperliquid Staking ETF', url: 'https://www.grayscale.com/crypto-products/grayscale-hyperliquid-trust' }],
+  ZEC: [{ ticker: 'ZCSH', name: 'Grayscale Zcash ETF', url: 'https://www.grayscale.com/crypto-products/grayscale-zcash-trust' }],
+};
+const AI_CRYPTO_NEWS = [
+  ['Altcoin coverage', 'https://cointelegraph.com/tags/altcoins'],
+  ['AI & crypto coverage', 'https://cointelegraph.com/tags/ai-and-hi-tech'],
+  ['HYPE: Hyperliquid rally and market update', 'https://www.theblock.co/news/markets/2026-09-18-bitcoin-reclaims-80000-solana-hyperliquid-rally-crypto-markets-shrug-off-clarity-setback-415523'],
+  ['ZEC: ETF inflows and mining activity', 'https://www.theblock.co/news/markets/2026-09-04-zcash-tops-1000-etf-inflows-ramp-up-miners-pile-in-413580'],
+];
+const AI_CRYPTO_RESEARCH_TABLE = [
+  ['ETHA', 'iShares Ethereum Trust exposure to Ethereum settlement, smart contracts, agent identity, and ERC-8004 registries.', 'ETF exposure rather than direct ETH custody; fees, tracking, scaling, and competition remain key variables.', 'https://finance.yahoo.com/quote/ETHA', 'https://ethereum.org/en/roadmap/'],
+  ['CRCL', 'Circle equity exposure to USDC settlement, agent wallets, and machine-to-machine payments.', 'CRCL is a stock, not a stablecoin; adoption, reserves, regulation, distribution, and equity valuation matter.', 'https://finance.yahoo.com/quote/CRCL', 'https://www.circle.com/en/pressroom'],
+  ['ONDOUSD', 'Coinbase ONDO-USD spot market for tokenized Treasuries, stocks, ETFs, and other real-world assets.', 'Asset creation and distribution are the core thesis; token-holder economics, compliance, liquidity, and redemption terms require ongoing review.', 'https://exchange.coinbase.com/spot/ONDO-USD', 'https://ondo.finance/'],
+  ['HYPG', 'Grayscale Hyperliquid Trust exposure to perpetual futures, spot trading, and an on-chain trading venue.', 'ETF exposure rather than direct HYPE custody; still exposed to trading volume, fees, structure, and product risk.', 'https://www.grayscale.com/crypto-products/grayscale-hyperliquid-staking-etf', 'https://www.theblock.co/news/markets/2026-09-18-bitcoin-reclaims-80000-solana-hyperliquid-rally-crypto-markets-shrug-off-clarity-setback-415523'],
+  ['ZEC', 'Privacy-preserving payments and shielded transactions.', 'No direct holder revenue; price is driven by privacy demand, scarcity, ETF flows, and mining economics.', 'https://www.coingecko.com/en/coins/zcash', 'https://www.theblock.co/news/markets/2026-09-04-zcash-tops-1000-etf-inflows-ramp-up-miners-pile-in-413580'],
+  ['ONDO', 'Tokenized Treasuries and real-world assets; institutional on-chain finance.', 'Usage is visible, but token-holder profit capture and dilution must be checked.', 'https://www.coingecko.com/en/coins/ondo', 'https://www.coindesk.com/tag/ondo/'],
+  ['ARB', 'Ethereum Layer 2 scaling, appchains, tokenized assets, and institutional chains.', 'Revenue is improving; ARB holders do not currently receive a direct share.', 'https://www.coingecko.com/en/coins/arbitrum', 'https://cointelegraph.com/tags/arbitrum'],
+  ['OP', 'Ethereum Layer 2 scaling and the OP Stack used by multiple chains.', 'Usage and fees exist, but token capture and emissions remain key risks.', 'https://www.coingecko.com/en/coins/optimism', 'https://cointelegraph.com/tags/optimism'],
+  ['POL', 'Polygon PoS, AggLayer interoperability, payments, gaming, and tokenized assets.', 'Usage exists; profitability depends on fees, treasury policy, and emissions.', 'https://www.coingecko.com/en/coins/polygon-ecosystem-token', 'https://cointelegraph.com/tags/polygon'],
+  ['STRK', 'Starknet ZK-rollup scaling, smart contracts, and validity proofs.', 'Early-stage economics; unlocks and limited fee capture weigh on the outlook.', 'https://www.coingecko.com/en/coins/starknet', 'https://cointelegraph.com/tags/starknet'],
+  ['ZK', 'zkSync Era ZK-rollup scaling and zero-knowledge application infrastructure.', 'Usage is real, but token economics, unlocks, and fee capture remain uncertain.', 'https://www.coingecko.com/en/coins/zksync', 'https://cointelegraph.com/tags/zksync'],
+  ['BASE', 'Coinbase-linked Ethereum Layer 2 for consumer apps, payments, and on-chain activity.', 'Strong usage, but Base has no native token or direct BASE token P/L.', 'https://www.coingecko.com/learn/layer-2-l2', 'https://cointelegraph.com/tags/base'],
+];
 // The cycle log's own three levels. Used to validate a status before it becomes
 // a class name, since the log is tolerant on read and hand-editable.
 const CYCLE_LEVELS = ['GREEN', 'YELLOW', 'RED'];
@@ -62,7 +139,7 @@ const OVERLAYS = [
 ];
 
 const state = {
-  view: 'momentum',   // see VIEWS -- ranked screens plus the solo views
+  view: VIEWS.find(v => v.key === new URLSearchParams(location.search).get('view'))?.key || 'momentum',
   lookback: 1,
   range: '6M',
   board: null,
@@ -90,6 +167,7 @@ const state = {
   sectorSeq: 0,       // same out-of-order guard, for /api/sector loads
   tableView: false,
   enterpriseAI: null,
+  aiCrypto: null,
   hover: null,        // index into the visible slice
   loading: false,
 };
@@ -240,6 +318,50 @@ function renderNotices() {
   }
 }
 
+let onchainBoardReview = null;
+let onchainBoardObservations = [];
+async function renderAiCryptoWatchlist() {
+  const box = $('crypto-infra-map');
+  if (!box) return;
+  if (!onchainBoardReview) onchainBoardReview = globalThis.CryptoFinanceInfra.mount(box, {getObservations: () => onchainBoardObservations});
+  try {
+    const response = await fetch('/api/v3/state');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (!Array.isArray(payload.data?.observations)) throw new Error('Invalid research records');
+    onchainBoardObservations = payload.data.observations;
+    onchainBoardReview.refresh();
+  } catch {
+    onchainBoardObservations = [];
+    onchainBoardReview.refresh();
+    box.querySelector('.onchain-status').textContent = 'Daily research records unavailable. Open the main desk to inspect saved entries.';
+  }
+}
+
+async function fetchCrypto(symbol, force) {
+  const mySeq = ++state.selectionSeq;
+  state.loading = true;
+  $('chart-wrap').classList.add('refetching');
+  try {
+    const res = await fetch(`/api/crypto?symbol=${encodeURIComponent(symbol)}${force ? '&force=1' : ''}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (mySeq !== state.selectionSeq) return;
+    state.stock = data; state.symbol = symbol; state.hover = null;
+    $('c-title').textContent = `Crypto research — ${symbol}`;
+    $('c-entity').textContent = 'Fundamentals and SEC filings are not applicable to this token.';
+    ['c-stats', 'c-filings', 'c-news', 'c-links'].forEach(id => { const el = $(id); if (el) el.innerHTML = ''; });
+    const item = AI_CRYPTO_WATCHLIST.find(x => x.symbol === symbol);
+    const link = $('yahoo-link');
+    if (item && link) { link.href = item.coingecko; link.textContent = 'CoinGecko ↗'; link.title = `Open ${symbol} on CoinGecko`; }
+    renderDetail();
+  } catch (e) {
+    if (mySeq === state.selectionSeq) showError(`Could not load crypto ${symbol}: ${e.message}`);
+  } finally {
+    if (mySeq === state.selectionSeq) { state.loading = false; $('chart-wrap').classList.remove('refetching'); }
+  }
+}
+
 function currentView() {
   return VIEWS.find(v => v.key === state.view) || VIEWS[0];
 }
@@ -270,6 +392,7 @@ function renderViewTabs() {
     reversal: 'Groups down over the prior period that turned positive on the most recent session.',
     earnings: 'When each name reports next — so a swing position is never held through a print by accident.',
     momentum: 'Groups ranked by raw return over the window.',
+    'ai-crypto': 'Onchain finance across five daily-review layers — evidence, adoption, and COIN / CRCL implications.',
     review: 'Every open position against its own levels, sorted by how close it sits to support.',
     cycle: 'Is the AI data center buildout thesis still intact? Seven indicators scored by hand once a month.',
     sector: 'Measured facts about a group\'s own recent price and volume history \u2014 not a signal, not a call.',
@@ -435,9 +558,9 @@ function renderPaperAgent() {
   );
   box.innerHTML = `<div class="detail-head"><h3 id="paper-agent-title" class="rev-h3">Paper agent · human approval required</h3>`
     + `<span class="spacer"></span><span class="meta">${esc(data.feed_note || '')}</span></div>`
-    + `<p class="sub">Permitted symbols only: FN, AXTI, COHR, LITE. Bands come from measured support/resistance and ATR. Choose 25%, 50%, 75%, or 100% of the currently held whole shares.</p>`
+    + `<p class="sub">Permitted symbols only: ${esc((data.permitted_symbols || []).join(', '))}. Bands come from measured support/resistance and ATR. Stock previews require human approval; crypto pairs are review-only.</p>`
     + `<div id="paper-agent-notice" aria-live="polite"></div>`
-    + `<div class="table-wrap"><table class="paper-tbl"><thead><tr><th>Symbol</th><th>State</th><th>Last</th><th>Proposed entry</th><th>Proposed exit</th><th>Risk reference</th><th>Held shares</th><th>Your size</th><th>Shares</th><th>Prepare</th></tr></thead><tbody>`
+    + `<div class="table-wrap"><table class="paper-tbl"><thead><tr><th>Symbol</th><th>State</th><th>Last</th><th class="paper-entry">Proposed entry</th><th>Proposed exit</th><th>Risk reference</th><th>Held shares</th><th>Your size</th><th>Shares</th><th>Prepare</th></tr></thead><tbody>`
     + (data.recommendations || []).map(row => {
       if (!row.available) return `<tr><td><b>${esc(row.symbol)}</b></td><td colspan="9" class="muted">Unavailable: ${esc(row.reason)}</td></tr>`;
       const liveHeld = liveQuantities.get(row.symbol);
@@ -445,16 +568,17 @@ function renderPaperAgent() {
       const heldSource = Number.isInteger(liveHeld) && liveHeld >= 0 ? 'Schwab live' : 'journal fallback';
       return `<tr class="paper-row" data-symbol="${esc(row.symbol)}" data-held="${heldShares == null ? '' : heldShares}" data-entry-high="${row.entry_range.high}" data-exit-low="${row.exit_range.low}">
         <td><b>${esc(row.symbol)}</b></td><td>${esc(labels[row.state] || row.state)}</td><td>${fmtPx(row.last)}</td>
-        <td>${fmtPx(row.entry_range.low)}–${fmtPx(row.entry_range.high)}</td>
-        <td>${fmtPx(row.exit_range.low)}–${fmtPx(row.exit_range.high)}</td><td>${fmtPx(row.risk_reference)}</td>
+        <td class="paper-entry">${fmtPx(row.entry_range.low)}–${fmtPx(row.entry_range.high)}</td>
+        <td><span class="paper-exit-range">${fmtPx(row.exit_range.low)}–${fmtPx(row.exit_range.high)}</span>${row.exit_basis === 'atr_projection_above_observed_high' ? '<small class="paper-exit-note">Projected · price discovery</small>' : ''}</td><td>${fmtPx(row.risk_reference)}</td>
         <td title="${esc(heldSource)}">${heldShares == null ? '—' : esc(heldShares)}</td>
-        <td><select class="paper-pct" aria-label="${esc(row.symbol)} paper share percentage"><option value="25">25%</option><option value="50">50%</option><option value="75">75%</option><option value="100">100%</option></select></td>
-        <td class="paper-shares">—</td><td><button type="button" class="paper-prepare" data-side="BUY" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Buy review</button> <button type="button" class="paper-prepare" data-side="SELL" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Sell review</button></td></tr>`;
+        <td>${row.broker_preview_available ? `<select class="paper-pct" aria-label="${esc(row.symbol)} paper share percentage"><option value="25">25%</option><option value="50">50%</option><option value="75">75%</option><option value="100">100%</option></select>` : '<span class="muted">review only</span>'}</td>
+        <td class="paper-shares">—</td><td>${row.broker_preview_available ? `<button type="button" class="paper-prepare" data-side="BUY" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Buy review</button> <button type="button" class="paper-prepare" data-side="SELL" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Sell review</button>` : '<span class="muted">No Schwab preview</span>'}</td></tr>`;
     }).join('') + `</tbody></table></div>`
     + `<p class="sub">25%–75% sizes round down to whole shares; 100% uses the full held quantity. These are review proposals, not orders or simulated fills, and nothing is sent to Schwab.</p>`;
   box.querySelectorAll('.paper-row').forEach(row => {
     const input = row.querySelector('.paper-pct');
     const output = row.querySelector('.paper-shares');
+    if (!input) return;
     const update = () => {
       const held = Number(row.dataset.held);
       const pct = Number(input.value);
@@ -550,7 +674,7 @@ function renderSchwabTrade() {
       + (result.ok
         ? `<b>Preview only — no order submitted.</b> ${esc(JSON.stringify(result.summary || {}))}`
           + `<span class="lvl-meta">To place it, provide this exact phrase in a later chat turn: ${esc(result.confirmation_phrase || '')}</span>`
-          + `<button type="button" id="schwab-submit-handoff">Submit</button>`
+          + `<button type="button" id="schwab-copy-confirmation">Copy confirmation</button>`
         : esc(result.error || result.message || 'Preview failed'))
       + `</span></div>` : '';
   box.innerHTML = `<div class="detail-head"><h3 id="schwab-trade-title" class="rev-h3">Schwab live account & guarded preview</h3></div>`
@@ -1263,10 +1387,45 @@ function renderSector() {
       `of ${lvl.n || 0} names, within ${LEVEL_PROXIMITY_ATR} ATR`),
   ];
   $('sec-tiles').innerHTML = tiles.join('');
+  renderSectorPracticalRead(d);
   renderCycleStagePanel(d);
 
   $('sec-disclaimer').textContent = 'Every number above is a measured fact about this group\'s own '
     + 'recent price and volume history \u2014 not a signal, not a ranking, not a call on direction.';
+}
+
+function renderSectorPracticalRead(d) {
+  const box = $('sec-practical-read');
+  const rs = d.relative_strength || {};
+  const rs5 = rs.windows?.['5']?.excess_pct;
+  const trend = rs.excess_trend_pct;
+  const breadth = (d.breadth || {}).above_sma50_pct;
+  const participation = (d.participation || {}).ratio;
+  const dispersion = (d.dispersion || {}).ratio;
+  const highs = (d.new_highs_lows || {}).new_high_count;
+  const lows = (d.new_highs_lows || {}).new_low_count;
+
+  const facts = [];
+  if (rs5 != null) facts.push(`${rs5 >= 0 ? 'outperforming' : 'lagging'} ${esc(d.benchmark)} by ${fmtPct(Math.abs(rs5))} over 5 sessions`);
+  if (breadth != null) facts.push(`${breadth.toFixed(0)}% of names are above their 50-day average`);
+  if (participation != null) facts.push(`recent dollar volume is ${participation.toFixed(2)}× its 20-session baseline`);
+  if (highs != null && lows != null) facts.push(`${highs} new highs versus ${lows} new lows`);
+
+  let posture = 'Read the individual facts together; there is not enough data for a stronger summary.';
+  if (rs5 != null && breadth != null) {
+    if (rs5 > 0 && breadth >= 60 && (participation == null || participation >= 1)) {
+      posture = 'Strength is broad and participating: the group is leading with reasonably healthy internals.';
+    } else if (rs5 > 0 && breadth < 40) {
+      posture = 'Leadership is narrow: the group is outperforming, but a small set of names may be carrying the move.';
+    } else if (rs5 < 0 && breadth < 40) {
+      posture = 'Weakness is broad: the group is lagging and most constituents are below their 50-day average.';
+    } else if (rs5 < 0 && breadth >= 60) {
+      posture = 'The group is lagging despite decent breadth; check whether the weakness is recent or concentrated in the largest names.';
+    }
+  }
+  const trendNote = trend == null ? '' : ` The 5-session excess is ${trend >= 0 ? 'widening' : 'narrowing'} versus the preceding 5 sessions.`;
+  const dispersionNote = dispersion == null ? '' : ` Dispersion is ${dispersion < 1 ? 'below normal, so the move is relatively shared' : 'near/above normal, so stock selection matters more'}.`;
+  box.innerHTML = `<strong>Practical read:</strong> ${posture} ${facts.join('; ')}.${trendNote}${dispersionNote}`;
 }
 
 // The cycle-stage order the wheel actually turns in -- Local Peak, once
@@ -3102,6 +3261,7 @@ function init() {
 
   renderViewTabs();
   renderLookbackTabs();
+  renderAiCryptoWatchlist();
   fetchBoard(false);
 }
 

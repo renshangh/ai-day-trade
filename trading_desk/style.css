@@ -398,6 +398,19 @@ th {
 th:first-child, td:first-child { text-align: left; }
 tbody tr:hover { background: var(--surface-3); }
 
+/* Keep the price bands compact. Price-discovery context belongs underneath
+   the exit range so it cannot widen either price column. */
+.paper-tbl .paper-entry { width: 1%; }
+.paper-tbl .paper-exit-range,
+.paper-tbl .paper-exit-note { display: block; }
+.paper-tbl .paper-exit-note {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-family: var(--sans);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
 /* Ranking-table rows are pickers for the Top 5 strip, same as the bar chart. */
 /* Earnings calendar rows. A held name must be findable at a glance, and does not
    rely on colour alone -- the HELD tag is text as well as a left rule. */
@@ -976,6 +989,27 @@ button.primary:disabled { opacity: 0.5; cursor: default; }
 .enterprise-ai-name { font-weight: 600; }
 .enterprise-ai-role { color: var(--text-muted); font-size: 11px; }
 .enterprise-ai-stock p { margin: 8px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.ai-crypto-table { overflow-x: hidden; }
+.ai-crypto-table table { width: 100%; table-layout: fixed; font-size: 12px; }
+.ai-crypto-table th, .ai-crypto-table td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; line-height: 1.35; }
+.ai-crypto-table th:first-child { width: 16%; }
+.ai-crypto-table th:nth-child(2) { width: 37%; }
+.ai-crypto-table th:nth-child(3) { width: 35%; }
+.ai-crypto-table th:nth-child(4) { width: 12%; }
+.ai-crypto-table small { display: block; margin-top: 5px; font-weight: 400; white-space: nowrap; }
+.ai-crypto-table .muted { color: var(--text-muted); }
+.agent-sector-map { overflow-x: auto; }
+.agent-sector-map table { min-width: 920px; width: 100%; table-layout: fixed; font-size: 12px; }
+.agent-sector-map th, .agent-sector-map td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; line-height: 1.4; }
+.agent-sector-map th:first-child { width: 10%; }
+.agent-sector-map th:nth-child(2) { width: 19%; }
+.agent-sector-map th:nth-child(3) { width: 17%; }
+.agent-sector-map th:nth-child(4) { width: 28%; }
+.agent-sector-map th:nth-child(5) { width: 26%; }
+.sector-scope { display: inline-block; border: 1px solid var(--border); border-radius: 999px; padding: 2px 7px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.sector-scope-core { color: var(--up); }
+.sector-scope-support { color: var(--series-1); }
+.sector-scope-outside-core { color: var(--text-muted); }
 
 .sector-practical-read {
   margin: 12px 0 16px;
