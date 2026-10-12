@@ -49,6 +49,7 @@ import universe  # noqa: E402
 import session_vwap  # noqa: E402
 import v3_store  # noqa: E402
 import onchain_crypto  # noqa: E402
+import rwa_market  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -133,6 +134,8 @@ CYCLE_STALE_DAYS = 35
 #
 # A mapping rather than a set so the reason travels with the symbol and shows up
 # on the page.
+DESK_HIDDEN_SYMBOLS = frozenset({"46438R105"})  # Owner-requested display removal; keep broker totals.
+
 REVIEW_EXCLUDE: dict[str, str] = {
     "SNDL": "Residual position, too small to act on",
 }
@@ -1210,6 +1213,8 @@ def build_position_review(force: bool = False, broker: dict | None = None) -> di
 
     reviewed, excluded = [], []
     for symbol in sorted(held):
+        if symbol in DESK_HIDDEN_SYMBOLS:
+            continue  # Do not request a chart, news or risk estimate for a hidden identifier.
         e = _review_one(symbol, held[symbol], lots_by_symbol.get(symbol, []), groups,
                         force=force)
         e["account_positions"] = held[symbol].get("account_positions", [])
@@ -1261,7 +1266,13 @@ def build_position_review(force: bool = False, broker: dict | None = None) -> di
 
     t_rev = totals(reviewed)
     excluded_mv = sum(i["market_value"] for i in excluded if i.get("market_value"))
-    book_mv = (t_rev["market_value"] or 0.0) + excluded_mv
+    # Use actual broker marks for hidden holdings; no chart-derived substitute.
+    hidden_marks = [p.get("market_value") for p in (broker or {}).get("positions", [])
+                    if p.get("symbol") in DESK_HIDDEN_SYMBOLS]
+    hidden_mv = (sum(hidden_marks) if all(isinstance(v, (int, float)) and math.isfinite(v)
+                                        for v in hidden_marks) else None)
+    book_mv = ((t_rev["market_value"] or 0.0) + excluded_mv + hidden_mv
+               if hidden_mv is not None else None)
     for e in reviewed + excluded:
         e["book_weight_pct"] = (e["market_value"] / book_mv * 100.0) if (book_mv and e.get("market_value")) else None
 
@@ -1291,13 +1302,14 @@ def build_position_review(force: bool = False, broker: dict | None = None) -> di
         "holdings_source": "schwab" if broker and broker.get("ok") else "journal",
         "accounts": (broker or {}).get("accounts", []),
         "account_count": (broker or {}).get("account_count", 0),
-        "journal_gaps": journal_gaps,
+        "journal_gaps": [g for g in journal_gaps if g["symbol"] not in DESK_HIDDEN_SYMBOLS],
         "positions": reviewed,
         "excluded": excluded,
         "excluded_note": "Left out of the risk math and flags by instruction. "
                          "Reported here so the weights above still add up.",
         "totals": t_rev,
         "book_market_value": book_mv,
+        "hidden_market_value": hidden_mv,
         "risk_to_support": risk,
         "risk_to_stop": stop_risk,
         "risk_to_stop_pct_of_book": (stop_risk / book_mv * 100.0) if book_mv else None,
@@ -1704,15 +1716,72 @@ def schwab_preview_post(data: dict) -> tuple[int, dict]:
         args.extend(("--account-last4", str(data["account_last4"])))
     if data.get("limit_price") not in (None, ""):
         args.extend(("--limit-price", str(data["limit_price"])))
+    wash_args = ["wash-sale-check", *args[1:]]
+    wash_sale = run_schwab_helper(*wash_args)
     result = run_schwab_helper(*args)
+    result["wash_sale"] = wash_sale
     return (200 if result.get("ok") else 400), result
 
 
+PAPER_ACCOUNT_EXCLUSIONS = frozenset({"UNG", "IBIT", "QNT"}) | DESK_HIDDEN_SYMBOLS
+
+
+def paper_permitted_symbols(broker: dict | None = None) -> tuple[tuple[str, ...], str, str | None]:
+    """Return configured paper names plus current Schwab holdings, less exclusions.
+
+    A failed account read never produces a guessed account universe. The caller
+    receives the configured fallback plus an explicit warning instead.
+    """
+    configured = [
+        symbol for symbol in paper_agent.PERMITTED_SYMBOLS
+        if symbol not in PAPER_ACCOUNT_EXCLUSIONS
+    ]
+    if broker is None:
+        broker = run_schwab_helper("positions", "--all-accounts")
+    if not broker.get("ok"):
+        message = broker.get("message") or broker.get("error") or "Schwab positions unavailable."
+        return tuple(configured), "configured_fallback", message
+
+    held = set()
+    for position in broker.get("positions") or []:
+        symbol = str(position.get("symbol") or "").strip().upper()
+        try:
+            quantity = float(position.get("quantity"))
+        except (TypeError, ValueError):
+            continue
+        if symbol and quantity > 0 and symbol not in PAPER_ACCOUNT_EXCLUSIONS:
+            held.add(symbol)
+
+    # Preserve the established paper-agent order, then append account holdings
+    # alphabetically so refreshes are stable even if Schwab changes row order.
+    permitted = configured + sorted(held.difference(configured))
+    return tuple(permitted), "schwab_holdings_plus_configured", None
+
+
+def paper_held_quantities(broker: dict | None) -> dict[str, float]:
+    """Return positive live quantities without substituting journal holdings."""
+    if not broker or not broker.get("ok"):
+        return {}
+    held = {}
+    for position in broker.get("positions") or []:
+        symbol = str(position.get("symbol") or "").strip().upper()
+        try:
+            quantity = float(position.get("quantity"))
+        except (TypeError, ValueError):
+            continue
+        if symbol and math.isfinite(quantity) and quantity > 0:
+            held[symbol] = quantity
+    return held
+
+
 def build_paper_recommendations(force: bool = False) -> dict:
-    """Build transparent paper proposals for the explicitly permitted sleeve."""
+    """Build transparent paper proposals for configured and held symbols."""
     rows = []
-    held = open_positions()
-    for symbol in paper_agent.PERMITTED_SYMBOLS:
+    broker = run_schwab_helper("positions", "--all-accounts")
+    permitted_symbols, universe_source, universe_warning = paper_permitted_symbols(broker)
+    live_quantities = paper_held_quantities(broker)
+    journal_holdings = open_positions()
+    for symbol in permitted_symbols:
         try:
             is_crypto = symbol in CRYPTO_IDS or symbol in COINBASE_PRODUCTS
             market_data = get_crypto(symbol) if is_crypto else get_stock(symbol, force=force)
@@ -1721,8 +1790,11 @@ def build_paper_recommendations(force: bool = False) -> dict:
                              "asset_type": "crypto" if is_crypto else "stock",
                              "broker_preview_available": not is_crypto})
             else:
-                proposal = paper_agent.recommend(symbol, market_data)
-                proposal["held_shares"] = (held.get(symbol) or {}).get("qty")
+                proposal = paper_agent.recommend(
+                    symbol, market_data, permitted_symbols=permitted_symbols,
+                )
+                proposal["held_shares"] = (live_quantities.get(symbol) if broker.get("ok")
+                                             else (journal_holdings.get(symbol) or {}).get("qty"))
                 proposal["asset_type"] = "crypto" if is_crypto else "stock"
                 proposal["broker_preview_available"] = not is_crypto
                 rows.append(proposal)
@@ -1732,7 +1804,10 @@ def build_paper_recommendations(force: bool = False) -> dict:
         "mode": "paper",
         "human_approval_required": True,
         "broker_submission": False,
-        "permitted_symbols": list(paper_agent.PERMITTED_SYMBOLS),
+        "permitted_symbols": list(permitted_symbols),
+        "excluded_symbols": sorted(PAPER_ACCOUNT_EXCLUSIONS - DESK_HIDDEN_SYMBOLS),
+        "universe_source": universe_source,
+        "universe_warning": universe_warning,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "feed": FEED,
         "feed_note": FEED_NOTE,
@@ -1744,6 +1819,10 @@ def build_paper_recommendations(force: bool = False) -> dict:
 # HTTP
 # --------------------------------------------------------------------------
 STATIC = {
+    "/rwa_market.js": ("rwa_market.js", "application/javascript; charset=utf-8"),
+    "/rwa_market.css": ("rwa_market.css", "text/css; charset=utf-8"),
+    "/ai_power.js": ("ai_power.js", "application/javascript; charset=utf-8"),
+    "/ai_power.css": ("ai_power.css", "text/css; charset=utf-8"),
     "/crypto_infra.js": ("crypto_infra.js", "application/javascript; charset=utf-8"),
     "/crypto_infra.css": ("crypto_infra.css", "text/css; charset=utf-8"),
     "/": ("v3.html", "text/html; charset=utf-8"),
@@ -1813,6 +1892,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": str(e)}, 502)
             return
 
+        if path == "/api/rwa-market":
+            self._json(rwa_market.get_market(force=qs.get("force", ["0"])[0] == "1"))
+            return
+
         if path == "/api/crypto":
             sym = (qs.get("symbol") or [""])[0].upper().strip()
             try:
@@ -1855,7 +1938,7 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 held, _, _ = review_holdings(journal_open_rows(), broker)
                 self._json(session_vwap.get(
-                    list(held), lambda url: _get(url, retries=2),
+                    [s for s in held if s not in DESK_HIDDEN_SYMBOLS], lambda url: _get(url, retries=2),
                     force=qs.get("force", ["0"])[0] == "1"))
             except Exception:
                 self._json({"error": "Could not load session VWAP."}, 502)

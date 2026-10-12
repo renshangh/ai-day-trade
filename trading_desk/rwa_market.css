@@ -1,0 +1,7 @@
+.rwa-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; }
+.rwa-toolbar label { display:flex; align-items:center; gap:.5rem; }
+.rwa-market table { width:100%; border-collapse:collapse; }
+.rwa-market th,.rwa-market td { padding:.7rem; text-align:left; border-bottom:1px solid var(--border,#66708555); }
+.rwa-market th small { display:block; font-weight:normal; opacity:.7; }
+.rwa-market .table-wrap { overflow-x:auto; }
+.rwa-market .footnote { font-size:.85rem; opacity:.8; }

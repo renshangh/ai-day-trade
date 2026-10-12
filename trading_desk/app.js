@@ -25,8 +25,12 @@ const VIEWS = [
     load: () => fetchCycle(), draw: () => renderCycle() },
   { key: 'enterprise-ai', label: 'Enterprise AI', lookbacks: [], solo: true, card: 'enterprise-ai-card',
     load: () => fetchEnterpriseAI(), draw: () => renderEnterpriseAI() },
+  { key: 'ai-power', label: 'AI Power — Nuclear', lookbacks: [], solo: true, card: 'ai-power-card',
+    load: force => renderAIPower(force), draw: () => renderAIPower() },
   { key: 'ai-crypto', label: 'Onchain Finance Buildout', lookbacks: [], solo: true, card: 'ai-crypto-card',
     load: () => { state.aiCrypto = true; renderAiCryptoWatchlist(); }, draw: () => renderAiCryptoWatchlist() },
+  { key: 'rwa', label: 'RWA & Tokenization', lookbacks: [], solo: true, card: 'rwa-card',
+    load: force => RwaMarket.mount($('rwa-market-board'), force, symbol => selectOnchainSymbol(symbol, 'crypto')), draw: () => RwaMarket.mount($('rwa-market-board'), false, symbol => selectOnchainSymbol(symbol, 'crypto')) },
   { key: 'sector', label: 'Sector', lookbacks: [], solo: true, card: 'sector-card',
     load: force => fetchSector(force), draw: () => renderSector() },
 ];
@@ -163,7 +167,7 @@ const state = {
   cycle: null,
   cycleSeq: 0,        // same out-of-order guard as selectionSeq, for /api/cycle loads
   sector: null,
-  sectorGroup: null,  // group name selected in the Sector view; null = server default
+  sectorGroup: new URLSearchParams(location.search).get('group') || null,  // deep-linked group, or server default
   sectorSeq: 0,       // same out-of-order guard, for /api/sector loads
   tableView: false,
   enterpriseAI: null,
@@ -342,6 +346,20 @@ function selectOnchainSymbol(symbol, kind) {
   $('detail-card').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
+let aiPowerBoard = null;
+let aiPowerObservations = [];
+function renderAIPower(force = false) {
+  if (!aiPowerBoard) {
+    aiPowerBoard = globalThis.AIPower.mount($('ai-power-desk'), {
+      getObservations: () => aiPowerObservations,
+      onSelect: symbol => selectOnchainSymbol(symbol, 'stock'),
+    });
+    fetch('/api/v3/state').then(r => { if (!r.ok) throw new Error('Research unavailable'); return r.json(); })
+      .then(p => { aiPowerObservations = p.data?.observations || []; aiPowerBoard.refresh(); })
+      .catch(() => { aiPowerObservations = []; });
+  } else if (force) void aiPowerBoard.reload(true);
+}
+
 let onchainBoardReview = null;
 let onchainBoardObservations = [];
 async function renderAiCryptoWatchlist() {
@@ -369,6 +387,7 @@ async function fetchCrypto(symbol, force) {
   const mySeq = ++state.selectionSeq;
   state.loading = true;
   clearSelectedChart(symbol);
+  renderCryptoResearch(symbol);
   $('chart-wrap').classList.add('refetching');
   try {
     const res = await fetch(`/api/crypto?symbol=${encodeURIComponent(symbol)}${force ? '&force=1' : ''}`);
@@ -423,9 +442,11 @@ function renderViewTabs() {
     reversal: 'Groups down over the prior period that turned positive on the most recent session.',
     earnings: 'When each name reports next — so a swing position is never held through a print by accident.',
     momentum: 'Groups ranked by raw return over the window.',
+    'ai-power': 'Nuclear recovery evidence, operating assets, fuel, equipment and a staged trading plan.',
     'ai-crypto': 'Onchain finance across five daily-review layers — evidence, adoption, and COIN / CRCL implications.',
     review: 'Every open position against its own levels, sorted by how close it sits to support.',
     cycle: 'Is the AI data center buildout thesis still intact? Seven indicators scored by hand once a month.',
+    rwa: 'Leading RWA and tokenization coins ranked by circulating market cap and reported 24-hour dollar volume.',
     sector: 'Measured facts about a group\'s own recent price and volume history \u2014 not a signal, not a call.',
   };
   $('view-note').textContent = notes[state.view] || notes.momentum;
@@ -582,6 +603,9 @@ function renderPaperAgent() {
   if (!data) { box.innerHTML = '<div class="loading">Loading paper recommendations…</div>'; return; }
   if (data.error) { box.innerHTML = `<p class="sub neg">Paper agent unavailable: ${esc(data.error)}</p>`; return; }
   const labels = { entry_review: 'Review entry', exit_review: 'Review exit', risk_review: 'Review risk', wait: 'Wait' };
+  const universeNote = data.universe_source === 'schwab_holdings_plus_configured'
+    ? `Live Schwab holdings included; ${(data.excluded_symbols || []).join(' and ')} excluded.`
+    : `Schwab holdings unavailable; configured symbols only. ${data.universe_warning || ''}`;
   const liveQuantities = new Map(
     state.schwabPositions && state.schwabPositions.ok
       ? (state.schwabPositions.positions || []).map(row => [row.symbol, row.quantity])
@@ -589,7 +613,7 @@ function renderPaperAgent() {
   );
   box.innerHTML = `<div class="detail-head"><h3 id="paper-agent-title" class="rev-h3">Paper agent · human approval required</h3>`
     + `<span class="spacer"></span><span class="meta">${esc(data.feed_note || '')}</span></div>`
-    + `<p class="sub">Permitted symbols only: ${esc((data.permitted_symbols || []).join(', '))}. Bands come from measured support/resistance and ATR. Stock previews require human approval; crypto pairs are review-only.</p>`
+    + `<p class="sub">Permitted symbols: ${esc((data.permitted_symbols || []).join(', '))}. ${esc(universeNote)} Bands come from measured support/resistance and ATR. Stock previews require human approval; crypto pairs are review-only.</p>`
     + `<div id="paper-agent-notice" aria-live="polite"></div>`
     + `<div class="table-wrap"><table class="paper-tbl"><thead><tr><th>Symbol</th><th>State</th><th>Last</th><th class="paper-entry">Proposed entry</th><th>Proposed exit</th><th>Risk reference</th><th>Held shares</th><th>Your size</th><th>Shares</th><th>Prepare</th></tr></thead><tbody>`
     + (data.recommendations || []).map(row => {
@@ -687,23 +711,92 @@ function accountContributions(rows = []) {
   return rows.length ? `<span class="lvl-meta">${rows.map(row=>`${esc(row.account)}: ${row.quantity == null ? '—' : esc(row.quantity)}`).join(' · ')}</span>` : '';
 }
 
+// Owner-confirmed roles; Schwab's CASH/MARGIN type does not identify tax registration.
+function schwabAccountName(label) {
+  if (label === '***3652') return `Individual · ${label}`;
+  if (label === '***6434') return `IRA · ${label}`;
+  return `Account · ${label}`;
+}
+
+function schwabAccountViews(p) {
+  if (!p.combined) return [{label: p.account, balances: p.balances || {}, as_of: p.as_of, positions: p.positions || []}];
+  // Keep raw account contributions, including different costs for a shared ticker.
+  return (p.accounts || []).map(account => ({...account, as_of: account.as_of || p.as_of,
+    positions: (p.positions || []).flatMap(row => (row.account_positions || [])
+      .filter(position => position.account === account.label))}));
+}
+
+function schwabHoldingMetrics(row, equity) {
+  const valid = value => typeof value === 'number' && Number.isFinite(value);
+  const qty = row.quantity, mv = row.market_value, avg = row.average_price;
+  const cost = valid(qty) && qty > 0 && valid(avg) && avg > 0 && row.short_quantity === 0 ? qty * avg : null;
+  return {
+    mark: valid(qty) && qty !== 0 && valid(mv) ? mv / qty : null,
+    weight: valid(equity) && equity > 0 && valid(mv) ? mv / equity * 100 : null,
+    cost,
+    profitPct: cost != null && valid(row.open_profit_loss) ? row.open_profit_loss / cost * 100 : null,
+  };
+}
+
+function renderSchwabAccounts(p) {
+  const sum = (rows, field) => rows.every(row => typeof row[field] === 'number' && Number.isFinite(row[field]))
+    ? rows.reduce((value, row) => value + row[field], 0) : null;
+  return schwabAccountViews(p).map(account => {
+    const allRows = account.positions;
+    const rows = allRows.filter(row => !['SNDL', '46438R105'].includes(row.symbol));
+    const balances = account.balances || {};
+    const metrics = [['Account value', balances.liquidation_value], ['Cash', balances.cash_balance],
+      ['Holdings value', sum(allRows, 'market_value')], ['Open P/L', sum(allRows, 'open_profit_loss')],
+      ['Day P/L', sum(allRows, 'current_day_profit_loss')]];
+    return `<section class="schwab-account" aria-label="${esc(schwabAccountName(account.label))}">
+      <h4>${esc(schwabAccountName(account.label))}</h4>
+      <p class="sub">Live broker snapshot · ${esc(account.as_of || '')}${account.label === '***6434' ? ' · Owner-identified IRA; Schwab registration confirmation pending.' : ''}</p>
+      <dl class="schwab-account-metrics">${metrics.map(([label, value]) => `<div><dt>${label}</dt><dd>${fmtMoney0(value)}</dd></div>`).join('')}</dl>
+      <div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average cost</th><th>Broker mark</th><th>Cost basis</th><th>Market value</th><th>Account weight</th><th>Open P/L</th><th>Open P/L %</th><th>Day P/L</th></tr></thead><tbody>`
+      + rows.map(row => {
+        const m = schwabHoldingMetrics(row, balances.liquidation_value);
+        return `<tr><th scope="row">${esc(row.symbol)}</th><td>${row.quantity == null ? '—' : esc(row.quantity)}</td>
+          <td>${fmtPx(row.average_price)}</td><td>${fmtPx(m.mark)}</td><td>${fmtMoney0(m.cost)}</td><td>${fmtMoney0(row.market_value)}</td>
+          <td>${m.weight == null ? '—' : m.weight.toFixed(2) + '%'}</td>
+          <td class="${signClass(row.open_profit_loss)}">${fmtMoney0(row.open_profit_loss)}</td>
+          <td class="${signClass(m.profitPct)}">${fmtPct(m.profitPct)}</td>
+          <td class="${signClass(row.current_day_profit_loss)}">${fmtMoney0(row.current_day_profit_loss)}</td></tr>`;
+      }).join('') + `</tbody></table></div>${rows.length ? '' : '<p class="sub">No displayed holdings in this account.</p>'}
+      <p class="sub">Weights use this account’s liquidation value, including cash and hidden holdings. Broker mark = market value ÷ shares; it is not an executable quote. Missing metrics remain unavailable.${rows.length !== allRows.length ? ' SNDL / 46438R105 are hidden; account totals retain them.' : ''}</p></section>`;
+  }).join('');
+}
+
+function renderWashSaleAlert(result) {
+  if (!result) return '';
+  const wash = result.wash_sale;
+  if (!wash) return '';
+  if (!wash.ok) {
+    return `<div class="notice warn"><span class="ico">⚠</span><span><b>Wash-sale check unavailable.</b> ${esc(wash.error || wash.message || 'Review recent trades manually before placing this order.')}</span></div>`;
+  }
+  const warning = wash.level === 'warning';
+  const trades = (wash.matched_trades || []).map(trade =>
+    `<li>${esc(trade.trade_date || 'Unknown date')} · ${esc(trade.account || 'linked account')} · ${esc(trade.side || '')} ${trade.quantity == null ? 'unknown quantity' : esc(trade.quantity)} ${esc(trade.symbol || wash.symbol || '')}${trade.price == null ? '' : ` at ${fmtPx(Number(trade.price))}`}</li>`
+  ).join('');
+  return `<div class="notice ${warning ? 'warn' : 'ok'}"><span class="ico">${warning ? '⚠' : '✓'}</span><span>`
+    + `<b>${warning ? 'Wash-sale review required.' : 'Wash-sale scan completed.'}</b> ${esc(wash.message || '')}`
+    + (trades ? `<details><summary>Matched linked-account trades</summary><ul>${trades}</ul></details>` : '')
+    + `<span class="lvl-meta">Advisory only: same-symbol activity in linked Schwab accounts. It cannot see other brokers, spouse accounts, options, or determine substantially identical securities or tax-lot basis.</span>`
+    + `</span></div>`;
+}
+
 function renderSchwabTrade() {
   const box = $('rev-schwab-trade');
   if (!box) return;
   const s = state.schwab || {};
   const p = state.schwabPositions;
   const ready = Boolean(s.ok);
-  const positionRows = p && p.ok ? (p.positions || []).filter(row => row.symbol !== 'SNDL') : [];
-  const positionHtml = p && p.ok
-    ? `<p class="sub">${p.combined ? `Combined holdings · ${p.account_count} accounts · ${esc((p.accounts || []).map(a=>a.label).join(' + '))}` : `Live ${esc(p.account || '')}`} · ${esc(p.as_of || '')}</p>`
-      + `<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average</th><th>Market value</th><th>Open P/L</th></tr></thead><tbody>`
-      + positionRows.map(row => `<tr><td>${esc(row.symbol)}${accountContributions(row.account_positions)}</td><td>${row.quantity == null ? '—' : esc(row.quantity)}</td>`
-        + `<td>${row.average_price == null ? '—' : fmtPx(row.average_price)}</td>`
-        + `<td>${row.market_value == null ? '—' : fmtMoney0(row.market_value)}</td>`
-        + `<td class="${signClass(row.open_profit_loss)}">${row.open_profit_loss == null ? '—' : fmtMoney0(row.open_profit_loss)}</td></tr>`).join('')
-      + `</tbody></table></div>`
+  const positionHtml = p && p.ok ? renderSchwabAccounts(p)
     : p && p.error ? `<p class="sub neg">Live positions unavailable: ${esc(p.error)}</p>` : '';
+  const linked = p && p.ok ? schwabAccountViews(p) : (s.accounts || []);
+  const accountOptions = linked.map(a => `<option value="${esc(a.label.slice(-4))}">${esc(schwabAccountName(a.label))}</option>`).join('');
+  const selectedAccount = $('schwab-preview-form')?.elements.account_last4.value || '';
   const result = state.schwabPreview;
+  const washSaleHtml = renderWashSaleAlert(result);
   const previewHtml = result
     ? `<div class="notice ${result.ok ? 'ok' : 'err'}"><span class="ico">${result.ok ? '✓' : '⚠'}</span><span>`
       + (result.ok
@@ -712,10 +805,10 @@ function renderSchwabTrade() {
           + `<button type="button" id="schwab-copy-confirmation">Copy confirmation</button>`
         : esc(result.error || result.message || 'Preview failed'))
       + `</span></div>` : '';
-  box.innerHTML = `<div class="detail-head"><h3 id="schwab-trade-title" class="rev-h3">Schwab combined holdings & guarded preview</h3></div>`
+  box.innerHTML = `<div class="detail-head"><h3 id="schwab-trade-title" class="rev-h3">Schwab holdings by account & guarded preview</h3></div>`
     + positionHtml
     + `<form id="schwab-preview-form" class="size-form">
-      <label>Account last 4 <input name="account_last4" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="optional if one account" ${ready ? '' : 'disabled'}></label>
+      <label>Preview account <select name="account_last4" required ${ready ? '' : 'disabled'}><option value="">Choose an account</option>${accountOptions}</select></label>
       <label>Side <select name="side" ${ready ? '' : 'disabled'}><option value="BUY">Buy</option><option value="SELL">Sell</option></select></label>
       <label>Symbol <input name="symbol" maxlength="10" required ${ready ? '' : 'disabled'}></label>
       <label>Whole shares <input name="quantity" type="number" min="1" step="1" required ${ready ? '' : 'disabled'}></label>
@@ -723,9 +816,10 @@ function renderSchwabTrade() {
       <label>Limit price <input name="limit_price" type="number" min="0.01" step="0.01" required ${ready ? '' : 'disabled'}></label>
       <label>Duration <select name="duration" ${ready ? '' : 'disabled'}><option value="DAY">Day</option><option value="GTC">GTC</option></select></label>
       <button type="submit" ${ready ? '' : 'disabled'}>Review at Schwab</button>
-    </form>${previewHtml}
+    </form>${washSaleHtml}${previewHtml}
     <p class="sub">Review at Schwab validates the order but does not submit it. Live placement still requires the exact confirmation phrase returned by Schwab.</p>`;
   const form = $('schwab-preview-form');
+  if (form && linked.some(a => a.label.slice(-4) === selectedAccount)) form.elements.account_last4.value = selectedAccount;
   const type = form && form.elements.order_type;
   const price = form && form.elements.limit_price;
   const duration = form && form.elements.duration;
@@ -790,7 +884,7 @@ async function fetchSessionVwap(force = false) {
     }
     $('vwap-stamp').textContent = `${data.session_date} · ${easternTime(data.session_open)}–${easternTime(data.cutoff_at)} ET (end exclusive)`
       + ` · Consolidated SIP · ${data.delay_minutes}+ min delayed · fetched ${easternTime(data.built_at)} ET`;
-    const rows = (data.rows || []).filter(row => row.symbol !== 'SNDL');
+    const rows = (data.rows || []).filter(row => !['SNDL', '46438R105'].includes(row.symbol));
     $('vwap-table').innerHTML = `<table class="vwap-tbl"><thead><tr>
       <th scope="col">Holding</th><th scope="col">Session VWAP</th>
       <th scope="col">Price at cutoff</th><th scope="col">Vs VWAP</th>
@@ -815,6 +909,7 @@ async function fetchSessionVwap(force = false) {
 }
 
 async function fetchReviewData(force) {
+  fetchStrategyQuotes(force);
   const card = $('review-card');
   card.classList.add('refetching');
   try {
@@ -1234,7 +1329,7 @@ function renderReview() {
       return `<div class="rev-bar-row"><div class="rev-bar-lbl">${x.group}</div>`
         + `<div class="rev-bar-track"><div class="rev-bar-fill" style="width:${Math.min(pct, 100)}%"></div></div>`
         + `<div class="rev-bar-val">${pct.toFixed(1)}% <span class="lvl-meta">${fmtMoney0(x.market_value)}</span></div></div>`;
-    }).join('') + `</div><p class="sub">A name in two groups counts in both, so these do not sum to 100%.</p>`;
+    }).join('') + `</div><p class="sub">A name in two groups counts in both, so these do not sum to 100%. Account weights also include broker value for holdings hidden by request.</p>`;
 
   // ---- excluded holdings, reported but not reviewed
   const ex = d.excluded || [];
@@ -3155,6 +3250,48 @@ function renderCompany(d) {
   });
 }
 
+// Provider slugs identify the token, including aliases used by the chart feeds.
+// Keep these explicit: CoinGecko and CoinMarketCap often use different slugs.
+const CRYPTO_RESEARCH_SLUGS = {
+  BTC:['bitcoin','bitcoin'], ETH:['ethereum','ethereum'],
+  LINK:['chainlink','chainlink'], XLM:['stellar','stellar'],
+  ONDO:['ondo','ondo-finance'], QNT:['quant-network','quant'],
+  PAXG:['pax-gold','pax-gold'], XAUT:['tether-gold','tether-gold'],
+  RSR:['reserve-rights-token','reserve-rights'], INJ:['injective-protocol','injective'],
+  ALGO:['algorand','algorand'], SYRUP:['syrup','maple-finance'],
+  PLUME:['plume','plume'], XDC:['xdce-crowd-sale','xdc-network'],
+  CCCAUSD:['canton','canton-network'], HYPE:['hyperliquid','hyperliquid'],
+  NEAR:['near','near-protocol'], TAO:['bittensor','bittensor'],
+  RENDER:['render-token','render'], FET:['artificial-superintelligence-alliance','artificial-superintelligence-alliance'],
+  AKT:['akash-network','akash-network'], ZEC:['zcash','zcash'],
+  ARB:['arbitrum','arbitrum'], OP:['optimism','optimism'],
+  POL:['polygon-ecosystem-token','polygon-ecosystem-token'],
+  STRK:['starknet','starknet'], ZK:['zksync','zksync'],
+  USDT:['tether','tether'], USDC:['usd-coin','usd-coin'],
+  PYUSD:['paypal-usd','paypal-usd'], XRP:['ripple','xrp'],
+  UNI:['uniswap','uniswap'], AAVE:['aave','aave'],
+  SOL:['solana','solana'], AVAX:['avalanche-2','avalanche'],
+  ADA:['cardano','cardano'], VIRTUAL:['virtual-protocol','virtuals-protocol'],
+};
+
+function cryptoResearchLinks(symbol) {
+  const ticker=String(symbol || '').toUpperCase();
+  const slugs=CRYPTO_RESEARCH_SLUGS[ticker] || CRYPTO_RESEARCH_SLUGS[ticker.replace(/USD$/, '')];
+  if (!slugs) return [];
+  return [
+    {label:'CoinGecko',url:`https://www.coingecko.com/en/coins/${slugs[0]}`},
+    {label:'CoinMarketCap',url:`https://coinmarketcap.com/currencies/${slugs[1]}/`},
+  ];
+}
+
+function renderCryptoResearch(symbol) {
+  $('c-title').textContent = `Crypto research — ${symbol}`;
+  $('c-entity').textContent = 'Fundamentals and SEC filings are not applicable to this token.';
+  ['c-stats','c-facts','c-news'].forEach(id => $(id)?.replaceChildren());
+  $('c-links').innerHTML = cryptoResearchLinks(symbol).map(link =>
+    `<a class="linkchip" href="${link.url}" target="_blank" rel="noopener noreferrer">${link.label} ↗</a>`).join('');
+}
+
 function renderDetail() {
   const s = state.stock;
   if (!s || !s.bars || !s.bars.length) return;
@@ -3168,6 +3305,7 @@ function renderDetail() {
      <span style="color:var(--text-muted)"> · ${last.t}</span>`;
 
   if (s.asset_type === 'crypto') {
+    renderCryptoResearch(s.symbol);
     const link = $('yahoo-link');
     link.href = globalThis.CryptoFinanceInfra.marketUrl(s.symbol) || AI_CRYPTO_WATCHLIST.find(item => item.symbol === s.symbol)?.coingecko || 'https://www.coingecko.com/';
     link.textContent = `Crypto: ${s.symbol} ↗`;
@@ -3323,7 +3461,39 @@ function init() {
   const chartSymbol = (chartQuery.get('symbol') || '').toUpperCase();
   const chartKind = globalThis.CryptoFinanceInfra.assetKind(chartSymbol);
   if (state.view === 'ai-crypto' && chartKind) selectOnchainSymbol(chartSymbol, chartKind);
+  if (state.view === 'rwa' && /^[A-Z0-9]{1,12}$/.test(chartSymbol)) selectOnchainSymbol(chartSymbol, 'crypto');
+  if (state.view === 'sector' && /^[A-Z][A-Z0-9.\-]{0,11}$/.test(chartSymbol)) selectStock(chartSymbol);
   fetchBoard(false);
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+let strategyQuoteSeq = 0;
+async function fetchStrategyQuotes(force = false) {
+  const box = $('strategy-quotes');
+  if (!box) return;
+  const seq = ++strategyQuoteSeq;
+  box.textContent = 'Loading dated daily-bar references…';
+  const rows = await Promise.all(['CCJ', 'BWXT', 'COHR', 'AXTI', 'POWL', 'COIN', 'CRCL', 'IBIT', 'ETHA', 'SOLT', 'QNT'].map(async symbol => {
+    try {
+      const response = await fetch('/api/stock?symbol=' + symbol + (force ? '&force=1' : ''));
+      const d = await response.json();
+      if (!response.ok || d.error) throw new Error(d.error || 'Price unavailable');
+      const last = (d.bars || []).at(-1);
+      if (!last || !Number.isFinite(last.c)) throw new Error('No valid daily bar');
+      const supports = (d.levels || []).filter(x => x.kind === 'support').sort((a,b) => b.level-a.level);
+      const resistance = (d.levels || []).filter(x => x.kind === 'resistance').sort((a,b) => a.level-b.level);
+      return '<tr><td>' + symbol + '</td><td>' + fmtPx(last.c) + '</td><td>' + esc(last.t)
+        + '</td><td>' + esc(d.feed_note || d.feed || 'Feed unavailable')
+        + (d.stale ? ' · STALE: ' + esc(d.stale_reason || 'fetch failed') : '')
+        + '</td><td>' + (supports[0] ? fmtPx(supports[0].level) : 'none')
+        + ' / ' + (resistance[0] ? fmtPx(resistance[0].level) : 'none') + '</td></tr>';
+    } catch (e) {
+      return '<tr><td>' + symbol + '</td><td colspan="4">Unavailable: ' + esc(e.message) + '</td></tr>';
+    }
+  }));
+  if (seq !== strategyQuoteSeq) return;
+  box.innerHTML = '<table class="rev-tbl"><thead><tr><th>Symbol</th><th>Daily close</th><th>Bar session</th><th>Feed / status</th><th>Nearest support / resistance</th></tr></thead><tbody>'
+    + rows.join('') + '</tbody></table><p class="sub">Daily bars, not executable quotes. Retrieved '
+    + esc(new Date().toISOString()) + '. Session date is the data date; retrieval time is not a quote timestamp. Measured support/resistance does not confirm a trade setup. Any new entry requires current session observations and a recorded loss allowance.</p>';
+}

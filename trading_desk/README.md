@@ -6,13 +6,23 @@ Decision Log, and links into the existing market views. See [V3.md](V3.md) for
 its scoring and data rules. The Hot Sector Board documented below remains at
 `/board`.
 
+## AI Power — Nuclear
+
+Open `/board?view=ai-power` for the nuclear research desk on the Hot Sector Board.
+It compares completed-session breadth and relative strength, maps company
+evidence to cash flows, and provides a staged swing plan and share-sizing tool.
+Today’s candle is excluded; unavailable data is not estimated. Market refreshes
+do not revise the dated discretionary entry plan. Read
+[AI Power trading plan](../docs/AI_POWER_TRADING_PLAN.md) for sources, risk rules,
+measurement definitions and limitations. No orders or timers are created.
+
 ## Hot Sector Board
 
 Local dashboard that screens sectors and themes over short horizons — for momentum
 or for reversals — and charts the resulting movers with the standard technical
 indicator set.
 
-**Last Updated:** 2026-09-14
+**Last Updated:** 2026-10-05
 **Status:** Active
 **Audience:** Both
 
@@ -428,6 +438,25 @@ Writes `research/split_events.csv` (one row per event) and
 
 ### Daily review
 
+The October 9 review prioritizes SOLT's verified new Schwab fill as a separate
+100-share day-trade sleeve. It distinguishes replaced orders from fills,
+today's entry from the whole-position average cost, and current NBBO from
+delayed VWAP. Its before-close review is a written plan, not an automatic exit;
+prior holdings retain a separate decision. Broker evidence stays in private
+`trading_records/` snapshots. This supports the desk's sourced-decision North
+Star without inventing stops, tax lots or completed sales.
+
+The current October 9 review also records the owner-confirmed exit from AI optics,
+verified against both linked Schwab accounts. Optical names remain research
+watchlist members. The October 6–7 review is collapsed as superseded history;
+live holdings continue to come from Schwab. Tactical caution and price-cycle
+labels are separate from the fundamental Cycle rubric. A partial October 9
+reassessment leaves unchecked indicators and the overall total/status blank.
+Weekday after-close monitoring checks completed-session relative strength,
+breadth, leaders and sourced fundamental changes; it never places trades.
+
+The saved October 6 intraday review uses a verified Schwab Individual snapshot, with account value, cash, current quantities, cost-basis availability, measured levels and account concentration. CCJ and BWXT each have 50 shares; CRCL has 275 and ETHA has 66. The saved snapshot is distinct from the live combined-account table below it. Zero ETHA cost basis leaves profit unavailable; no fill times, transaction history or stops are inferred. SNDL stays excluded and QNT watch-only. Snapshot balances reconcile against broker-marked holdings; charts retain their separate delayed feed labels.
+
 **Today's VWAP** shows every open holding except SNDL, including IBIT, against
 its regular-session volume-weighted price. The separate panel uses consolidated
 SIP minute bars delayed at least 17 minutes, even when the daily board uses IEX.
@@ -536,18 +565,36 @@ cannot place an order: execution remains a guarded preview flow and requires the
 preview's exact confirmation phrase before the helper can submit it.
 
 When the personal Schwab app and OAuth token are available, this section also
-reads the selected account's live positions and can request a broker-side order
-preview. SNDL is filtered from the displayed Individual-account positions. There
+shows separate IRA (***6434, owner-identified; registration pending) and Individual
+(***3652) holdings tables and can request a broker-side order preview. Account
+value, cash, holdings value, open/day P&L, and each holding's quantity, cost,
+broker mark, market value, account weight and open P&L percent are account-specific.
+Weights include cash and hidden holdings; missing or zero cost is not invented.
+Broker marks are derived from broker value divided by shares, not executable quotes.
+SNDL and 46438R105 are hidden from tables but remain in account totals.
+The labeled preview selector requires an explicit account choice. There
 is intentionally no dashboard route that submits an order. The **Copy
 confirmation** button is a handoff control: it copies the exact phrase from a
 successful preview so the user can send it in a later chat turn. Only that
 later, exact confirmation can trigger the submission agent through the
 single-use guarded helper.
 
+The main Daily Review also uses Schwab's live holdings when available, so a
+filled buy appears on refresh without a manual journal edit. It uses broker
+quantity and average cost, while retaining journal stops and entry notes only
+for symbols whose journal quantity agrees with Schwab. A new or mismatched
+holding is labelled **journal gap**; no entry date or stop is invented. If the
+broker read fails, the review falls back to the private journal and says so.
+
 #### Paper agent
 
-The human-in-the-loop paper agent is restricted to `FN`, `AXTI`, `COHR`, `LITE`,
-`CRCL`, and `HYPEUSD`. CRCL uses the stock feed and can populate a guarded Schwab
+The human-in-the-loop paper agent starts with `FN`, `AXTI`, `COHR`, `LITE`,
+`CRCL`, and `HYPEUSD`, then adds every positive-quantity holding from the
+linked Schwab account on each refresh except `UNG`, `IBIT`, and watch-only `QNT`.
+QNT remains visible as an account holding but receives no paper-agent trade proposal. The response labels
+whether that account sync succeeded; if Schwab is unavailable, it uses only the
+configured list and reports the fallback instead of guessing current holdings.
+Stock and ETF holdings use the stock feed and can populate a guarded Schwab
 preview. HYPEUSD uses real Alpaca Crypto `HYPE/USD` bars and is review-only because the
 Schwab workflow does not execute that pair. For each symbol it derives a proposed entry band from the nearest support
 plus 0.35 ATR, an exit band from the nearest resistance minus 0.35 ATR, and a
@@ -1141,3 +1188,22 @@ Chart colors use the validated categorical palette; the series slots were checke
 with the `dataviz` skill's `validate_palette.js` against both surfaces
 (dark `#12161c` passes all checks; light `#fcfcfb` passes with a contrast warning
 on two slots, which is why direct endpoint labels and a table view both ship).
+
+## AI Power — Nuclear
+
+The AI Power — Nuclear research desk is available on the Hot Sector Board at `/board?view=ai-power`. The home page has no dedicated AI Power section or navigation tab. Its 12-stock watchlist groups CEG, VST and TLN as power producers; CCJ, LEU, SOLS and STDN as fuel/enrichment; BWXT, CW, MIR and FLS as equipment/services; and XE as advanced reactors. Each ticker opens the sector board with that chart selected. The nuclear scorecard uses the `AI Power / Nuclear` theme and SPY as its default benchmark, with the existing real-bar metrics and explicit missing-data reporting. The optical and broader datacenter themes remain separate.
+
+The owner-requested hidden identifier `46438R105` is omitted from review rows, news, chart requests, paper-agent candidates, displayed broker holdings and session VWAP. Its real broker market value remains in the book-weight denominator; hiding a row does not dispose of a holding. ETHA remains visible under its ticker.
+
+## RWA & Tokenization
+
+Open `/board?view=rwa` or select **RWA & Tokenization** on the sector board
+for up to ten coins with verified, normally trading Coinbase USD/USDC markets,
+screened by circulating market cap and 24-hour dollar trading volume. Sort the shortlist by either measure
+or its equally weighted rank sum. Source timestamps and failed-refresh warnings
+remain visible. Select a coin ticker to load its crypto chart below the table.
+See [RWA market screen](../docs/TRADING_DESK_RWA.md) for scope and
+selection rules.
+
+Crypto research below the selected chart includes token-specific CoinGecko and
+CoinMarketCap links. Switching coins updates both links.

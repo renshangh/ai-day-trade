@@ -934,6 +934,25 @@ def test_feed_fields_are_never_interpolated_into_markup():
     assert "CYCLE_LEVELS.includes(cy.status)" in src, "status must be whitelisted first"
 
 
+def test_hidden_identifier_skips_market_requests_and_keeps_broker_value():
+    original_stock, original_rows = srv.get_stock, srv.journal_open_rows
+    def unexpected(*args, **kwargs):
+        raise AssertionError("Hidden identifier must not request market data")
+    srv.get_stock = unexpected
+    srv.journal_open_rows = lambda: []
+    try:
+        result = srv.build_position_review(broker={"ok": True, "positions": [
+            {"symbol": "46438R105", "quantity": 1000, "average_price": 27.5,
+             "market_value": 20430, "account_positions": []}]})
+    finally:
+        srv.get_stock, srv.journal_open_rows = original_stock, original_rows
+    assert result["positions"] == []
+    assert result["excluded"] == []
+    assert result["journal_gaps"] == []
+    assert result["book_market_value"] == 20430
+    assert result["risk_to_support"] == 0
+
+
 def _main() -> int:
     failures = 0
     for name, fn in sorted(globals().items()):

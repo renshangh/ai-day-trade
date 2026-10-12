@@ -98,3 +98,13 @@ def test_failed_read_without_combined_metadata_does_not_reuse_cached_journal(mon
     monkeypatch.setitem(server._cache, 'review', {'positions':[{'symbol':'OLD'}]})
     result = server.get_position_review(broker={'ok':False,'error':'connection failed'})
     assert result['positions'] == [] and result['error']
+
+
+def test_account_fetch_times_remain_separate_in_combined_snapshot():
+    individual = snapshot('***3652', 10, 5)
+    ira = snapshot('***6434', 30, 15)
+    individual['as_of'] = '2026-10-12T13:00:00Z'
+    ira['as_of'] = '2026-10-12T13:00:01Z'
+    book = schwab_portfolio.combine([individual, ira])
+    assert [account['as_of'] for account in book['accounts']] == [individual['as_of'], ira['as_of']]
+    assert book['as_of'] == ira['as_of']

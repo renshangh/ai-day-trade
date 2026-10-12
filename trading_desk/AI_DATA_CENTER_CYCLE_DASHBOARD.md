@@ -3,7 +3,7 @@
 Monthly check on whether the long-term AI infrastructure buildout thesis behind
 the desk's optical and power positions is still intact.
 
-**Last Updated:** 2026-09-10
+**Last Updated:** 2026-10-09
 **Status:** Active
 **Audience:** Both
 
@@ -76,6 +76,25 @@ Scores are logged in `trading_records/cycle-score.csv`; see
 [Recording the score](#recording-the-score).
 
 ## Overall Status
+
+### Daily monitoring alongside the monthly score
+
+The October 9 reassessment separates tactical AI sentiment from the fundamental
+rubric. A weakening optical basket is a reason to review risk, but does not by
+itself establish customer cancellations or reduced infrastructure spending.
+The latest row may be partial: unchecked indicators stay blank, and the old
+complete GREEN score is historical rather than a fresh endorsement.
+
+Check completed sessions after each trading weekday close. Track 5- and
+21-session relative strength against SPY and QQQ, SMA50/SMA200 breadth,
+leadership and support failures. Review when SMA50 breadth crosses below 50%
+or recovers above 70%, or 5-session excess return changes sign for two closes.
+These thresholds are monitoring references, not validated trade signals.
+Confirm fundamental changes with dated primary sources: capex and guidance,
+optical orders and inventories, construction/vacancy, power delays versus
+demand cancellations, electrical backlog, AI revenue/ROI and agent adoption.
+Missing or unfinished observations cannot confirm a regime change. Keep
+account-linked holdings and monitoring snapshots in private trading records.
 
 Use a simple three-level signal:
 

@@ -66,3 +66,17 @@ def test_public_venue_requests_do_not_include_broker_credentials(monkeypatch):
     server._get('https://data.alpaca.markets/v2/stocks/bars')
     assert not requests[0].headers
     assert requests[1].headers['Apca-api-key-id']=='offline-test-key'
+
+@pytest.mark.parametrize('symbol', ['LINK','XLM','XAUT','ONDO','QNT','PAXG','RSR','INJ','ALGO','XDC','SYRUP','PLUME'])
+def test_rwa_coin_routes_to_verified_crypto_pair_and_preserves_candles(symbol,monkeypatch):
+    pair=onchain_crypto.PAIRS[symbol]
+    urls=[]
+    def fetch(url,**kwargs):
+        urls.append(url)
+        return {'error':[], 'result':{pair:[candle(3),candle(5),candle(6)]}}
+    monkeypatch.setattr(server,'_get',fetch)
+    result=server.get_crypto(symbol)
+    assert result['asset_type']=='crypto' and result['feed']=='Kraken'
+    assert [bar['t'] for bar in result['bars']]==['2026-10-03','2026-10-05']
+    assert result['bars'][1]['c']==0.12 and result['bars'][1]['v']==123
+    assert urls==[f'https://api.kraken.com/0/public/OHLC?pair={pair}&interval=1440']

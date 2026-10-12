@@ -62,6 +62,11 @@ def test_unpermitted_symbol_is_rejected():
     assert result["reason"] == "symbol is not permitted"
 
 
+def test_runtime_permitted_symbol_is_accepted():
+    result = agent.recommend("TSLA", stock(), permitted_symbols=("TSLA",))
+    assert result["available"] is True
+
+
 def test_entry_and_exit_states_only_fire_inside_their_bands():
     assert agent.recommend("COHR", stock(last=102.0))["state"] == "entry_review"
     assert agent.recommend("LITE", stock(last=118.0))["state"] == "exit_review"
@@ -71,6 +76,46 @@ def test_crcl_and_hypeusd_are_permitted_for_human_review():
     """The expanded sleeve deliberately covers one stock and one crypto pair."""
     assert agent.recommend("CRCL", stock())["available"] is True
     assert agent.recommend("HYPEUSD", stock())["available"] is True
+
+
+def test_live_holdings_expand_paper_universe_and_exclude_watch_only_symbols():
+    broker = {
+        "ok": True,
+        "positions": [
+            {"symbol": "COIN", "quantity": 110},
+            {"symbol": "ETHA", "quantity": 200},
+            {"symbol": "UNG", "quantity": 3},
+            {"symbol": "IBIT", "quantity": 1670},
+            {"symbol": "QNT", "quantity": 10},
+            {"symbol": "ZERO", "quantity": 0},
+        ],
+    }
+    symbols, source, warning = server.paper_permitted_symbols(broker)
+    assert "COIN" in symbols
+    assert "ETHA" in symbols
+    assert "UNG" not in symbols
+    assert "IBIT" not in symbols
+    assert "QNT" not in symbols
+    assert "ZERO" not in symbols
+    assert source == "schwab_holdings_plus_configured"
+    assert warning is None
+    assert server.paper_held_quantities(broker) == {
+        "COIN": 110.0,
+        "ETHA": 200.0,
+        "UNG": 3.0,
+        "IBIT": 1670.0,
+        "QNT": 10.0,
+    }
+
+
+def test_failed_broker_read_uses_labelled_configured_fallback():
+    symbols, source, warning = server.paper_permitted_symbols(
+        {"ok": False, "message": "OAuth unavailable"},
+    )
+    assert symbols == agent.PERMITTED_SYMBOLS
+    assert source == "configured_fallback"
+    assert warning == "OAuth unavailable"
+    assert server.paper_held_quantities({"ok": False}) == {}
 
 
 def test_hypeusd_uses_alpaca_crypto_bars(monkeypatch):
@@ -126,3 +171,13 @@ def test_unavailable_reasons_never_leak_internal_error_text():
     ):
         reason = agent.recommend("FN", data).get("reason", "")
         assert not any(bad in reason for bad in leaky), f"leaked internal text: {reason!r}"
+
+
+def test_hidden_cusip_is_not_a_paper_agent_candidate():
+    symbols, _, warning = server.paper_permitted_symbols({"ok": True, "positions": [
+        {"symbol": "46438R105", "quantity": 1000},
+        {"symbol": "ETHA", "quantity": 66},
+    ]})
+    assert warning is None
+    assert "46438R105" not in symbols
+    assert "ETHA" in symbols

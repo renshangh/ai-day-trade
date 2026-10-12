@@ -20,9 +20,10 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -36,6 +37,8 @@ PREVIEW_DIR = REPO_ROOT / ".secrets" / "schwab_order_previews"
 PREVIEW_LIFETIME_SECONDS = 10 * 60
 SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.-]{0,9}$")
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{20,40}$")
+EASTERN = ZoneInfo("America/New_York")
+WASH_SALE_LOOKBACK_DAYS = 30
 
 
 class TradeError(Exception):
@@ -603,6 +606,207 @@ def _account_positions(account: dict) -> dict:
     }
 
 
+def _trade_side(transaction: dict) -> str | None:
+    """Infer an executed trade's cash direction without exposing raw broker data."""
+    try:
+        net_amount = Decimal(str(transaction.get("netAmount")))
+    except (InvalidOperation, TypeError):
+        return None
+    if net_amount < 0:
+        return "BUY"
+    if net_amount > 0:
+        return "SELL"
+    return None
+
+
+def _trade_time(raw: object) -> datetime | None:
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def recent_symbol_trades(symbol: str, *, now: datetime | None = None) -> list[dict]:
+    """Return sanitized executed same-symbol trades across every linked account."""
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    current_eastern = current.astimezone(EASTERN)
+    start_date = current_eastern.date() - timedelta(days=WASH_SALE_LOOKBACK_DAYS)
+    start = datetime.combine(start_date, datetime.min.time(), tzinfo=EASTERN).astimezone(timezone.utc)
+    stamp = "%Y-%m-%dT%H:%M:%S.000Z"
+    events = []
+    for account in account_numbers():
+        try:
+            transactions = schwab_api.api(
+                f"/trader/v1/accounts/{account['hashValue']}/transactions",
+                {
+                    "startDate": start.astimezone(timezone.utc).strftime(stamp),
+                    "endDate": current.astimezone(timezone.utc).strftime(stamp),
+                    "types": "TRADE",
+                },
+            )
+        except schwab_api.SchwabError as err:
+            raise TradeError(
+                f"Schwab trade-history request failed (HTTP {err.status}): "
+                f"{safe_api_message(err.body)}"
+            ) from None
+        if not isinstance(transactions, list):
+            raise TradeError("Schwab returned trade history in an unexpected format")
+        for transaction in transactions:
+            if not isinstance(transaction, dict):
+                continue
+            leg = schwab_api.security_leg(transaction)
+            instrument = leg.get("instrument") or {}
+            if str(instrument.get("symbol") or "").upper() != symbol:
+                continue
+            when = _trade_time(transaction.get("time"))
+            side = _trade_side(transaction)
+            if when is None or side is None or when > current:
+                continue
+            trade_date = when.astimezone(EASTERN).date()
+            if trade_date < start_date or trade_date > current_eastern.date():
+                continue
+            try:
+                quantity = abs(Decimal(str(leg.get("amount"))))
+            except (InvalidOperation, TypeError):
+                quantity = None
+            events.append(
+                {
+                    "account": f"***{account['accountNumber'][-4:]}",
+                    "side": side,
+                    "symbol": symbol,
+                    "quantity": float(quantity) if quantity is not None else None,
+                    "price": leg.get("price"),
+                    "trade_date": trade_date.isoformat(),
+                }
+            )
+    return sorted(events, key=lambda event: (event["trade_date"], event["account"]))
+
+
+def evaluate_wash_sale(order: OrderRequest, events: list[dict], position: dict | None) -> dict:
+    """Conservatively classify same-symbol wash-sale evidence for one proposal.
+
+    Schwab's transaction API does not provide reliable lot-level realized P/L,
+    and average position cost is not tax-lot basis. Therefore this function can
+    warn, but it must never certify that an order is wash-sale safe.
+    """
+    opposite = "SELL" if order.side == "BUY" else "BUY"
+    matches = [event for event in events if event.get("side") == opposite]
+    base = {
+        "ok": True,
+        "symbol": order.symbol,
+        "lookback_days": WASH_SALE_LOOKBACK_DAYS,
+        "matched_trades": matches,
+        "scope": "same symbol across linked Schwab accounts only",
+        "tax_determination": False,
+    }
+    if order.side == "BUY":
+        if matches:
+            return {
+                **base,
+                "level": "warning",
+                "possible": True,
+                "message": (
+                    f"Possible wash sale: {order.symbol} was sold in a linked Schwab account "
+                    "during the prior 30 calendar days. Confirm whether any matched sale realized "
+                    "a loss before buying."
+                ),
+            }
+        return {
+            **base,
+            "level": "review",
+            "possible": False,
+            "message": (
+                f"No same-symbol {order.symbol} sale was found in linked Schwab accounts during "
+                "the prior 30 calendar days. Other brokers, spouse accounts, options, and other "
+                "substantially identical securities are not visible."
+            ),
+        }
+
+    average_price = (position or {}).get("average_price")
+    estimate = order.limit_price
+    if estimate is None and position:
+        try:
+            quantity = Decimal(str(position.get("quantity")))
+            market_value = Decimal(str(position.get("market_value")))
+            if quantity > 0:
+                estimate = str(market_value / quantity)
+        except (InvalidOperation, TypeError):
+            estimate = None
+    try:
+        estimated_loss = Decimal(str(estimate)) < Decimal(str(average_price))
+    except (InvalidOperation, TypeError):
+        estimated_loss = None
+    base.update(
+        {
+            "estimated_sale_price": estimate,
+            "average_position_price": average_price,
+            "estimated_loss": estimated_loss,
+        }
+    )
+    if estimated_loss is True and matches:
+        return {
+            **base,
+            "level": "warning",
+            "possible": True,
+            "message": (
+                f"Possible wash sale: this {order.symbol} sell appears below Schwab's average "
+                "position price, and replacement buys were found during the prior 30 calendar "
+                "days. Tax lots can differ from the displayed average cost."
+            ),
+        }
+    if estimated_loss is True:
+        return {
+            **base,
+            "level": "warning",
+            "possible": True,
+            "message": (
+                f"Potential loss sale: avoid buying {order.symbol} or a substantially identical "
+                "security in any covered account for 30 calendar days after a fill unless you "
+                "intend to accept wash-sale treatment."
+            ),
+        }
+    if estimated_loss is None:
+        return {
+            **base,
+            "level": "warning",
+            "possible": None,
+            "message": (
+                "Wash-sale risk is unknown because Schwab did not provide enough cost information. "
+                "Review the selected tax lot and activity across all covered accounts."
+            ),
+        }
+    return {
+        **base,
+        "level": "review",
+        "possible": False,
+        "message": (
+            "This order does not appear to sell below Schwab's average position price, but the "
+            "selected tax lot may have a different basis. This is not tax clearance."
+        ),
+    }
+
+
+def wash_sale_check(order: OrderRequest, account_last4: str | None) -> dict:
+    """Build the dashboard's advisory pre-trade wash-sale result."""
+    readiness = status()
+    if not readiness.get("ok"):
+        return {"ok": False, "level": "warning", "message": readiness.get("message")}
+    selected = resolve_account(account_last4)
+    position = None
+    if order.side == "SELL":
+        snapshot = _account_positions(selected)
+        position = next(
+            (row for row in snapshot.get("positions", []) if row.get("symbol") == order.symbol),
+            None,
+        )
+    return evaluate_wash_sale(order, recent_symbol_trades(order.symbol), position)
+
+
 def all_positions() -> dict:
     """Read every linked account; never present a partial book as complete."""
     readiness = status()
@@ -650,6 +854,14 @@ def build_parser() -> argparse.ArgumentParser:
     account_selection = positions_parser.add_mutually_exclusive_group()
     account_selection.add_argument("--account-last4")
     account_selection.add_argument("--all-accounts", action="store_true", help="combine every linked account for review")
+    wash = sub.add_parser("wash-sale-check", help="advisory same-symbol wash-sale review")
+    wash.add_argument("--account-last4")
+    wash.add_argument("--side", required=True, choices=("buy", "sell", "BUY", "SELL"))
+    wash.add_argument("--symbol", required=True)
+    wash.add_argument("--quantity", required=True)
+    wash.add_argument("--order-type", required=True, choices=("market", "limit", "MARKET", "LIMIT"))
+    wash.add_argument("--limit-price")
+    wash.add_argument("--duration", default="day", choices=("day", "gtc", "DAY", "GTC"))
     return parser
 
 
@@ -665,6 +877,16 @@ def main() -> None:
             emit(discard_preview(args.preview_token))
         elif args.command == "positions":
             emit(all_positions() if args.all_accounts else positions(args.account_last4))
+        elif args.command == "wash-sale-check":
+            order = normalize_order(
+                side=args.side,
+                symbol=args.symbol,
+                quantity=args.quantity,
+                order_type=args.order_type,
+                duration=args.duration,
+                limit_price=args.limit_price,
+            )
+            emit(wash_sale_check(order, args.account_last4))
         elif args.command == "preview":
             readiness = status()
             if not readiness.get("ok"):

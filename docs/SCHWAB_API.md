@@ -2,7 +2,7 @@
 
 > How to get your own Charles Schwab developer app approved and make your first real API calls, using `scripts/schwab_api.py`.
 
-**Last Updated:** 2026-09-20
+**Last Updated:** 2026-10-12
 **Status:** Active
 **Audience:** Developers, AI Agents
 
@@ -166,6 +166,35 @@ previewing, or pressing that button therefore cannot place an order. Sending the
 exact phrase in a later chat turn triggers the guarded submission agent described
 above.
 
+Every Trading Desk preview also runs an advisory wash-sale scan before displaying
+the broker result. The scan reads executed trades for the same ticker across all
+linked Schwab accounts during the prior 30 calendar days. For a proposed sell, it
+compares the requested limit (or current broker mark for a market order) with the
+selected account's current average position price and highlights earlier replacement
+buys. For a proposed buy, it highlights earlier same-symbol sales whose realized
+gain or loss must be verified. A potential loss sale always carries a reminder that
+another purchase during the 30 calendar days after the fill may create a wash sale.
+
+This is a conservative alert, not a tax calculation. Schwab's transaction API does
+not provide reliable tax-lot realized gain/loss for this purpose, and average
+position price is not necessarily the selected lot's basis. The scan cannot see
+other brokers, spouse-controlled accounts, options, or different securities that
+may be substantially identical. An unavailable history or basis is displayed as
+unknown rather than safe. The alert never blocks or submits an order. Its sanitized
+read-only command is:
+
+```bash
+python3 scripts/schwab_trade.py wash-sale-check \
+  --account-last4 3652 --side buy --symbol LITE --quantity 10 \
+  --order-type limit --limit-price 982.00 --duration day
+```
+
+The IRS describes the rule as a loss sale paired with an acquisition of the same or
+substantially identical security within 30 calendar days before or after the sale;
+the rule can cross accounts, including IRA or Roth IRA acquisitions. See
+[IRS Publication 550](https://www.irs.gov/publications/p550) and
+[Schwab's wash-sale overview](https://www.schwab.com/learn/story/primer-on-wash-sales).
+
 The main Daily Review now reconciles against the same live Schwab positions on
 each review request. Schwab quantity and average cost determine which holdings
 appear and their exposure; a new filled buy can appear without editing the
@@ -245,10 +274,20 @@ local HTTPS listener, so it captures the callback without the copy-paste step.
 ## Combined Daily Review
 
 Daily Review reads all authorized Schwab accounts together using
-`python3 scripts/schwab_trade.py positions --all-accounts`. Its single holdings
-list combines each shared symbol's quantity and uses the quantity-weighted
-average cost for long holdings. Masked account contributions remain beneath
-each symbol; no account tabs or separate reviews are needed. Empty accounts
+`python3 scripts/schwab_trade.py positions --all-accounts`. The main exposure review combines shared symbols with weighted cost.
+The **Schwab holdings by account & guarded preview** panel instead shows
+separate Individual (***3652) and owner-identified IRA (***6434) tables. Each
+account has its own liquidation value, cash, holdings value, open and day P/L.
+Each holding shows quantity, average cost, derived broker mark, cost basis,
+market value, weight against that account's liquidation value, open P/L in
+dollars and percent, and day P/L. Broker mark is market value divided by shares,
+not an executable quote. Cost basis and P/L percent are unavailable when average
+cost is missing or zero, or the position is not long-only. Weights include cash
+and hidden holdings in their denominator. Hidden holdings remain in account
+totals. Account-specific fetch timestamps are preserved. The IRA label follows
+the owner's identification; broker registration confirmation remains pending.
+Preview account selection uses these same labels and requires an explicit choice.
+Empty accounts
 still count as linked. Missing costs and balances remain unavailable, and a
 failed account prevents partial holdings from being presented as the whole book.
 
@@ -258,3 +297,45 @@ provenance. The chart-derived valuation is dated and can differ from Schwab's
 reported market value. Combined balances do not imply transferable buying power.
 Order previews and trades still require one explicit account when multiple
 accounts are linked; review aggregation does not choose a trading account.
+
+## Two-account review context (October 7, 2026)
+
+The owner reviews two accounts: normal taxable Individual brokerage ***3652
+and rollover retirement ending 434. The owner identifies the latter as an IRA
+rollover; Schwab's Positions page displays Individual 401(k). A secure inquiry
+was sent October 7 to confirm the registration and rollover status; confirmation
+is pending. Do not infer retirement registration from an API CASH/MARGIN value.
+
+The owner reports the retirement account is about 20% down. This is an owner
+observation, not a refreshed return calculation. Selling a losing retirement
+holding is allowed but creates no deductible capital loss. IBIT can be sold if
+needed and proceeds reinvested within that account without current capital-gains
+tax; distributions have separate rules. Taxable brokerage sales require that
+account's own lots and basis, with wash-sale review across accounts. Combined
+P&L measures exposure and must not be used as a tax netting calculation.
+
+The October 6 saved Individual snapshot remains dated and scoped to ***3652.
+Its October 7 addendum and the persistent Daily Review account-context panel
+record the clarification without rewriting historical holdings. The planned
+COIN/CRCL additions remain intent, with no inferred account, quantity or fill.
+This supports the desk's North Star of sourced, explicit thesis decisions:
+account identity and the evidence date must accompany every rotation decision.
+
+Sources: [Schwab tax-smart strategies](https://www.schwab.com/taxes/tax-smart-strategies),
+[IRS traditional IRAs](https://www.irs.gov/retirement-plans/traditional-iras).
+
+## Day-trade review reconciliation
+
+For an owner-designated tactical addition, retrieve the individual submitted
+order and the symbol's orders for the session before recording an entry.
+`REPLACED` with zero filled shares is not an execution. Use actual `FILL`
+execution legs from the final filled order for quantity, price and time.
+Keep sanitized evidence in private `trading_records/` snapshots and append only
+the verified addition to the private journal; do not invent older missing lots.
+
+Review the addition separately from pre-existing shares and other accounts.
+Whole-position average cost and broker current-day P&L are not the new trade's
+entry or P&L. Label current bid/ask separately from delayed session VWAP, and
+leave unapproved stops, targets and exit executions blank. A written time-exit
+plan is advisory: a DAY order expires if unfilled, but does not sell a position
+that has filled. This workflow supports the sourced-decision North Star.

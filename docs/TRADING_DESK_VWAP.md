@@ -1,18 +1,28 @@
 # Trading Desk Session VWAP
 
-Consolidated intraday VWAP for the private journal's open holdings.
+Consolidated intraday VWAP for current holdings.
 
-**Last Updated:** 2026-09-14
+**Last Updated:** 2026-10-05
 **Status:** Active
 **Audience:** Contributors
 
 ## Overview
 
 Daily Review includes a separate Today's VWAP panel via `GET /api/session-vwap`.
-It includes all open journal symbols except SNDL, including IBIT independently of
-the existing swing-review exclusions. The journal and account weights are unchanged.
+It follows live Schwab holdings when available and falls back to open journal
+symbols when Schwab is unavailable. It excludes SNDL and includes IBIT.
 This supports the desk's risk-review discipline by comparing holdings against a
 clearly timestamped session benchmark; being above VWAP is not a trading signal.
+
+## October 5 final account review
+
+The saved end-of-trading review uses the verified October 5, 13:42 ET Schwab
+Individual snapshot. It records 160 COIN, 175 CRCL, 200 ETHA, 85 SOLT, LITE
+fully sold, and $57,910.23 reported cash. The transaction table contains the
+day's completed broker fills rather than proposed entries. Reported cash remains
+distinct from verified settled funds or margin buying power. No entry levels,
+cash balances, or eligibility are inferred from missing data, and saved daily
+references are not executable quotes.
 
 ## Data contract
 

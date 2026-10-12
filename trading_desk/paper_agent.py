@@ -25,10 +25,11 @@ def _finite(value) -> float | None:
     return number if math.isfinite(number) else None
 
 
-def recommend(symbol: str, stock: dict) -> dict:
+def recommend(symbol: str, stock: dict, *, permitted_symbols=None) -> dict:
     """Return a paper proposal derived only from supplied market measurements."""
     symbol = str(symbol).upper()
-    if symbol not in PERMITTED_SYMBOLS:
+    allowed = PERMITTED_SYMBOLS if permitted_symbols is None else permitted_symbols
+    if symbol not in allowed:
         return {"symbol": symbol, "available": False, "reason": "symbol is not permitted"}
 
     bars = stock.get("bars") or []

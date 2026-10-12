@@ -185,6 +185,14 @@ def test_an_errored_build_is_not_cached():
         srv._cache["sector"] = {}
 
 
+def test_nuclear_group_with_unavailable_feed_keeps_all_symbols_missing():
+    with _with_fake_fetch({}):
+        out = srv.build_sector_scorecard("AI Power / Nuclear")
+    assert out["benchmark"] == "SPY"
+    assert set(out["constituents_missing"]) == set(universe.THEMES["AI Power / Nuclear"]["constituents"])
+    assert out["constituents_used"] == []
+
+
 def _main() -> int:
     failures = 0
     for name, fn in sorted(globals().items()):

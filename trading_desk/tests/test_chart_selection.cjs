@@ -45,3 +45,32 @@ test('crypto ranges use calendar months with gaps and month-end clamping; stock 
   assert.equal(context.chartStartIndex({bars},{key:'3M',bars:3}),4);
   assert.equal(context.chartStartIndex({bars},{key:'2Y',bars:Infinity}),0);
 });
+
+test('crypto research resolves provider pages and USD aliases for the selected token',()=>{
+  const context=vm.createContext({});
+  vm.runInContext(source.slice(source.indexOf('const CRYPTO_RESEARCH_SLUGS'),source.indexOf('function renderDetail(')),context);
+  const links=context.cryptoResearchLinks('LINK');
+  assert.equal(links[0].url,'https://www.coingecko.com/en/coins/chainlink');
+  assert.equal(links[1].url,'https://coinmarketcap.com/currencies/chainlink/');
+  assert.equal(context.cryptoResearchLinks('ONDOUSD')[0].url,'https://www.coingecko.com/en/coins/ondo');
+  assert.equal(context.cryptoResearchLinks('SYRUP')[1].url,'https://coinmarketcap.com/currencies/maple-finance/');
+  assert.equal(context.cryptoResearchLinks('CCCAUSD')[1].url,'https://coinmarketcap.com/currencies/canton-network/');
+  assert.equal(context.cryptoResearchLinks('COIN').length,0);
+});
+
+test('switching crypto research replaces links and stock-only facts',()=>{
+  const elements=new Map();
+  const $=id=>{if(!elements.has(id))elements.set(id,{replaceChildren(){this.cleared=true;}});return elements.get(id);};
+  const context=vm.createContext({$});
+  vm.runInContext(source.slice(source.indexOf('const CRYPTO_RESEARCH_SLUGS'),source.indexOf('function renderDetail(')),context);
+  context.renderCryptoResearch('LINK');
+  assert.match($('c-links').innerHTML,/CoinGecko/);
+  assert.match($('c-links').innerHTML,/CoinMarketCap/);
+  assert.match($('c-links').innerHTML,/target="_blank" rel="noopener noreferrer"/);
+  context.renderCryptoResearch('QNT');
+  assert.equal($('c-title').textContent,'Crypto research — QNT');
+  assert.doesNotMatch($('c-links').innerHTML,/chainlink/);
+  assert.match($('c-links').innerHTML,/quant-network/);
+  assert.match($('c-links').innerHTML,/currencies\/quant\//);
+  for(const id of ['c-stats','c-facts','c-news'])assert.ok($(id).cleared,id);
+});

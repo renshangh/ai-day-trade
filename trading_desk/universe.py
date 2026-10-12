@@ -106,6 +106,13 @@ SECTORS: dict[str, dict] = {
 # Non-GICS thematic groups. These cut across sectors, so they have no single ETF
 # proxy; `etf` is None and ranking uses constituents only.
 THEMES: dict[str, dict] = {
+    "AI Power / Nuclear": {
+        "etf": None,
+        "constituents": [
+            "CEG", "CCJ", "BWXT", "LEU", "VST", "TLN",
+            "SOLS", "CW", "MIR", "FLS", "STDN", "XE",
+        ],
+    },
     "AI Optical / Interconnect": {
         "etf": None,
         "constituents": [

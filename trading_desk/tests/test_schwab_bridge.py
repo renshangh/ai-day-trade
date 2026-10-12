@@ -17,6 +17,8 @@ def test_preview_post_passes_only_supported_order_fields(monkeypatch):
 
     def fake_helper(*args):
         calls.append(args)
+        if args[0] == "wash-sale-check":
+            return {"ok": True, "level": "review", "possible": False}
         return {"ok": True, "message": "Preview only"}
 
     monkeypatch.setattr(srv, "run_schwab_helper", fake_helper)
@@ -37,11 +39,17 @@ def test_preview_post_passes_only_supported_order_fields(monkeypatch):
     assert result["ok"] is True
     assert calls == [
         (
+            "wash-sale-check", "--side", "BUY", "--symbol", "AXTI", "--quantity", "10",
+            "--order-type", "LIMIT", "--duration", "DAY", "--account-last4", "5678",
+            "--limit-price", "30.50",
+        ),
+        (
             "preview", "--side", "BUY", "--symbol", "AXTI", "--quantity", "10",
             "--order-type", "LIMIT", "--duration", "DAY", "--account-last4", "5678",
             "--limit-price", "30.50",
         )
     ]
+    assert result["wash_sale"]["possible"] is False
 
 
 def test_preview_post_requires_complete_material_details(monkeypatch):
@@ -56,6 +64,30 @@ def test_preview_post_requires_complete_material_details(monkeypatch):
     assert code == 400
     assert result["ok"] is False
     assert "symbol" in result["error"]
+
+
+def test_unavailable_wash_sale_scan_does_not_block_broker_preview(monkeypatch):
+    def fake_helper(*args):
+        if args[0] == "wash-sale-check":
+            return {"ok": False, "message": "trade history unavailable"}
+        return {"ok": True, "message": "Preview only"}
+
+    monkeypatch.setattr(srv, "run_schwab_helper", fake_helper)
+    code, result = srv.schwab_preview_post(
+        {
+            "account_last4": "5678",
+            "side": "BUY",
+            "symbol": "AXTI",
+            "quantity": "10",
+            "order_type": "LIMIT",
+            "limit_price": "30.50",
+            "duration": "DAY",
+        }
+    )
+
+    assert code == 200
+    assert result["ok"] is True
+    assert result["wash_sale"]["ok"] is False
 
 
 def test_status_reports_preview_mode_not_autonomous_submission(monkeypatch):

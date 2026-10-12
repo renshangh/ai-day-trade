@@ -24,7 +24,7 @@ def combine(snapshots):
     accounts = []
     for snapshot in snapshots:
         accounts.append({'label': snapshot['account'], 'account_type': snapshot.get('account_type'),
-                         'balances': snapshot.get('balances', {})})
+                         'balances': snapshot.get('balances', {}), 'as_of': snapshot.get('as_of')})
         for position in snapshot['positions']:
             symbol = position['symbol']
             groups.setdefault(symbol, []).append({**position, 'account': snapshot['account']})
