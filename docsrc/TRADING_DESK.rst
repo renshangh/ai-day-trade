@@ -102,7 +102,7 @@ RWA & Tokenization sector
 
 Open ``/board?view=rwa`` or select **RWA & Tokenization** on the sector board.
 This market screen is available only on the sector board; the home page does not
-load its table or market-screen assets. The table selects ten leaders from a
+load its table or market-screen assets. The table selects up to ten leaders from a
 reviewed pool of RWA infrastructure,
 governance and gold-backed tokens in CoinGecko's RWA category. Each must have at
 least $100 million circulating market cap and $10 million reported 24-hour USD
@@ -112,9 +112,25 @@ reorder the selected shortlist without changing membership.
 
 The table shows source timestamps and supports explicit refresh. Successful
 responses cache for five minutes; failed responses cache for 30 seconds.
-A failed refresh displays a dated snapshot with
-a warning; it does not create new observations. Market cap is circulating token
+If market-data refresh fails, a dated snapshot can be displayed with a warning
+only after a successful current Coinbase check; it does not create observations.
+If Coinbase verification fails, the token list is withheld. Market cap is circulating token
 value, not fully diluted value or assets under management. Dollar volume aggregates
 reported markets and differs from venue candle volume. Infrastructure tokens do
 not represent ownership of tokenized assets. Stablecoins, restricted funds and
 tokenized stock wrappers are excluded from this research pool.
+
+Select a coin ticker in the RWA table to show its chart below, just as stock
+selection does. Modified clicks open the sector board with that coin selected.
+RWA tickers always route to crypto data, including QNT. The source footer still
+opens the external market-data source. Charts use Kraken's completed UTC daily
+candles and token volume; the ranking table uses aggregate 24-hour USD volume.
+Unavailable candles are reported without substitutes, and the previous chart
+is cleared when a new coin is selected.
+
+Coinbase tradability is required before ranking. Each coin must have an online
+Coinbase Exchange USD or USDC spot market with normal trading enabled: no
+trading-disabled, cancel-only, post-only, limit-only or auction mode. The table
+shows the verified pair and check time. If Coinbase verification is unavailable,
+tokens are withheld. Public Exchange availability does not determine account or
+regional eligibility. Charts continue to use Kraken candles.

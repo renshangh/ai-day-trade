@@ -1145,8 +1145,9 @@ on two slots, which is why direct endpoint labels and a table view both ship).
 ## RWA & Tokenization
 
 Open `/board?view=rwa` or select **RWA & Tokenization** on the sector board
-for ten leading coins screened by circulating
-market cap and 24-hour dollar trading volume. Sort the shortlist by either measure
+for up to ten coins with verified, normally trading Coinbase USD/USDC markets,
+screened by circulating market cap and 24-hour dollar trading volume. Sort the shortlist by either measure
 or its equally weighted rank sum. Source timestamps and failed-refresh warnings
-remain visible. See [RWA market screen](../docs/TRADING_DESK_RWA.md) for scope and
+remain visible. Select a coin ticker to load its crypto chart below the table.
+See [RWA market screen](../docs/TRADING_DESK_RWA.md) for scope and
 selection rules.
