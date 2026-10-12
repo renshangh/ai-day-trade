@@ -3,6 +3,7 @@
 ## 4.5.30 - Unreleased
 
 ### Added
+- Trading Desk adds a shared RWA & Tokenization sector with ten leaders selected by circulating market cap and 24-hour dollar volume, source timestamps, sorting, live refresh and explicitly dated fallback observations.
 - Daily Review combines all linked Schwab accounts in one view, merging shared symbols with weighted cost and masked account contributions; incomplete account reads are surfaced explicitly.
 - **Onchain Finance symbols now open the chart below the sector-board review.** Canton (`CCCAUSD`) maps to Kraken CC/USD; stock/token links retain separate external market arrows. Supported crypto pairs use completed UTC daily candles with real token volumes, and unavailable data clears the previous chart.
 - **Trading Desk Daily Review now includes session VWAP for open holdings.** The panel excludes SNDL, includes IBIT, and compares timestamped prices with consolidated regular-session VWAP. It refreshes independently, labels the data delay, respects market holidays and early closes, and surfaces unavailable data without estimates.

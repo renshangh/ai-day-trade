@@ -49,6 +49,7 @@ import universe  # noqa: E402
 import session_vwap  # noqa: E402
 import v3_store  # noqa: E402
 import onchain_crypto  # noqa: E402
+import rwa_market  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -1744,6 +1745,8 @@ def build_paper_recommendations(force: bool = False) -> dict:
 # HTTP
 # --------------------------------------------------------------------------
 STATIC = {
+    "/rwa_market.js": ("rwa_market.js", "application/javascript; charset=utf-8"),
+    "/rwa_market.css": ("rwa_market.css", "text/css; charset=utf-8"),
     "/crypto_infra.js": ("crypto_infra.js", "application/javascript; charset=utf-8"),
     "/crypto_infra.css": ("crypto_infra.css", "text/css; charset=utf-8"),
     "/": ("v3.html", "text/html; charset=utf-8"),
@@ -1811,6 +1814,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(get_board(force=qs.get("force", ["0"])[0] == "1"))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
+            return
+
+        if path == "/api/rwa-market":
+            self._json(rwa_market.get_market(force=qs.get("force", ["0"])[0] == "1"))
             return
 
         if path == "/api/crypto":
