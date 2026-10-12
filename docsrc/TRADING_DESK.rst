@@ -96,3 +96,23 @@ review is unavailable instead of displaying a partial portfolio or the journal.
 Journal stops are not applied to a symbol shared across accounts because the
 journal does not identify the account. Chart-derived valuations retain their
 market-data dates. Trading still requires selection of one account.
+
+RWA & Tokenization sector
+-------------------------
+
+Open ``/#rwa`` on the main desk or ``/board?view=rwa`` on the sector board.
+The shared table selects ten leaders from a reviewed pool of RWA infrastructure,
+governance and gold-backed tokens in CoinGecko's RWA category. Each must have at
+least $100 million circulating market cap and $10 million reported 24-hour USD
+trading volume. Default order sums market-cap and volume ranks equally, breaking
+ties by market-cap rank. Ranks cover all qualifying pool members; sort controls
+reorder the selected shortlist without changing membership.
+
+The table shows source timestamps and supports explicit refresh. Successful
+responses cache for five minutes; failed responses cache for 30 seconds.
+A failed refresh displays a dated snapshot with
+a warning; it does not create new observations. Market cap is circulating token
+value, not fully diluted value or assets under management. Dollar volume aggregates
+reported markets and differs from venue candle volume. Infrastructure tokens do
+not represent ownership of tokenized assets. Stablecoins, restricted funds and
+tokenized stock wrappers are excluded from this research pool.

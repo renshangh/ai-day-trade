@@ -1141,3 +1141,11 @@ Chart colors use the validated categorical palette; the series slots were checke
 with the `dataviz` skill's `validate_palette.js` against both surfaces
 (dark `#12161c` passes all checks; light `#fcfcfb` passes with a contrast warning
 on two slots, which is why direct endpoint labels and a table view both ship).
+
+## RWA & Tokenization
+
+Open `/#rwa` or `/board?view=rwa` for ten leading coins screened by circulating
+market cap and 24-hour dollar trading volume. Sort the shortlist by either measure
+or its equally weighted rank sum. Source timestamps and failed-refresh warnings
+remain visible. See [RWA market screen](../docs/TRADING_DESK_RWA.md) for scope and
+selection rules.

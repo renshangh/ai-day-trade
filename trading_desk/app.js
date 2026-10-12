@@ -27,6 +27,8 @@ const VIEWS = [
     load: () => fetchEnterpriseAI(), draw: () => renderEnterpriseAI() },
   { key: 'ai-crypto', label: 'Onchain Finance Buildout', lookbacks: [], solo: true, card: 'ai-crypto-card',
     load: () => { state.aiCrypto = true; renderAiCryptoWatchlist(); }, draw: () => renderAiCryptoWatchlist() },
+  { key: 'rwa', label: 'RWA & Tokenization', lookbacks: [], solo: true, card: 'rwa-card',
+    load: force => RwaMarket.mount($('rwa-market-board'), force), draw: () => RwaMarket.mount($('rwa-market-board')) },
   { key: 'sector', label: 'Sector', lookbacks: [], solo: true, card: 'sector-card',
     load: force => fetchSector(force), draw: () => renderSector() },
 ];
@@ -426,6 +428,7 @@ function renderViewTabs() {
     'ai-crypto': 'Onchain finance across five daily-review layers — evidence, adoption, and COIN / CRCL implications.',
     review: 'Every open position against its own levels, sorted by how close it sits to support.',
     cycle: 'Is the AI data center buildout thesis still intact? Seven indicators scored by hand once a month.',
+    rwa: 'Leading RWA and tokenization coins ranked by circulating market cap and reported 24-hour dollar volume.',
     sector: 'Measured facts about a group\'s own recent price and volume history \u2014 not a signal, not a call.',
   };
   $('view-note').textContent = notes[state.view] || notes.momentum;

@@ -6,6 +6,7 @@
   <title>Trading Desk — Hot Sector Board</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="/crypto_infra.css">
+  <link rel="stylesheet" href="/rwa_market.css">
 </head>
 <body>
   <header>
@@ -143,6 +144,8 @@
       <p class="sub">Briefing names are context, not trade signals. Verify current prices, filings, and risk before acting.</p>
     </section>
 
+    <section class="card hidden" id="rwa-card"><h2>RWA &amp; Tokenization</h2><div id="rwa-market-board" class="rwa-market"></div></section>
+
     <section class="card hidden" id="sector-card">
       <div class="detail-head">
         <h2 style="margin:0">Sector scorecard</h2>
@@ -215,6 +218,7 @@
   </main>
 
   <script src="/crypto_infra.js"></script>
+  <script src="/rwa_market.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
