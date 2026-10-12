@@ -8,8 +8,10 @@ A sourced market-value and liquidity screen for the RWA research sector.
 
 ## Overview
 
-The main desk (`/#rwa`) and sector board (`/board?view=rwa`) share a ten-coin
-shortlist. This supports the existing North Star of sourced, explicit thesis
+The sector board (`/board?view=rwa`) displays the ten-coin shortlist.
+Select **RWA & Tokenization** from the board's view tabs. The home page has no
+RWA ranking section and does not load its market-screen assets. This supports
+the existing North Star of sourced, explicit thesis
 decisions by showing dated market observations instead of unsupported liquidity
 claims. It is a research screen and does not submit orders.
 
@@ -36,7 +38,7 @@ of executable depth. Gold-backed tokens differ from governance/infrastructure.
 
 `GET /api/rwa-market` caches successful responses in memory for five minutes.
 `?force=1` explicitly requests a refresh. Failed responses cache for 30 seconds
-to avoid repeated upstream requests when both desk surfaces open during an outage.
+to avoid repeated upstream requests when several board views open during an outage.
 Each coin retains the provider's
 `last_updated`. Source: https://www.coingecko.com/en/categories/real-world-assets-rwa.
 A provider failure returns the previous observation set (or the checked-in actual

@@ -1,4 +1,4 @@
-/* Shared, sourced RWA market screen on the main desk and sector board. */
+/* Sourced RWA market screen on the sector board. */
 'use strict';
 globalThis.RwaMarket = (() => {
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -43,4 +43,3 @@ globalThis.RwaMarket = (() => {
   }
   return {mount};
 })();
-if (document.getElementById('rwa-market-main')) RwaMarket.mount(document.getElementById('rwa-market-main'));

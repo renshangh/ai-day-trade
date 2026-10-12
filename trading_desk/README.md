@@ -1144,7 +1144,8 @@ on two slots, which is why direct endpoint labels and a table view both ship).
 
 ## RWA & Tokenization
 
-Open `/#rwa` or `/board?view=rwa` for ten leading coins screened by circulating
+Open `/board?view=rwa` or select **RWA & Tokenization** on the sector board
+for ten leading coins screened by circulating
 market cap and 24-hour dollar trading volume. Sort the shortlist by either measure
 or its equally weighted rank sum. Source timestamps and failed-refresh warnings
 remain visible. See [RWA market screen](../docs/TRADING_DESK_RWA.md) for scope and
