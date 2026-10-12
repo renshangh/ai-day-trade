@@ -186,7 +186,6 @@ Journal stops are not applied to a symbol shared across accounts because the
 journal does not identify the account. Chart-derived valuations retain their
 market-data dates. Trading still requires selection of one account.
 
-
 AI Power — Nuclear
 ==================
 
