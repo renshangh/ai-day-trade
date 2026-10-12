@@ -28,7 +28,7 @@ const VIEWS = [
   { key: 'ai-crypto', label: 'Onchain Finance Buildout', lookbacks: [], solo: true, card: 'ai-crypto-card',
     load: () => { state.aiCrypto = true; renderAiCryptoWatchlist(); }, draw: () => renderAiCryptoWatchlist() },
   { key: 'rwa', label: 'RWA & Tokenization', lookbacks: [], solo: true, card: 'rwa-card',
-    load: force => RwaMarket.mount($('rwa-market-board'), force), draw: () => RwaMarket.mount($('rwa-market-board')) },
+    load: force => RwaMarket.mount($('rwa-market-board'), force, symbol => selectOnchainSymbol(symbol, 'crypto')), draw: () => RwaMarket.mount($('rwa-market-board'), false, symbol => selectOnchainSymbol(symbol, 'crypto')) },
   { key: 'sector', label: 'Sector', lookbacks: [], solo: true, card: 'sector-card',
     load: force => fetchSector(force), draw: () => renderSector() },
 ];
@@ -3326,6 +3326,7 @@ function init() {
   const chartSymbol = (chartQuery.get('symbol') || '').toUpperCase();
   const chartKind = globalThis.CryptoFinanceInfra.assetKind(chartSymbol);
   if (state.view === 'ai-crypto' && chartKind) selectOnchainSymbol(chartSymbol, chartKind);
+  if (state.view === 'rwa' && /^[A-Z0-9]{1,12}$/.test(chartSymbol)) selectOnchainSymbol(chartSymbol, 'crypto');
   fetchBoard(false);
 }
 

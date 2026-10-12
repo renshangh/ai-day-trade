@@ -12,6 +12,10 @@ PAIRS = {
     "AVAX": "AVAXUSD", "XLM": "XXLMZUSD", "NEAR": "NEARUSD",
     "ADA": "ADAUSD", "LINK": "LINKUSD", "VIRTUAL": "VIRTUALUSD",
     "FET": "FETUSD", "ARB": "ARBUSD", "USDC": "USDCUSD",
+    # RWA USD pairs verified against Kraken AssetPairs on 2026-10-12.
+    "XAUT": "XAUTUSD", "QNT": "QNTUSD", "PAXG": "PAXGUSD",
+    "RSR": "RSRUSD", "INJ": "INJUSD", "ALGO": "ALGOUSD",
+    "XDC": "XDCUSD", "SYRUP": "SYRUPUSD", "PLUME": "PLUMEUSD",
 }
 
 

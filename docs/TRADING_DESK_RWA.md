@@ -8,7 +8,7 @@ A sourced market-value and liquidity screen for the RWA research sector.
 
 ## Overview
 
-The sector board (`/board?view=rwa`) displays the ten-coin shortlist.
+The sector board (`/board?view=rwa`) displays up to ten Coinbase-qualified coins.
 Select **RWA & Tokenization** from the board's view tabs. The home page has no
 RWA ranking section and does not load its market-screen assets. This supports
 the existing North Star of sourced, explicit thesis
@@ -23,8 +23,11 @@ XDC, SYRUP, RSR and PLUME. Broad infrastructure tokens have indirect RWA exposur
 category membership does not establish token-holder revenue. Restricted funds,
 stablecoins and tokenized stock wrappers are outside the pool.
 
-Both circulating market cap >= $100M and reported 24-hour USD trading volume >=
-$10M are required. Invalid or missing metrics and timestamps are excluded.
+An active Coinbase Exchange USD or USDC spot market in normal trading is required
+before ranking: status online, with trading_disabled, cancel_only, post_only,
+limit_only and auction_mode explicitly false. Missing status fields do not
+qualify. USD is preferred when both USD and USDC pairs qualify. Circulating market
+cap >= $100M and reported 24-hour USD trading volume >= $10M are also required. Invalid or missing metrics and timestamps are excluded.
 Rank the qualifying pool independently by market cap and volume descending, then
 select the ten smallest rank sums, breaking ties by cap rank. UI sorting changes
 the selected shortlist's order only. This is a reviewed category pool, not a claim
@@ -41,13 +44,28 @@ of executable depth. Gold-backed tokens differ from governance/infrastructure.
 to avoid repeated upstream requests when several board views open during an outage.
 Each coin retains the provider's
 `last_updated`. Source: https://www.coingecko.com/en/categories/real-world-assets-rwa.
-A provider failure returns the previous observation set (or the checked-in actual
-`rwa_snapshot.json` research capture) marked stale, with original timestamps and
-a visible warning. Failed refreshes never rewrite timestamps or fabricate values.
-The snapshot is never consumed as historical bars, an executable quote, or a
-backtest input. No strategy universe or stock-sector ranking is changed.
+If Coinbase verification fails, the list is withheld, including previously
+displayed tokens. If only market-data refresh fails, dated cached observations
+may be displayed after filtering and reranking against currently verified Coinbase
+markets. Original market timestamps are preserved. The checked-in snapshot records
+real observations and is never used as historical bars or an executable quote.
+The table shows the Coinbase pair and verification timestamp. This is public
+Exchange market eligibility; a user's account or region can impose restrictions.
 
 ## Verification
 
 Offline regression tests cover dual-threshold screening, missing observations,
 rank ties, duplicate records, the ten-member limit, and stale refresh behavior.
+
+## Coin charts
+
+Select any coin ticker to load its chart below the RWA table, using the board's
+existing crypto selection path. Normal clicks stay on the board and scroll to
+the chart; modified clicks open a board link with the coin preselected. RWA
+selections always use crypto data, including QNT, whose ticker can also identify
+a stock elsewhere. The market-source footer remains an external source link.
+
+All twelve pool tokens have verified Kraken USD pairs. Charts use actual completed
+UTC daily OHLCV candles with token volume. Today's forming candle is excluded.
+Missing candles remain missing; absent data clears the previous chart and displays
+unavailable. Kraken candle volume differs from the table's aggregated USD volume.
