@@ -100,8 +100,10 @@ market-data dates. Trading still requires selection of one account.
 RWA & Tokenization sector
 -------------------------
 
-Open ``/#rwa`` on the main desk or ``/board?view=rwa`` on the sector board.
-The shared table selects ten leaders from a reviewed pool of RWA infrastructure,
+Open ``/board?view=rwa`` or select **RWA & Tokenization** on the sector board.
+This market screen is available only on the sector board; the home page does not
+load its table or market-screen assets. The table selects ten leaders from a
+reviewed pool of RWA infrastructure,
 governance and gold-backed tokens in CoinGecko's RWA category. Each must have at
 least $100 million circulating market cap and $10 million reported 24-hour USD
 trading volume. Default order sums market-cap and volume ranks equally, breaking

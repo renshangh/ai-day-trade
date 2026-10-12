@@ -85,7 +85,7 @@ def test_provider_failure_is_briefly_cached(monkeypatch):
     assert len(calls)==2
 
 
-def test_http_market_refresh_and_both_desk_surfaces(monkeypatch):
+def test_http_market_refresh_and_sector_board_only(monkeypatch):
     import http.client
     import json
     import threading
@@ -113,10 +113,13 @@ def test_http_market_refresh_and_both_desk_surfaces(monkeypatch):
         assert json.loads(request('/api/rwa-market'))['stale']
         assert json.loads(request('/api/rwa-market?force=1'))['stale']
         assert calls==[False,True]
-        for path,mount_id in [('/', 'rwa-market-main'),('/board','rwa-market-board')]:
-            html=request(path)
-            assert mount_id in html
-            assert '/rwa_market.js' in html and '/rwa_market.css' in html
+        home=request('/')
+        assert 'rwa-market-main' not in home and 'id="rwa"' not in home
+        assert '/rwa_market.js' not in home and '/rwa_market.css' not in home
+        assert 'href="#rwa"' not in home
+        board=request('/board')
+        assert 'rwa-market-board' in board
+        assert '/rwa_market.js' in board and '/rwa_market.css' in board
         assert 'RwaMarket' in request('/rwa_market.js')
     finally:
         httpd.shutdown()
