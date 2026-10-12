@@ -371,6 +371,7 @@ async function fetchCrypto(symbol, force) {
   const mySeq = ++state.selectionSeq;
   state.loading = true;
   clearSelectedChart(symbol);
+  renderCryptoResearch(symbol);
   $('chart-wrap').classList.add('refetching');
   try {
     const res = await fetch(`/api/crypto?symbol=${encodeURIComponent(symbol)}${force ? '&force=1' : ''}`);
@@ -3158,6 +3159,48 @@ function renderCompany(d) {
   });
 }
 
+// Provider slugs identify the token, including aliases used by the chart feeds.
+// Keep these explicit: CoinGecko and CoinMarketCap often use different slugs.
+const CRYPTO_RESEARCH_SLUGS = {
+  BTC:['bitcoin','bitcoin'], ETH:['ethereum','ethereum'],
+  LINK:['chainlink','chainlink'], XLM:['stellar','stellar'],
+  ONDO:['ondo','ondo-finance'], QNT:['quant-network','quant'],
+  PAXG:['pax-gold','pax-gold'], XAUT:['tether-gold','tether-gold'],
+  RSR:['reserve-rights-token','reserve-rights'], INJ:['injective-protocol','injective'],
+  ALGO:['algorand','algorand'], SYRUP:['syrup','maple-finance'],
+  PLUME:['plume','plume'], XDC:['xdce-crowd-sale','xdc-network'],
+  CCCAUSD:['canton','canton-network'], HYPE:['hyperliquid','hyperliquid'],
+  NEAR:['near','near-protocol'], TAO:['bittensor','bittensor'],
+  RENDER:['render-token','render'], FET:['artificial-superintelligence-alliance','artificial-superintelligence-alliance'],
+  AKT:['akash-network','akash-network'], ZEC:['zcash','zcash'],
+  ARB:['arbitrum','arbitrum'], OP:['optimism','optimism'],
+  POL:['polygon-ecosystem-token','polygon-ecosystem-token'],
+  STRK:['starknet','starknet'], ZK:['zksync','zksync'],
+  USDT:['tether','tether'], USDC:['usd-coin','usd-coin'],
+  PYUSD:['paypal-usd','paypal-usd'], XRP:['ripple','xrp'],
+  UNI:['uniswap','uniswap'], AAVE:['aave','aave'],
+  SOL:['solana','solana'], AVAX:['avalanche-2','avalanche'],
+  ADA:['cardano','cardano'], VIRTUAL:['virtual-protocol','virtuals-protocol'],
+};
+
+function cryptoResearchLinks(symbol) {
+  const ticker=String(symbol || '').toUpperCase();
+  const slugs=CRYPTO_RESEARCH_SLUGS[ticker] || CRYPTO_RESEARCH_SLUGS[ticker.replace(/USD$/, '')];
+  if (!slugs) return [];
+  return [
+    {label:'CoinGecko',url:`https://www.coingecko.com/en/coins/${slugs[0]}`},
+    {label:'CoinMarketCap',url:`https://coinmarketcap.com/currencies/${slugs[1]}/`},
+  ];
+}
+
+function renderCryptoResearch(symbol) {
+  $('c-title').textContent = `Crypto research — ${symbol}`;
+  $('c-entity').textContent = 'Fundamentals and SEC filings are not applicable to this token.';
+  ['c-stats','c-facts','c-news'].forEach(id => $(id)?.replaceChildren());
+  $('c-links').innerHTML = cryptoResearchLinks(symbol).map(link =>
+    `<a class="linkchip" href="${link.url}" target="_blank" rel="noopener noreferrer">${link.label} ↗</a>`).join('');
+}
+
 function renderDetail() {
   const s = state.stock;
   if (!s || !s.bars || !s.bars.length) return;
@@ -3171,6 +3214,7 @@ function renderDetail() {
      <span style="color:var(--text-muted)"> · ${last.t}</span>`;
 
   if (s.asset_type === 'crypto') {
+    renderCryptoResearch(s.symbol);
     const link = $('yahoo-link');
     link.href = globalThis.CryptoFinanceInfra.marketUrl(s.symbol) || AI_CRYPTO_WATCHLIST.find(item => item.symbol === s.symbol)?.coingecko || 'https://www.coingecko.com/';
     link.textContent = `Crypto: ${s.symbol} ↗`;

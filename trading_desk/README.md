@@ -1151,3 +1151,6 @@ or its equally weighted rank sum. Source timestamps and failed-refresh warnings
 remain visible. Select a coin ticker to load its crypto chart below the table.
 See [RWA market screen](../docs/TRADING_DESK_RWA.md) for scope and
 selection rules.
+
+Crypto research below the selected chart includes token-specific CoinGecko and
+CoinMarketCap links. Switching coins updates both links.

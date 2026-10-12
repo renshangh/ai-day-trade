@@ -134,3 +134,8 @@ trading-disabled, cancel-only, post-only, limit-only or auction mode. The table
 shows the verified pair and check time. If Coinbase verification is unavailable,
 tokens are withheld. Public Exchange availability does not determine account or
 regional eligibility. Charts continue to use Kraken candles.
+
+The crypto research panel below the chart provides separate CoinGecko and
+CoinMarketCap links for the selected token. Each opens its asset-specific page
+in a new tab. Switching tokens updates both links; they remain available when
+chart candles cannot be loaded. USD feed aliases resolve to the underlying token.
