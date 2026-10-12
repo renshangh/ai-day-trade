@@ -69,3 +69,8 @@ All twelve pool tokens have verified Kraken USD pairs. Charts use actual complet
 UTC daily OHLCV candles with token volume. Today's forming candle is excluded.
 Missing candles remain missing; absent data clears the previous chart and displays
 unavailable. Kraken candle volume differs from the table's aggregated USD volume.
+
+The crypto research panel below the chart provides separate CoinGecko and
+CoinMarketCap links for the selected token. Each opens its asset-specific page
+in a new tab. Switching tokens updates both links; they remain available when
+chart candles cannot be loaded. USD feed aliases resolve to the underlying token.
