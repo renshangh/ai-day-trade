@@ -8,6 +8,13 @@ zero-commission assumptions with spread/slippage, and the complete November 8
 15-minute candle walkthrough with signal-confirmation times and rejected entries.
 This is a dated learning record; it does not enable trading or claim tested returns.
 
+The [November 8 BTC thirty-day signal retest](../docs/BTC_STRUCTURE_RETEST.md)
+includes a [spreadsheet](../reports/btc_structure_2026_11_08/BTC_30_DAY_RETEST.xlsx)
+with all 114 candidates, complete source candles and current-chart confirmation
+times. No candidate passes the initial mechanical resistance/RR screen; no
+trading profitability or exit performance is established. Costs and RR inputs
+recalculate in the saved workbook; structural changes require a new research run.
+
 The **AI Trading Desk v3** is the default page at `/`. It provides the CIO Brief,
 AI Economy Score, Onchain Finance Buildout, Thesis Tracker, Opportunity Pipeline,
 Decision Log, and links into the existing market views. See [V3.md](V3.md) for

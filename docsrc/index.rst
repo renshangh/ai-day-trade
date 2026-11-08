@@ -220,6 +220,7 @@ Table of Contents
    GitHub <https://github.com/Lumiwealth/lumibot>
    getting_started
    TRADING_DESK
+   BTC_STRUCTURE_RETEST
    imports_and_startup
    agents
    cash_accounting

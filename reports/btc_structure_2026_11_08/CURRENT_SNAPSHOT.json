@@ -1,0 +1,27 @@
+{
+  "inspection_ny": "2026-11-08T11:25:00-05:00",
+  "completed_through_utc": "2026-11-08T16:15:00Z",
+  "retrieved_at_utc": "2026-11-08T16:25:42.237440Z",
+  "bars": [
+    {
+      "t": 1794153600,
+      "open": 75966.54,
+      "high": 75998,
+      "low": 75918.51,
+      "close": 75926.65,
+      "volume": 22.41245745
+    }
+  ],
+  "last_atr": 90.46785714285632,
+  "chrome_crosscheck": "11:00–11:15 EST OHLC agrees with Chrome chart selected at 11:25 EST",
+  "provenance": {
+    "requests": [
+      {
+        "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=900&start=2026-11-08T16%3A00%3A00Z&end=2026-11-08T16%3A15%3A00Z",
+        "file": "1794153600_1794154500.json",
+        "sha256": "a7e2b818d868b0b4202f0f88a27ad967d9db816332f0b293c5f93a5715fff342"
+      }
+    ],
+    "missing_utc": []
+  }
+}
