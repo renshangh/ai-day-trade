@@ -1,5 +1,13 @@
 # Trading Desk
 
+## Trading learning manual
+
+Read the [交易学习手册 / Trading Learning Manual](../docs/TRADING_LEARNING_MANUAL.md)
+for the BTC local-breakout entry and 50%/remaining-position exit drafts, ETF
+zero-commission assumptions with spread/slippage, and the complete November 8
+15-minute candle walkthrough with signal-confirmation times and rejected entries.
+This is a dated learning record; it does not enable trading or claim tested returns.
+
 The **AI Trading Desk v3** is the default page at `/`. It provides the CIO Brief,
 AI Economy Score, Onchain Finance Buildout, Thesis Tracker, Opportunity Pipeline,
 Decision Log, and links into the existing market views. See [V3.md](V3.md) for

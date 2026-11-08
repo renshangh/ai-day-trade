@@ -3,6 +3,7 @@
 ## 4.5.30 - Unreleased
 
 ### Added
+- Archive the Chinese trading learning manual with BTC local-breakout entry and staged-exit drafts, the complete November 8 fifteen-minute candle audit, explicit signal times and rejected entries, and ETF zero-commission assumptions that retain spread and slippage. This is documentation only, with no order execution or validated performance claim.
 - Trading Desk Schwab previews now include an advisory wash-sale alert. It scans executed same-symbol trades across every linked Schwab account for the prior 30 calendar days, highlights prospective loss sales using the selected account's current average cost, and reminds the user about the 30-day post-sale window. Missing history or basis is reported as unknown; the alert neither blocks previews nor claims tax clearance.
 - Crypto research now provides token-specific CoinGecko and CoinMarketCap links below the selected chart, including USD feed aliases and unavailable-candle states.
 - Trading Desk adds a shared RWA & Tokenization sector with ten leaders selected by circulating market cap and 24-hour dollar volume, source timestamps, sorting, live refresh and explicitly dated fallback observations.
