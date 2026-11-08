@@ -3,6 +3,7 @@
 ## 4.5.30 - Unreleased
 
 ### Added
+- Recheck BTC resistance using causally confirmed, ATR-qualified hourly swing zones rather than every minor high. The same 114 signals yield 14 price-screen passes at 2bps each way and ten one-at-a-time model trades, with one win/nine losses and -6.719R. Preserve the original study, add source/confirmation evidence, old/new targets and model exit legs to the workbook, and label the revision in-sample.
 - Add a read-only thirty-day BTCUSD structure research snapshot and five-sheet workbook, preserving 2,880 completed test bars, 114 rejected local-breakout candidates, causal signal times, explicit initial parameters and zero/2/5bps friction comparisons. No entries qualify, so profitability and staged exits remain unvalidated; no orders are created.
 - Archive the Chinese trading learning manual with BTC local-breakout entry and staged-exit drafts, the complete November 8 fifteen-minute candle audit, explicit signal times and rejected entries, and ETF zero-commission assumptions that retain spread and slippage. This is documentation only, with no order execution or validated performance claim.
 - Trading Desk Schwab previews now include an advisory wash-sale alert. It scans executed same-symbol trades across every linked Schwab account for the prior 30 calendar days, highlights prospective loss sales using the selected account's current average cost, and reminds the user about the 30-day post-sale window. Missing history or basis is reported as unknown; the alert neither blocks previews nor claims tax clearance.

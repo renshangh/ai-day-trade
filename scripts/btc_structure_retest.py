@@ -1,7 +1,7 @@
 """Read-only Coinbase BTC structure research; never imports a broker/order client.
 
-V1.1 quantifies the manual's unfinished parameters for an initial, unoptimized
-30-day experiment. Outputs are OHLC-model estimates, never ETF or real fills.
+V1.1 quantifies unfinished parameters; V1.2 changes only resistance hierarchy.
+Outputs are OHLC-model estimates, never ETF or real fills.
 """
 from __future__ import annotations
 
@@ -38,6 +38,84 @@ class Config:
     one_way_friction_bps: float = 2.0
     first_sale_fraction: float = 0.5
     upper_wick_fraction: float = 0.5
+    resistance_mode: str = 'minor15m'
+    major_pivot_hours: int = 2
+    major_prominence_atr: float = 1.0
+    major_zone_half_atr: float = 0.15
+
+
+class MajorResistance:
+    """Causal completed-hour swings; no interpolation or future peak selection."""
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.pending = []
+        self.hours = []
+        self.trs = []
+        self.peaks = []
+
+    def observe(self, bar):
+        if self.pending and bar['t'] != self.pending[-1]['t'] + STEP:
+            self.pending = []
+        if bar['t'] % 3600 == 0:
+            self.pending = [bar]
+        elif self.pending:
+            self.pending.append(bar)
+        if len(self.pending) != 4:
+            return
+        group = self.pending
+        self.pending = []
+        hour = dict(t=group[0]['t'], open=group[0]['open'], close=group[-1]['close'],
+                    high=max(b['high'] for b in group), low=min(b['low'] for b in group))
+        if self.hours and hour['t'] != self.hours[-1]['t'] + 3600:
+            self.hours, self.trs, self.peaks = [], [], []
+        if self.hours:
+            prev = self.hours[-1]['close']
+            self.trs.append(max(hour['high']-hour['low'], abs(hour['high']-prev), abs(hour['low']-prev)))
+        hour['atr'] = sum(self.trs[-14:])/14 if len(self.trs) >= 14 else None
+        self.hours.append(hour)
+        k = self.cfg.major_pivot_hours
+        if len(self.hours) < 2*k+1:
+            return
+        window = self.hours[-(2*k+1):]
+        peak = window[k]
+        neighbors = window[:k] + window[k+1:]
+        if peak['atr'] is None or not all(peak['high'] > b['high'] for b in neighbors):
+            return
+        prominence = min(peak['high']-min(b['low'] for b in window[:k]),
+                         peak['high']-min(b['low'] for b in window[k+1:]))
+        if prominence < self.cfg.major_prominence_atr * peak['atr']:
+            return
+        half = self.cfg.major_zone_half_atr * peak['atr']
+        self.peaks.append(dict(t=peak['t'], known_at=hour['t']+3600, price=peak['high'],
+                               lower=peak['high']-half, upper=peak['high']+half,
+                               atr_hour=peak['atr'], prominence=prominence))
+
+    def zones(self, entry, known_at):
+        cutoff = known_at - self.cfg.resistance_lookback_bars*STEP
+        peaks = [p for p in self.peaks if p['t'] >= cutoff and p['known_at'] <= known_at]
+        self.peaks = peaks
+        groups = []
+        for p in sorted(peaks, key=lambda x:x['lower']):
+            if groups and p['lower'] <= groups[-1]['upper']:
+                groups[-1]['upper'] = max(groups[-1]['upper'],p['upper'])
+                groups[-1]['members'].append(p)
+            else:
+                groups.append(dict(lower=p['lower'],upper=p['upper'],members=[p]))
+        # A price already inside a zone must face that zone, not skip to a far
+        # target. Its lower edge can be below entry, yielding an explicit reject.
+        return [g for g in groups if g['upper'] >= entry]
+
+
+def choose_resistance(cfg, major, highs, setup, bar):
+    if cfg.resistance_mode == 'major1h':
+        zones = major.zones(bar['close'],bar['t']+STEP)
+        return [z['lower'] for z in zones], zones
+    if cfg.resistance_mode != 'minor15m':
+        raise ValueError('Unknown resistance mode')
+    levels = sorted(set([h['price'] for h in highs if h['price'] > bar['close']] +
+                        ([setup['h1']] if setup['h1'] > bar['close'] else [])))
+    return levels, []
 
 
 def iso(stamp):
@@ -131,6 +209,7 @@ def replay(bars, start, end, cfg=Config()):
     segment = []
     q = cfg.one_way_friction_bps / 10000
     realized_r = peak_r = max_dd_r = 0.0
+    major = MajorResistance(cfg)
 
     def close_part(b, price, fraction, reason, timing):
         nonlocal position, realized_r
@@ -159,6 +238,7 @@ def replay(bars, start, end, cfg=Config()):
                 position['unresolved_gap'] = True
                 break
             lows, highs, trs, segment = [], [], [], []
+            major = MajorResistance(cfg)
             setup = pending = None
         prior_t = b['t']
         if pending and live_window:
@@ -200,6 +280,7 @@ def replay(bars, start, end, cfg=Config()):
             trs.append(tr)
         # Simple ATR(14), explicitly not Wilder smoothing; only completed bars.
         atr = sum(trs[-cfg.atr_period:])/cfg.atr_period if len(trs) >= cfg.atr_period else None
+        major.observe(b)
         pivot_low = None
         if len(segment) >= 3:
             a, p, c = segment[-3:]
@@ -239,8 +320,7 @@ def replay(bars, start, end, cfg=Config()):
                 setup = None
             elif b['t'] > setup['confirmation_t'] and b['close'] > setup['trigger']:
                 stop = setup['l2']['price'] - cfg.stop_buffer_atr*atr
-                levels = sorted(set([h['price'] for h in highs if h['price'] > b['close']] +
-                                    ([setup['h1']] if setup['h1'] > b['close'] else [])))
+                levels, zones = choose_resistance(cfg,major,highs,setup,b)
                 resistance = levels[0] if levels else None
                 target = resistance-cfg.target_buffer_atr*atr if resistance else None
                 ratio = reward_risk(b['close'], stop, target, cfg.one_way_friction_bps) if target else None
@@ -251,6 +331,8 @@ def replay(bars, start, end, cfg=Config()):
                          close_reference=b['close'], atr=atr, stop=stop, resistance=resistance,
                          t1=target, t2=levels[1]-cfg.target_buffer_atr*atr if len(levels)>1 else None,
                          reward_risk=ratio, limit=None, model_entry=None, decision='')
+                if cfg.resistance_mode == 'major1h':
+                    c['resistance_zones'] = zones[:2]
                 if not levels:
                     c['decision'] = 'rejected: no known overhead resistance'
                 elif ratio is None or ratio < cfg.min_reward_risk:

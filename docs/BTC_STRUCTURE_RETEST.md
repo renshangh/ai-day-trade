@@ -4,11 +4,135 @@ A dated, read-only test of a mechanical interpretation of the trading learning m
 
 **Last Updated:** 2026-11-08
 
-**Status:** Research snapshot; no qualifying entries, no trading-performance validation
+**Status:** V1.2 research update; important-swing model has entries but negative in-sample results
 
 **Audience:** Trading Desk owner and research maintainers
 
 ## Overview
+
+### Current update: V1.2 major hourly resistance
+
+On the owner's follow-up, the November 8 workbook now compares important swing
+resistance with the original all-minor-highs definition. **The previous V1.1
+results below are historical**. Its original source, results and archived XLSX
+remain intact; the primary workbook has been updated and includes model trade
+legs. No current quotes were refreshed and no real orders were requested.
+
+The audit found that the original 114 candidates had a median planned target
+distance of only **0.0322 fifteen-minute ATR**; **48/114** had T1 at or below
+the signal-close reference. The original algorithm treated very small local
+fluctuations as barriers, even when their target buffer erased the available
+price space. This explains why zero entries alone was insufficient to judge
+the discretionary learning method.
+
+Before the new replay, one fixed definition was selected, without a parameter
+search: aggregate only four contiguous real fifteen-minute observations into
+each UTC-aligned completed hour; a major high must exceed each of its two
+neighboring completed hours on both sides. Both its preceding rise and following
+decline must be at least **one hourly ATR(14)** measured at the peak. This ATR is
+also a simple true-range average. A peak is therefore usable only at the close
+of the second right-hand hour, **three hours after the peak hour starts**.
+
+Each qualified peak defines a zone of peak price **plus/minus 0.15 hourly ATR**.
+Overlapping zones merge. Use the closest zone's **lower edge**, less the same
+0.10 fifteen-minute ATR target buffer as before. A zone containing entry is
+not skipped; its unfavorable price space rejects the candidate. A zone wholly
+below entry no longer blocks the current upward path. If no eligible zone is
+known, reject rather than invent a target. The local H1 alone is no longer a
+resistance unless represented by the important hourly structure. This is the
+requested change in resistance hierarchy, not a claim that minor levels never
+matter.
+
+General support/resistance interpretation is discussed by
+[Fidelity's Trading Strategy Desk](https://www.fidelity.com/learning-center/trading-investing/technical-analysis/support-and-resistance).
+The precise two-hour, one-ATR and zone-width parameters here are our research
+choices, not Fidelity recommendations or empirically established optima.
+All other entry, stop, expiration, minimum 2R, friction and 50% exit rules
+remain unchanged. No additional trend filter was introduced.
+
+| Same 30-day data / fixed 2bps each way | V1.1 minor highs | V1.2 important swings |
+| --- | ---: | ---: |
+| Completed test bars | 2,880 | 2,880 |
+| Original candidates compared independently of holdings | 114 | 114 |
+| Price screen passes | 0 | 14 |
+| Model entries, one position at a time | 0 | 10 |
+| Closed model trades | 0 | 10 |
+| Winning / losing trades | Not applicable | 1 / 9 |
+| Total closed result | Not applicable | **-6.7190R** |
+| Win rate | Not applicable | **10.0%** |
+| Close-marked maximum drawdown | Not applicable | **7.1656R** |
+
+Four of the fourteen independent price-screen passes happened while a model
+position was already open, so they are not four additional executable trades.
+The full execution path evaluated 103 candidates; its different count reflects
+position occupancy and suppressed overlapping setups. The 114-signal comparison
+keeps the original signal times, closes, stops and ATR fixed to isolate the
+effect of the resistance definition.
+
+| Friction assumed each way | Same-signal passes | Closed model trades | Closed result |
+| --- | ---: | ---: | ---: |
+| 0bps | 18 | 13 | -9.4499R |
+| 2bps | 14 | 10 | -6.7190R |
+| 5bps | 9 | 7 | -4.0542R |
+
+Different cost settings change which trades qualify; the smaller loss at a
+higher cost is not evidence that worse execution helps a fixed set of trades.
+1R is each trade's own initial planned risk, including modeled costs. These
+totals are normalized model results, not dollar P&L, compounded portfolio
+returns or actual ETF results. Prices are observed bars; fills are explicitly
+estimated using the existing adverse-first OHLC conventions.
+
+For example, the **October 11, 12:00 EDT** signal closed at $83,818.50 with the
+same $82,985.56 planned stop in both definitions. V1.1 selected a tiny nearby
+high at $83,914.54 and T1 at $83,902.65, giving about **0.058R** of planned net
+reward/risk. V1.2's already-confirmed important zone started at $85,691.50;
+T1 was $85,679.61, giving about **2.109R**. The model entered at the next real
+bar's $83,818.51 open, but ultimately stopped out for **-1R**. This concrete
+case shows both the overly restrictive old target and the fact that extra
+theoretical room does not ensure a profitable trade.
+
+The one profitable trade, entered October 30 at 18:45 EDT, sold half at its
+modeled first target and exited the remaining half at raised structural
+protection, producing about **+2.281R** overall. The other nine lost about 1R
+each. It would be inaccurate to treat a protective-stop exit label on the
+winning trade as a full-position loss, or to count its two exit legs as two
+winning trades.
+
+**Interpretation:** the resistance definition was too granular, but this single
+revision does not establish an edge. The downtrend/反弹 context and the existing
+fifteen-minute stop structure remain potential issues for later review. This
+month was used to detect a problem and revise the specification; these new
+results are **in-sample**, not independent validation. Do not adjust further
+parameters on this month simply to improve its P&L.
+
+New artifacts are under `reports/btc_structure_2026_11_08/major_resistance/`:
+`MAJOR_RETEST.json`, the same-signal `COMPARISON.csv`, execution `CANDIDATES.csv`,
+`TRADES.csv`, `FILLS.csv`, and `LEDGER.csv`. Every selected zone records its
+constituent peak times, earliest known times, hourly ATR and prominence.
+`BTC_30_DAY_RETEST_V1_1.xlsx` archives the original workbook. The updated primary
+workbook preserves original R1/T1/RR in candidate columns R–T, adds important
+zone evidence in U–W and a model-trades sheet with all eleven exit legs.
+The previous current-chart audit and original bars remain unchanged snapshots.
+
+To reproduce the revision using the archived source, without new API requests:
+
+```bash
+python3 scripts/retest_btc_major_resistance.py
+python3 -m pytest trading_desk/tests/test_btc_structure_retest.py -q
+node scripts/update_btc_major_workbook.mjs
+```
+
+The update builder imports the archived V1.1 workbook and changes the affected
+summary, candidates and parameters; it adds the necessary transaction detail.
+Editable candidate cost/2R inputs only recalculate the independent price screen.
+The model trade ledger and cost-case results remain fixed to their saved replay
+settings, requiring a new replay for changes. Eleven focused tests cover causal
+hour aggregation, confirmation timing, fixed signal comparison, real-source
+crosschecks, trade-leg reconciliation and prefix independence. Workbook formulas
+are checked against the model and unchanged raw/current views are compared
+with the original import.
+
+## Original V1.1 study (preserved)
 
 The owner requested a current Chrome BTCUSD 15-minute review and a 30-day
 spreadsheet, then explicitly selected **BTC signals around the clock**, rather

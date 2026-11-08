@@ -9,6 +9,7 @@ import pytest
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'scripts'))
 import btc_structure_retest as btc
+import retest_btc_major_resistance as major_study
 
 
 @pytest.fixture(scope='module')
@@ -87,3 +88,58 @@ def test_adverse_first_exit_model_on_observed_bar(observations):
 def test_unimplemented_pivot_settings_fail_explicitly(observations):
     with pytest.raises(ValueError,match='one-bar pivots'):
         btc.replay(observations,observations[0]['t'],observations[-1]['t']+900,btc.Config(pivot_left_right_bars=2))
+
+
+def test_hourly_resistance_never_builds_an_incomplete_hour(observations):
+    cfg=btc.Config(resistance_mode='major1h')
+    clock=btc.MajorResistance(cfg)
+    for b in observations[:3]:
+        clock.observe(b)
+    assert clock.hours==[]
+    clock.observe(observations[3])
+    assert len(clock.hours)==1
+    assert clock.hours[0]['high']==max(b['high'] for b in observations[:4])
+    missing=btc.MajorResistance(cfg)
+    for b in observations[:1]+observations[2:8]:
+        missing.observe(b)
+    assert [h['t'] for h in missing.hours]==[observations[4]['t']]
+
+
+def test_major_level_confirmation_is_causal_on_same_signals(observations):
+    baseline,bars,start,end=major_study.load_source(ROOT/'reports/btc_structure_2026_11_08')
+    cfg=btc.Config(resistance_mode='major1h')
+    original=baseline['runs'][1]['candidates']
+    complete=major_study.compare_candidates(bars,original,cfg)
+    partial=major_study.compare_candidates(bars[:2201],original,cfg)
+    assert partial==[c for c in complete if c['signal_t']<=bars[2200]['t']]
+    assert len(complete)==114
+    for c in complete:
+        for zone in c['major_zones']:
+            for p in zone['members']:
+                assert p['known_at']==p['t']+3*3600
+                assert p['known_at']<=c['signal_t']+btc.STEP
+                assert p['prominence']>=p['atr_hour']
+        if c['major_zones']:
+            assert c['major_t1']==pytest.approx(c['major_zones'][0]['lower']-.1*c['atr'])
+
+
+def test_revised_trade_legs_reconcile_and_use_observed_bars(observations):
+    cfg=btc.Config(resistance_mode='major1h')
+    start=observations[7*96]['t'];end=observations[-1]['t']+900
+    result=btc.replay(observations,start,end,cfg)
+    lookup={btc.iso(b['t']):b for b in observations}
+    assert result['trades']
+    assert result['open_position'] is None
+    for t in result['trades']:
+        legs=[f for f in result['fills'] if f['trade_id']==t['id']]
+        assert sum(f['fraction_initial'] for f in legs)==pytest.approx(1)
+        assert sum(f['r_contribution'] for f in legs)==pytest.approx(t['net_r'])
+        assert t['entry']==lookup[t['entry_time_utc']]['open']
+        for f in legs:
+            bar=lookup[f['time_utc']]
+            assert bar['low']<=f['model_price']<=bar['high']
+    assert sum(t['net_r'] for t in result['trades'])==pytest.approx(result['summary']['net_closed_r'])
+    # Prefix processing must not use exits, confirmation bars or levels from later.
+    partial=btc.replay(observations[:2301],start,observations[2300]['t']+900,cfg)
+    cutoff=btc.iso(observations[2300]['t'])
+    assert partial['fills']==[f for f in result['fills'] if f['time_utc']<=cutoff]

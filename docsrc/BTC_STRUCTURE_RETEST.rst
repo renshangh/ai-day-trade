@@ -10,6 +10,25 @@ A read-only thirty-day BTCUSD signal experiment and spreadsheet.
 Overview
 --------
 
+The primary workbook now includes the owner's requested V1.2 important-swing
+revision. It uses completed hourly peaks, two hours of confirmation on each
+side, at least one hourly ATR of rise and decline, and merged zones of
+plus/minus 0.15 hourly ATR. All other entry, stop and 2R requirements remain
+unchanged. The original V1.1 result described below is retained as history.
+
+Across the same 114 original signals, 14 pass the revised 2bps price screen.
+With one position at a time, ten model trades close: one win and nine losses,
+for -6.719R in total. Four independent passes occur during an existing position.
+These results remain in-sample and do not validate profitability. The XLSX
+preserves old and new targets and adds trade-by-trade exit legs. No real orders
+are created. Reproduce this update with:
+
+.. code-block:: bash
+
+   python3 scripts/retest_btc_major_resistance.py
+   python3 -m pytest trading_desk/tests/test_btc_structure_retest.py -q
+   node scripts/update_btc_major_workbook.mjs
+
 The November 8 study uses completed Coinbase BTC-USD fifteen-minute bars around
 the clock, as requested by the owner. It records 2,880 complete test bars from
 October 9 at 16:00 UTC through November 8 at 16:00 UTC (exclusive), plus seven

@@ -11,9 +11,12 @@ This is a dated learning record; it does not enable trading or claim tested retu
 The [November 8 BTC thirty-day signal retest](../docs/BTC_STRUCTURE_RETEST.md)
 includes a [spreadsheet](../reports/btc_structure_2026_11_08/BTC_30_DAY_RETEST.xlsx)
 with all 114 candidates, complete source candles and current-chart confirmation
-times. No candidate passes the initial mechanical resistance/RR screen; no
-trading profitability or exit performance is established. Costs and RR inputs
-recalculate in the saved workbook; structural changes require a new research run.
+times. The important-hourly-swing revision compares the same 114 signals: 14
+pass the 2bps screen, ten model trades close with one win and nine losses,
+totaling -6.719R. Old targets remain alongside new ones, and the workbook adds
+model trade/exit-leg detail. These are in-sample estimates with no established
+profitability. Editable costs/RR recalculate screening only; structural changes
+and trade outcomes require a new research run.
 
 The **AI Trading Desk v3** is the default page at `/`. It provides the CIO Brief,
 AI Economy Score, Onchain Finance Buildout, Thesis Tracker, Opportunity Pipeline,
