@@ -1,0 +1,1490 @@
+{
+  "source_snapshot": "major_resistance/MAJOR_RETEST.json",
+  "baseline_config": {
+    "version": "V1.2-major-hourly-2026-11-08",
+    "pivot_left_right_bars": 1,
+    "min_higher_low_atr": 0.1,
+    "stop_buffer_atr": 0.25,
+    "target_buffer_atr": 0.1,
+    "limit_chase_atr": 0.1,
+    "setup_expiry_bars": 8,
+    "resistance_lookback_bars": 672,
+    "atr_period": 14,
+    "min_reward_risk": 2.0,
+    "one_way_friction_bps": 2.0,
+    "first_sale_fraction": 0.5,
+    "upper_wick_fraction": 0.5,
+    "resistance_mode": "major1h",
+    "major_pivot_hours": 2,
+    "major_prominence_atr": 1.0,
+    "major_zone_half_atr": 0.15
+  },
+  "scope": "Diagnostic only; no parameter changes, alternative stops, new signals or simulated replacement trades.",
+  "stop_timing": "Interval known, exact tick unknown; favorable excursion bounds exclude/include stop-bar high.",
+  "rows": [
+    {
+      "id": 1,
+      "entry_time_ny": "2026-10-11T12:00:00-04:00",
+      "entry": 83818.51,
+      "stop": 82985.55642857144,
+      "t1": 85679.61103571428,
+      "t1_distance_atr": 15.658678393711421,
+      "net_r": -1.0,
+      "exit_interval_start_ny": "2026-10-12T08:30:00-04:00",
+      "exit_interval_end_ny": "2026-10-12T08:45:00-04:00",
+      "hold_min_minutes": 1230,
+      "hold_max_minutes": 1245,
+      "signal_atr15": 118.85428571428513,
+      "stop_distance": 832.9535714285594,
+      "stop_distance_pct": 0.9937585044503409,
+      "stop_distance_atr15": 7.0081913026754785,
+      "stop_buffer_atr15": 0.24999999999997816,
+      "l1": 82929.08,
+      "l2": 83015.27,
+      "higher_low_gap_atr": 0.7251736820596881,
+      "local_h1": 83088.35,
+      "signal_close_above_local_h1": true,
+      "close_beyond_trigger_atr": 3.842688526166523,
+      "pre_entry_24h_low": 82714.25,
+      "pre_entry_24h_high": 83904.73,
+      "entry_location_in_prior_24h_range": 0.9275754317586171,
+      "pre_exit_max_high": 84261.99,
+      "exit_bar_high": 83080.83,
+      "favorable_stop_distance_lower": 0.5324186307760453,
+      "favorable_stop_distance_upper": 0.5324186307760453,
+      "initial_stop_touched": true,
+      "stop_bar_open": 83069.32,
+      "stop_bar_high": 83080.83,
+      "stop_bar_low": 82567.47,
+      "stop_bar_close": 82774.74,
+      "stop_bar_close_below_initial_stop": true,
+      "stop_bar_close_below_l2": true,
+      "stop_bar_close_above_entry": false,
+      "stop_bar_also_traded_through_t1": false,
+      "hourly": {
+        "available": true,
+        "last_end_utc": "2026-10-11T16:00:00Z",
+        "last_close": 83818.5,
+        "sma20": 83006.58200000001,
+        "sma20_change": 40.69450000001234,
+        "close_vs_sma_pct": 0.9781368903974297,
+        "atr14": 219.31642857143015,
+        "hour_highs": [
+          {
+            "time": "2026-10-11T07:00:00Z",
+            "price": 83143.24
+          },
+          {
+            "time": "2026-10-11T12:00:00Z",
+            "price": 83176.22
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-11T04:00:00Z",
+            "price": 82714.25
+          },
+          {
+            "time": "2026-10-11T10:00:00Z",
+            "price": 82869.45
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "HL",
+        "entry_vs_known_sma_pct": 0.9781489376348373,
+        "entry_below_latest_confirmed_low": false
+      },
+      "fourhour": {
+        "available": true,
+        "last_end_utc": "2026-10-11T16:00:00Z",
+        "last_close": 83818.5,
+        "sma20": 82601.4425,
+        "sma20_change": 43.991500000003725,
+        "close_vs_sma_pct": 1.4734094988716473,
+        "atr14": 480.30285714285856,
+        "hour_highs": [
+          {
+            "time": "2026-10-09T08:00:00Z",
+            "price": 83452.99
+          },
+          {
+            "time": "2026-10-10T16:00:00Z",
+            "price": 83093.39
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-09T16:00:00Z",
+            "price": 82198.0
+          },
+          {
+            "time": "2026-10-11T04:00:00Z",
+            "price": 82714.25
+          }
+        ],
+        "swing_highs": "LH",
+        "swing_lows": "HL",
+        "entry_vs_known_sma_pct": 1.4734216051977445,
+        "entry_below_latest_confirmed_low": false
+      },
+      "prior_6h_return_pct": 1.0334720649865847,
+      "prior_24h_return_pct": 1.0148668778110492,
+      "stop_distance_atr1h": 3.7979533811224315,
+      "post_exit": [
+        {
+          "hours": 1,
+          "complete": true,
+          "high": 82891.78,
+          "low": 82381.46,
+          "closing_price": 82616.65,
+          "close_change_from_entry_pct": -1.4338837567024254,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 4,
+          "complete": true,
+          "high": 83040.14,
+          "low": 82305.88,
+          "closing_price": 82709.68,
+          "close_change_from_entry_pct": -1.3228939526603423,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 24,
+          "complete": true,
+          "high": 84070.33,
+          "low": 80927.48,
+          "closing_price": 83122.71,
+          "close_change_from_entry_pct": -0.8301269015638546,
+          "first_close_above_entry_utc": "2026-10-13T08:15:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 1170,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "entry_time_ny": "2026-10-14T16:15:00-04:00",
+      "entry": 81844.39,
+      "stop": 81528.45392857143,
+      "t1": 82614.70282142857,
+      "t1_distance_atr": 4.081251088017809,
+      "net_r": -1.0,
+      "exit_interval_start_ny": "2026-10-14T18:00:00-04:00",
+      "exit_interval_end_ny": "2026-10-14T18:15:00-04:00",
+      "hold_min_minutes": 105,
+      "hold_max_minutes": 120,
+      "signal_atr15": 188.74428571428456,
+      "stop_distance": 315.9360714285722,
+      "stop_distance_pct": 0.3860204363775846,
+      "stop_distance_atr15": 1.6738841667865205,
+      "stop_buffer_atr15": 0.2500000000000055,
+      "l1": 81424.03,
+      "l2": 81575.64,
+      "higher_low_gap_atr": 0.8032561061451325,
+      "local_h1": 81791.67,
+      "signal_close_above_local_h1": true,
+      "close_beyond_trigger_atr": 0.5509570772246964,
+      "pre_entry_24h_low": 81416.67,
+      "pre_entry_24h_high": 84062.11,
+      "entry_location_in_prior_24h_range": 0.16168198862949104,
+      "pre_exit_max_high": 81885.05,
+      "exit_bar_high": 81697.68,
+      "favorable_stop_distance_lower": 0.12869692218476558,
+      "favorable_stop_distance_upper": 0.12869692218476558,
+      "initial_stop_touched": true,
+      "stop_bar_open": 81671.3,
+      "stop_bar_high": 81697.68,
+      "stop_bar_low": 81499.0,
+      "stop_bar_close": 81619.86,
+      "stop_bar_close_below_initial_stop": false,
+      "stop_bar_close_below_l2": false,
+      "stop_bar_close_above_entry": false,
+      "stop_bar_also_traded_through_t1": false,
+      "hourly": {
+        "available": true,
+        "last_end_utc": "2026-10-14T20:00:00Z",
+        "last_close": 81721.33,
+        "sma20": 82801.666,
+        "sma20_change": -69.03299999999581,
+        "close_vs_sma_pct": -1.3047273710652063,
+        "atr14": 535.8814285714294,
+        "hour_highs": [
+          {
+            "time": "2026-10-14T08:00:00Z",
+            "price": 84062.11
+          },
+          {
+            "time": "2026-10-14T12:00:00Z",
+            "price": 83858.78
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-13T23:00:00Z",
+            "price": 83052.32
+          },
+          {
+            "time": "2026-10-14T17:00:00Z",
+            "price": 81416.67
+          }
+        ],
+        "swing_highs": "LH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": -1.156107173012677,
+        "entry_below_latest_confirmed_low": false
+      },
+      "fourhour": {
+        "available": true,
+        "last_end_utc": "2026-10-14T20:00:00Z",
+        "last_close": 81721.33,
+        "sma20": 83129.376,
+        "sma20_change": -67.65699999999197,
+        "close_vs_sma_pct": -1.6938007570272196,
+        "atr14": 1058.9878571428574,
+        "hour_highs": [
+          {
+            "time": "2026-10-13T08:00:00Z",
+            "price": 84070.33
+          },
+          {
+            "time": "2026-10-14T08:00:00Z",
+            "price": 84062.11
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-13T00:00:00Z",
+            "price": 80927.48
+          },
+          {
+            "time": "2026-10-13T16:00:00Z",
+            "price": 82866.38
+          }
+        ],
+        "swing_highs": "LH",
+        "swing_lows": "HL",
+        "entry_vs_known_sma_pct": -1.5457664448245145,
+        "entry_below_latest_confirmed_low": true
+      },
+      "prior_6h_return_pct": -0.22449503550836525,
+      "prior_24h_return_pct": -1.597630197903921,
+      "stop_distance_atr1h": 0.5895633895557923,
+      "post_exit": [
+        {
+          "hours": 1,
+          "complete": true,
+          "high": 81629.5,
+          "low": 81332.15,
+          "closing_price": 81592.7,
+          "close_change_from_entry_pct": -0.30752260478696947,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 4,
+          "complete": true,
+          "high": 81831.12,
+          "low": 81281.28,
+          "closing_price": 81345.26,
+          "close_change_from_entry_pct": -0.6098524284926632,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 24,
+          "complete": true,
+          "high": 82555.08,
+          "low": 79676.02,
+          "closing_price": 82364.87,
+          "close_change_from_entry_pct": 0.6359385169832699,
+          "first_close_above_entry_utc": "2026-10-15T15:15:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 1020,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "entry_time_ny": "2026-10-23T21:15:00-04:00",
+      "entry": 80668.62,
+      "stop": 80416.4532142857,
+      "t1": 81535.48996428572,
+      "t1_distance_atr": 3.4894333779952893,
+      "net_r": -1.0,
+      "exit_interval_start_ny": "2026-10-24T05:15:00-04:00",
+      "exit_interval_end_ny": "2026-10-24T05:30:00-04:00",
+      "hold_min_minutes": 480,
+      "hold_max_minutes": 495,
+      "signal_atr15": 248.42714285714464,
+      "stop_distance": 252.1667857142893,
+      "stop_distance_pct": 0.3125958838942445,
+      "stop_distance_atr15": 1.01505327805221,
+      "stop_buffer_atr15": 0.250000000000022,
+      "l1": 80401.34,
+      "l2": 80478.56,
+      "higher_low_gap_atr": 0.3108355999747004,
+      "local_h1": 81106.03,
+      "signal_close_above_local_h1": false,
+      "close_beyond_trigger_atr": 0.04874668629492031,
+      "pre_entry_24h_low": 80401.34,
+      "pre_entry_24h_high": 81962.0,
+      "entry_location_in_prior_24h_range": 0.17126087680852858,
+      "pre_exit_max_high": 80988.39,
+      "exit_bar_high": 80548.05,
+      "favorable_stop_distance_lower": 1.2680892889768234,
+      "favorable_stop_distance_upper": 1.2680892889768234,
+      "initial_stop_touched": true,
+      "stop_bar_open": 80535.28,
+      "stop_bar_high": 80548.05,
+      "stop_bar_low": 80400.01,
+      "stop_bar_close": 80483.87,
+      "stop_bar_close_below_initial_stop": false,
+      "stop_bar_close_below_l2": false,
+      "stop_bar_close_above_entry": false,
+      "stop_bar_also_traded_through_t1": false,
+      "hourly": {
+        "available": true,
+        "last_end_utc": "2026-10-24T01:00:00Z",
+        "last_close": 80508.25,
+        "sma20": 81436.642,
+        "sma20_change": -48.121999999988475,
+        "close_vs_sma_pct": -1.1400175365777088,
+        "atr14": 449.94785714285746,
+        "hour_highs": [
+          {
+            "time": "2026-10-23T06:00:00Z",
+            "price": 81859.48
+          },
+          {
+            "time": "2026-10-23T14:00:00Z",
+            "price": 81962.0
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-23T14:00:00Z",
+            "price": 80943.49
+          },
+          {
+            "time": "2026-10-23T19:00:00Z",
+            "price": 81129.99
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "HL",
+        "entry_vs_known_sma_pct": -0.9430914403371515,
+        "entry_below_latest_confirmed_low": true
+      },
+      "fourhour": {
+        "available": true,
+        "last_end_utc": "2026-10-24T00:00:00Z",
+        "last_close": 81078.04,
+        "sma20": 82354.548,
+        "sma20_change": -71.81900000000314,
+        "close_vs_sma_pct": -1.550015185560849,
+        "atr14": 805.5835714285693,
+        "hour_highs": [
+          {
+            "time": "2026-10-23T00:00:00Z",
+            "price": 81919.62
+          },
+          {
+            "time": "2026-10-23T12:00:00Z",
+            "price": 81962.0
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-20T12:00:00Z",
+            "price": 81196.01
+          },
+          {
+            "time": "2026-10-22T16:00:00Z",
+            "price": 80789.61
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": -2.047158342730504,
+        "entry_below_latest_confirmed_low": true
+      },
+      "prior_6h_return_pct": -0.6534423179733073,
+      "prior_24h_return_pct": -0.8073512269259786,
+      "stop_distance_atr1h": 0.5604355742808369,
+      "post_exit": [
+        {
+          "hours": 1,
+          "complete": true,
+          "high": 80556.99,
+          "low": 80346.61,
+          "closing_price": 80509.33,
+          "close_change_from_entry_pct": -0.1974621606270155,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 4,
+          "complete": true,
+          "high": 80748.5,
+          "low": 80346.61,
+          "closing_price": 80666.41,
+          "close_change_from_entry_pct": -0.002739603082324571,
+          "first_close_above_entry_utc": "2026-10-24T12:30:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 180,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 24,
+          "complete": true,
+          "high": 80925.0,
+          "low": 79107.0,
+          "closing_price": 80068.88,
+          "close_change_from_entry_pct": -0.7434613360188802,
+          "first_close_above_entry_utc": "2026-10-24T12:30:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 180,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "entry_time_ny": "2026-10-25T00:45:00-04:00",
+      "entry": 80832.51,
+      "stop": 80691.17535714286,
+      "t1": 81796.11492857143,
+      "t1_distance_atr": 11.323397236818172,
+      "net_r": -1.0,
+      "exit_interval_start_ny": "2026-10-25T01:30:00-04:00",
+      "exit_interval_end_ny": "2026-10-25T01:45:00-04:00",
+      "hold_min_minutes": 45,
+      "hold_max_minutes": 60,
+      "signal_atr15": 85.09857142856968,
+      "stop_distance": 141.33464285713853,
+      "stop_distance_pct": 0.17484876178797187,
+      "stop_distance_atr15": 1.6608344944517954,
+      "stop_buffer_atr15": 0.24999999999998168,
+      "l1": 80683.74,
+      "l2": 80712.45,
+      "higher_low_gap_atr": 0.33737346606447494,
+      "local_h1": 80925.0,
+      "signal_close_above_local_h1": false,
+      "close_beyond_trigger_atr": 0.6500696671088264,
+      "pre_entry_24h_low": 79107.0,
+      "pre_entry_24h_high": 80925.0,
+      "entry_location_in_prior_24h_range": 0.9491254125412513,
+      "pre_exit_max_high": 80858.4,
+      "exit_bar_high": 80722.04,
+      "favorable_stop_distance_lower": 0.18318226498912304,
+      "favorable_stop_distance_upper": 0.18318226498912304,
+      "initial_stop_touched": true,
+      "stop_bar_open": 80722.03,
+      "stop_bar_high": 80722.04,
+      "stop_bar_low": 80462.0,
+      "stop_bar_close": 80479.32,
+      "stop_bar_close_below_initial_stop": true,
+      "stop_bar_close_below_l2": true,
+      "stop_bar_close_above_entry": false,
+      "stop_bar_also_traded_through_t1": false,
+      "hourly": {
+        "available": true,
+        "last_end_utc": "2026-10-25T04:00:00Z",
+        "last_close": 80734.03,
+        "sma20": 80468.9885,
+        "sma20_change": 4.912000000011176,
+        "close_vs_sma_pct": 0.3293709849478077,
+        "atr14": 370.932142857142,
+        "hour_highs": [
+          {
+            "time": "2026-10-24T18:00:00Z",
+            "price": 80539.3
+          },
+          {
+            "time": "2026-10-24T23:00:00Z",
+            "price": 80819.6
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-24T15:00:00Z",
+            "price": 79107.0
+          },
+          {
+            "time": "2026-10-24T21:00:00Z",
+            "price": 80186.71
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "HL",
+        "entry_vs_known_sma_pct": 0.451753534841548,
+        "entry_below_latest_confirmed_low": false
+      },
+      "fourhour": {
+        "available": true,
+        "last_end_utc": "2026-10-25T04:00:00Z",
+        "last_close": 80734.03,
+        "sma20": 81359.91750000001,
+        "sma20_change": -185.1134999999922,
+        "close_vs_sma_pct": -0.7692823680653493,
+        "atr14": 703.402857142855,
+        "hour_highs": [
+          {
+            "time": "2026-10-23T00:00:00Z",
+            "price": 81919.62
+          },
+          {
+            "time": "2026-10-23T12:00:00Z",
+            "price": 81962.0
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-23T20:00:00Z",
+            "price": 80401.34
+          },
+          {
+            "time": "2026-10-24T12:00:00Z",
+            "price": 79107.0
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": -0.6482399641076553,
+        "entry_below_latest_confirmed_low": false
+      },
+      "prior_6h_return_pct": 0.4529126777646386,
+      "prior_24h_return_pct": 0.06481791192736175,
+      "stop_distance_atr1h": 0.3810256015251045,
+      "post_exit": [
+        {
+          "hours": 1,
+          "complete": true,
+          "high": 80577.31,
+          "low": 80382.78,
+          "closing_price": 80416.63,
+          "close_change_from_entry_pct": -0.5144959620825729,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 4,
+          "complete": true,
+          "high": 80614.4,
+          "low": 79973.01,
+          "closing_price": 80163.48,
+          "close_change_from_entry_pct": -0.8276744097146072,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 24,
+          "complete": true,
+          "high": 80859.26,
+          "low": 79255.0,
+          "closing_price": 80102.36,
+          "close_change_from_entry_pct": -0.9032875510113336,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "entry_time_ny": "2026-10-30T01:45:00-04:00",
+      "entry": 78552.23,
+      "stop": 77966.20982142858,
+      "t1": 79831.01771428571,
+      "t1_distance_atr": 4.369224386398633,
+      "net_r": -1.0,
+      "exit_interval_start_ny": "2026-10-30T03:30:00-04:00",
+      "exit_interval_end_ny": "2026-10-30T03:45:00-04:00",
+      "hold_min_minutes": 105,
+      "hold_max_minutes": 120,
+      "signal_atr15": 292.6807142857152,
+      "stop_distance": 586.0201785714162,
+      "stop_distance_pct": 0.7460261517354966,
+      "stop_distance_atr15": 2.002250746181187,
+      "stop_buffer_atr15": 0.2499999999999867,
+      "l1": 77709.75,
+      "l2": 78039.38,
+      "higher_low_gap_atr": 1.1262443472043036,
+      "local_h1": 78247.81,
+      "signal_close_above_local_h1": true,
+      "close_beyond_trigger_atr": 0.19943234094684656,
+      "pre_entry_24h_low": 76301.02,
+      "pre_entry_24h_high": 81890.0,
+      "entry_location_in_prior_24h_range": 0.40279442760575157,
+      "pre_exit_max_high": 78634.8,
+      "exit_bar_high": 78418.06,
+      "favorable_stop_distance_lower": 0.1408995850642786,
+      "favorable_stop_distance_upper": 0.1408995850642786,
+      "initial_stop_touched": true,
+      "stop_bar_open": 78346.29,
+      "stop_bar_high": 78418.06,
+      "stop_bar_low": 77879.63,
+      "stop_bar_close": 77936.3,
+      "stop_bar_close_below_initial_stop": true,
+      "stop_bar_close_below_l2": true,
+      "stop_bar_close_above_entry": false,
+      "stop_bar_also_traded_through_t1": false,
+      "hourly": {
+        "available": true,
+        "last_end_utc": "2026-10-30T05:00:00Z",
+        "last_close": 78069.07,
+        "sma20": 79400.5845,
+        "sma20_change": -94.26399999999558,
+        "close_vs_sma_pct": -1.6769580581613819,
+        "atr14": 940.4528571428558,
+        "hour_highs": [
+          {
+            "time": "2026-10-29T10:00:00Z",
+            "price": 80272.19
+          },
+          {
+            "time": "2026-10-29T16:00:00Z",
+            "price": 81890.0
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-29T20:00:00Z",
+            "price": 78177.37
+          },
+          {
+            "time": "2026-10-30T02:00:00Z",
+            "price": 76301.02
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": -1.068448683775114,
+        "entry_below_latest_confirmed_low": false
+      },
+      "fourhour": {
+        "available": true,
+        "last_end_utc": "2026-10-30T04:00:00Z",
+        "last_close": 78016.94,
+        "sma20": 80261.9545,
+        "sma20_change": -92.87949999999546,
+        "close_vs_sma_pct": -2.7971091832806105,
+        "atr14": 1191.337857142856,
+        "hour_highs": [
+          {
+            "time": "2026-10-28T20:00:00Z",
+            "price": 81715.01
+          },
+          {
+            "time": "2026-10-29T16:00:00Z",
+            "price": 81890.0
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-28T12:00:00Z",
+            "price": 80270.68
+          },
+          {
+            "time": "2026-10-29T00:00:00Z",
+            "price": 79586.17
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": -2.1301804954176773,
+        "entry_below_latest_confirmed_low": true
+      },
+      "prior_6h_return_pct": 0.4498232152308601,
+      "prior_24h_return_pct": -2.0718761192814794,
+      "stop_distance_atr1h": 0.6231255231142321,
+      "post_exit": [
+        {
+          "hours": 1,
+          "complete": true,
+          "high": 78171.12,
+          "low": 77762.52,
+          "closing_price": 77803.66,
+          "close_change_from_entry_pct": -0.9529583055757795,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": false
+        },
+        {
+          "hours": 4,
+          "complete": true,
+          "high": 78171.12,
+          "low": 77185.89,
+          "closing_price": 77304.61,
+          "close_change_from_entry_pct": -1.5882680860874299,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 24,
+          "complete": true,
+          "high": 78171.12,
+          "low": 76141.02,
+          "closing_price": 77184.3,
+          "close_change_from_entry_pct": -1.74142732803384,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "entry_time_ny": "2026-10-30T18:45:00-04:00",
+      "entry": 76825.27,
+      "stop": 76450.57071428571,
+      "t1": 77836.25592857142,
+      "t1_distance_atr": 3.967807163121322,
+      "net_r": 2.280996980548396,
+      "exit_interval_start_ny": "2026-11-01T02:15:00-05:00",
+      "exit_interval_end_ny": "2026-11-01T02:30:00-05:00",
+      "hold_min_minutes": 1950,
+      "hold_max_minutes": 1965,
+      "signal_atr15": 254.79714285714311,
+      "stop_distance": 374.69928571429045,
+      "stop_distance_pct": 0.4877292142472007,
+      "stop_distance_atr15": 1.4705788358245946,
+      "stop_buffer_atr15": 0.2500000000000184,
+      "l1": 76438.06,
+      "l2": 76514.27,
+      "higher_low_gap_atr": 0.2991006851389028,
+      "local_h1": 76767.67,
+      "signal_close_above_local_h1": true,
+      "close_beyond_trigger_atr": 0.18163468978122177,
+      "pre_entry_24h_low": 76141.02,
+      "pre_entry_24h_high": 78892.49,
+      "entry_location_in_prior_24h_range": 0.24868524824911764,
+      "pre_exit_max_high": 77900.0,
+      "exit_bar_high": 77758.08,
+      "favorable_stop_distance_lower": 2.86824672737562,
+      "favorable_stop_distance_upper": 2.86824672737562,
+      "initial_stop_touched": false,
+      "stop_bar_open": 77757.12,
+      "stop_bar_high": 77758.08,
+      "stop_bar_low": 77679.9,
+      "stop_bar_close": 77743.16,
+      "stop_bar_close_below_initial_stop": false,
+      "stop_bar_close_below_l2": false,
+      "stop_bar_close_above_entry": true,
+      "stop_bar_also_traded_through_t1": false,
+      "hourly": {
+        "available": true,
+        "last_end_utc": "2026-10-30T22:00:00Z",
+        "last_close": 76537.99,
+        "sma20": 77405.278,
+        "sma20_change": -4.840999999985797,
+        "close_vs_sma_pct": -1.1204507268871233,
+        "atr14": 582.1607142857143,
+        "hour_highs": [
+          {
+            "time": "2026-10-30T06:00:00Z",
+            "price": 78634.8
+          },
+          {
+            "time": "2026-10-30T15:00:00Z",
+            "price": 77957.75
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-30T13:00:00Z",
+            "price": 76409.0
+          },
+          {
+            "time": "2026-10-30T18:00:00Z",
+            "price": 76141.02
+          }
+        ],
+        "swing_highs": "LH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": -0.749313244505112,
+        "entry_below_latest_confirmed_low": false
+      },
+      "fourhour": {
+        "available": true,
+        "last_end_utc": "2026-10-30T20:00:00Z",
+        "last_close": 76715.4,
+        "sma20": 79777.845,
+        "sma20_change": -152.25,
+        "close_vs_sma_pct": -3.838716124758701,
+        "atr14": 1373.7964285714293,
+        "hour_highs": [
+          {
+            "time": "2026-10-28T20:00:00Z",
+            "price": 81715.01
+          },
+          {
+            "time": "2026-10-29T16:00:00Z",
+            "price": 81890.0
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-29T00:00:00Z",
+            "price": 79586.17
+          },
+          {
+            "time": "2026-10-30T00:00:00Z",
+            "price": 76301.02
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": -3.700996185093741,
+        "entry_below_latest_confirmed_low": false
+      },
+      "prior_6h_return_pct": -0.6553974988028455,
+      "prior_24h_return_pct": -2.5743621194389776,
+      "stop_distance_atr1h": 0.6436354713045693,
+      "post_exit": [
+        {
+          "hours": 1,
+          "complete": true,
+          "high": 77857.0,
+          "low": 77716.7,
+          "closing_price": 77848.98,
+          "close_change_from_entry_pct": 1.3325172823993814,
+          "first_close_above_entry_utc": "2026-11-01T07:45:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 15,
+          "first_target_trade_through_interval_utc": "2026-11-01T08:00:00Z",
+          "broke_l1": false
+        },
+        {
+          "hours": 4,
+          "complete": true,
+          "high": 78125.91,
+          "low": 77716.7,
+          "closing_price": 77861.07,
+          "close_change_from_entry_pct": 1.3482542918495488,
+          "first_close_above_entry_utc": "2026-11-01T07:45:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 15,
+          "first_target_trade_through_interval_utc": "2026-11-01T08:00:00Z",
+          "broke_l1": false
+        },
+        {
+          "hours": 24,
+          "complete": true,
+          "high": 78762.3,
+          "low": 77499.0,
+          "closing_price": 77987.35,
+          "close_change_from_entry_pct": 1.5126272904735671,
+          "first_close_above_entry_utc": "2026-11-01T07:45:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 15,
+          "first_target_trade_through_interval_utc": "2026-11-01T08:00:00Z",
+          "broke_l1": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "entry_time_ny": "2026-11-01T04:00:00-05:00",
+      "entry": 78110.24,
+      "stop": 77729.52517857142,
+      "t1": 79849.57985714285,
+      "t1_distance_atr": 16.246510945203436,
+      "net_r": -1.0,
+      "exit_interval_start_ny": "2026-11-01T07:15:00-05:00",
+      "exit_interval_end_ny": "2026-11-01T07:30:00-05:00",
+      "hold_min_minutes": 195,
+      "hold_max_minutes": 210,
+      "signal_atr15": 107.05928571428792,
+      "stop_distance": 380.7148214285844,
+      "stop_distance_pct": 0.48740705626891473,
+      "stop_distance_atr15": 3.5561121007719834,
+      "stop_buffer_atr15": 0.25000000000000727,
+      "l1": 77716.7,
+      "l2": 77756.29,
+      "higher_low_gap_atr": 0.3697951068499694,
+      "local_h1": 77857.0,
+      "signal_close_above_local_h1": true,
+      "close_beyond_trigger_atr": 0.5215801658627988,
+      "pre_entry_24h_low": 77208.14,
+      "pre_entry_24h_high": 78124.0,
+      "entry_location_in_prior_24h_range": 0.9849758696744101,
+      "pre_exit_max_high": 78125.91,
+      "exit_bar_high": 77812.02,
+      "favorable_stop_distance_lower": 0.0411594167550361,
+      "favorable_stop_distance_upper": 0.0411594167550361,
+      "initial_stop_touched": true,
+      "stop_bar_open": 77812.01,
+      "stop_bar_high": 77812.02,
+      "stop_bar_low": 77605.05,
+      "stop_bar_close": 77722.56,
+      "stop_bar_close_below_initial_stop": true,
+      "stop_bar_close_below_l2": true,
+      "stop_bar_close_above_entry": false,
+      "stop_bar_also_traded_through_t1": false,
+      "hourly": {
+        "available": true,
+        "last_end_utc": "2026-11-01T09:00:00Z",
+        "last_close": 78110.24,
+        "sma20": 77567.475,
+        "sma20_change": 35.72600000000966,
+        "close_vs_sma_pct": 0.6997327165799927,
+        "atr14": 178.6821428571441,
+        "hour_highs": [
+          {
+            "time": "2026-10-31T22:00:00Z",
+            "price": 77623.08
+          },
+          {
+            "time": "2026-11-01T02:00:00Z",
+            "price": 77747.48
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-31T15:00:00Z",
+            "price": 77222.31
+          },
+          {
+            "time": "2026-10-31T21:00:00Z",
+            "price": 77283.19
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "HL",
+        "entry_vs_known_sma_pct": 0.6997327165799927,
+        "entry_below_latest_confirmed_low": false
+      },
+      "fourhour": {
+        "available": true,
+        "last_end_utc": "2026-11-01T08:00:00Z",
+        "last_close": 77815.86,
+        "sma20": 78191.4455,
+        "sma20_change": -171.67249999998603,
+        "close_vs_sma_pct": -0.48034090890416437,
+        "atr14": 750.2407142857139,
+        "hour_highs": [
+          {
+            "time": "2026-10-28T20:00:00Z",
+            "price": 81715.01
+          },
+          {
+            "time": "2026-10-29T16:00:00Z",
+            "price": 81890.0
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-30T00:00:00Z",
+            "price": 76301.02
+          },
+          {
+            "time": "2026-10-30T16:00:00Z",
+            "price": 76141.02
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": -0.10385471131876267,
+        "entry_below_latest_confirmed_low": false
+      },
+      "prior_6h_return_pct": 0.6711994129099397,
+      "prior_24h_return_pct": 1.1684001194692817,
+      "stop_distance_atr1h": 2.1306819771742096,
+      "post_exit": [
+        {
+          "hours": 1,
+          "complete": true,
+          "high": 77886.47,
+          "low": 77665.93,
+          "closing_price": 77844.0,
+          "close_change_from_entry_pct": -0.3408515964104186,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 4,
+          "complete": true,
+          "high": 78007.33,
+          "low": 77665.93,
+          "closing_price": 77972.75,
+          "close_change_from_entry_pct": -0.17602045519256038,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 24,
+          "complete": true,
+          "high": 78762.3,
+          "low": 77499.0,
+          "closing_price": 77878.19,
+          "close_change_from_entry_pct": -0.29708012675419004,
+          "first_close_above_entry_utc": "2026-11-01T23:45:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 675,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "entry_time_ny": "2026-11-01T20:15:00-05:00",
+      "entry": 78360.41,
+      "stop": 77852.575,
+      "t1": 79838.90378571428,
+      "t1_distance_atr": 6.914665539773053,
+      "net_r": -1.0,
+      "exit_interval_start_ny": "2026-11-02T02:45:00-05:00",
+      "exit_interval_end_ny": "2026-11-02T03:00:00-05:00",
+      "hold_min_minutes": 390,
+      "hold_max_minutes": 405,
+      "signal_atr15": 213.82000000000076,
+      "stop_distance": 507.8350000000064,
+      "stop_distance_pct": 0.6480759863303502,
+      "stop_distance_atr15": 2.375058460387263,
+      "stop_buffer_atr15": 0.25000000000000727,
+      "l1": 77499.0,
+      "l2": 77906.03,
+      "higher_low_gap_atr": 1.9036105135160293,
+      "local_h1": 78396.76,
+      "signal_close_above_local_h1": false,
+      "close_beyond_trigger_atr": 1.2438967355719774,
+      "pre_entry_24h_low": 77499.0,
+      "pre_entry_24h_high": 78396.76,
+      "entry_location_in_prior_24h_range": 0.9595103368383627,
+      "pre_exit_max_high": 78762.3,
+      "exit_bar_high": 78044.99,
+      "favorable_stop_distance_lower": 0.7913790896649391,
+      "favorable_stop_distance_upper": 0.7913790896649391,
+      "initial_stop_touched": true,
+      "stop_bar_open": 77924.38,
+      "stop_bar_high": 78044.99,
+      "stop_bar_low": 77796.76,
+      "stop_bar_close": 77988.09,
+      "stop_bar_close_below_initial_stop": false,
+      "stop_bar_close_below_l2": false,
+      "stop_bar_close_above_entry": false,
+      "stop_bar_also_traded_through_t1": false,
+      "hourly": {
+        "available": true,
+        "last_end_utc": "2026-11-02T01:00:00Z",
+        "last_close": 78021.99,
+        "sma20": 77875.3,
+        "sma20_change": 17.881500000003143,
+        "close_vs_sma_pct": 0.18836524546295141,
+        "atr14": 259.57285714285746,
+        "hour_highs": [
+          {
+            "time": "2026-11-01T09:00:00Z",
+            "price": 78125.91
+          },
+          {
+            "time": "2026-11-01T17:00:00Z",
+            "price": 78046.0
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-11-01T19:00:00Z",
+            "price": 77499.99
+          },
+          {
+            "time": "2026-11-01T22:00:00Z",
+            "price": 77499.0
+          }
+        ],
+        "swing_highs": "LH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": 0.6229317896688791,
+        "entry_below_latest_confirmed_low": false
+      },
+      "fourhour": {
+        "available": true,
+        "last_end_utc": "2026-11-02T00:00:00Z",
+        "last_close": 78230.55,
+        "sma20": 77709.7135,
+        "sma20_change": -173.39949999999953,
+        "close_vs_sma_pct": 0.6702334580090952,
+        "atr14": 526.7285714285712,
+        "hour_highs": [
+          {
+            "time": "2026-10-29T16:00:00Z",
+            "price": 81890.0
+          },
+          {
+            "time": "2026-11-01T08:00:00Z",
+            "price": 78125.91
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-10-30T00:00:00Z",
+            "price": 76301.02
+          },
+          {
+            "time": "2026-10-30T16:00:00Z",
+            "price": 76141.02
+          }
+        ],
+        "swing_highs": "LH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": 0.837342554351328,
+        "entry_below_latest_confirmed_low": false
+      },
+      "prior_6h_return_pct": 0.9841261413492175,
+      "prior_24h_return_pct": 1.0295392530454306,
+      "stop_distance_atr1h": 1.9564256663419797,
+      "post_exit": [
+        {
+          "hours": 1,
+          "complete": true,
+          "high": 78280.38,
+          "low": 77932.95,
+          "closing_price": 78124.46,
+          "close_change_from_entry_pct": -0.30110868485756503,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": false
+        },
+        {
+          "hours": 4,
+          "complete": true,
+          "high": 78280.38,
+          "low": 77671.49,
+          "closing_price": 77783.67,
+          "close_change_from_entry_pct": -0.7360094210839496,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": false
+        },
+        {
+          "hours": 24,
+          "complete": true,
+          "high": 78280.38,
+          "low": 76238.54,
+          "closing_price": 76677.32,
+          "close_change_from_entry_pct": -2.1478830955580674,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "entry_time_ny": "2026-11-06T18:45:00-05:00",
+      "entry": 75848.57,
+      "stop": 75738.27892857142,
+      "t1": 76310.03864285715,
+      "t1_distance_atr": 3.8842760602671063,
+      "net_r": -1.0,
+      "exit_interval_start_ny": "2026-11-06T18:45:00-05:00",
+      "exit_interval_end_ny": "2026-11-06T19:00:00-05:00",
+      "hold_min_minutes": 0,
+      "hold_max_minutes": 15,
+      "signal_atr15": 118.80428571428845,
+      "stop_distance": 110.29107142858265,
+      "stop_distance_pct": 0.14540955937413538,
+      "stop_distance_atr15": 0.9283425321357585,
+      "stop_buffer_atr15": 0.24999999999999564,
+      "l1": 75605.94,
+      "l2": 75767.98,
+      "higher_low_gap_atr": 1.3639238603705122,
+      "local_h1": 76086.99,
+      "signal_close_above_local_h1": false,
+      "close_beyond_trigger_atr": 0.017171097723815535,
+      "pre_entry_24h_low": 74722.0,
+      "pre_entry_24h_high": 76306.26,
+      "entry_location_in_prior_24h_range": 0.711101713102654,
+      "pre_exit_max_high": 75848.57,
+      "exit_bar_high": 75880.89,
+      "favorable_stop_distance_lower": 0.0,
+      "favorable_stop_distance_upper": 0.2930427602285174,
+      "initial_stop_touched": true,
+      "stop_bar_open": 75848.57,
+      "stop_bar_high": 75880.89,
+      "stop_bar_low": 75711.81,
+      "stop_bar_close": 75731.04,
+      "stop_bar_close_below_initial_stop": true,
+      "stop_bar_close_below_l2": true,
+      "stop_bar_close_above_entry": false,
+      "stop_bar_also_traded_through_t1": false,
+      "hourly": {
+        "available": true,
+        "last_end_utc": "2026-11-06T23:00:00Z",
+        "last_close": 75799.14,
+        "sma20": 75747.423,
+        "sma20_change": -13.639999999999418,
+        "close_vs_sma_pct": 0.06827559004878303,
+        "atr14": 479.8871428571448,
+        "hour_highs": [
+          {
+            "time": "2026-11-06T12:00:00Z",
+            "price": 76256.44
+          },
+          {
+            "time": "2026-11-06T17:00:00Z",
+            "price": 76032.6
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-11-06T07:00:00Z",
+            "price": 75186.0
+          },
+          {
+            "time": "2026-11-06T15:00:00Z",
+            "price": 74722.0
+          }
+        ],
+        "swing_highs": "LH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": 0.13353193546929987,
+        "entry_below_latest_confirmed_low": false
+      },
+      "fourhour": {
+        "available": true,
+        "last_end_utc": "2026-11-06T20:00:00Z",
+        "last_close": 75770.93,
+        "sma20": 77686.402,
+        "sma20_change": -59.92750000000524,
+        "close_vs_sma_pct": -2.4656464332072026,
+        "atr14": 1328.6378571428577,
+        "hour_highs": [
+          {
+            "time": "2026-11-02T00:00:00Z",
+            "price": 78762.3
+          },
+          {
+            "time": "2026-11-04T12:00:00Z",
+            "price": 81130.79
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-11-04T00:00:00Z",
+            "price": 75600.64
+          },
+          {
+            "time": "2026-11-05T20:00:00Z",
+            "price": 75035.1
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": -2.365706163094017,
+        "entry_below_latest_confirmed_low": false
+      },
+      "prior_6h_return_pct": 0.4029829448055189,
+      "prior_24h_return_pct": -0.1501527790704449,
+      "stop_distance_atr1h": 0.22982710220560057,
+      "post_exit": [
+        {
+          "hours": 1,
+          "complete": true,
+          "high": 75868.1,
+          "low": 75716.62,
+          "closing_price": 75788.43,
+          "close_change_from_entry_pct": -0.07928956340246263,
+          "first_close_above_entry_utc": "2026-11-07T00:15:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 15,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": false
+        },
+        {
+          "hours": 4,
+          "complete": true,
+          "high": 75999.11,
+          "low": 75674.47,
+          "closing_price": 75796.58,
+          "close_change_from_entry_pct": -0.06854446959251304,
+          "first_close_above_entry_utc": "2026-11-07T00:15:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 15,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": false
+        },
+        {
+          "hours": 24,
+          "complete": true,
+          "high": 76152.43,
+          "low": 75452.88,
+          "closing_price": 75753.96,
+          "close_change_from_entry_pct": -0.12473537734462026,
+          "first_close_above_entry_utc": "2026-11-07T00:15:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 15,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "entry_time_ny": "2026-11-07T12:15:00-05:00",
+      "entry": 75699.71,
+      "stop": 75570.73928571428,
+      "t1": 76116.73324999999,
+      "t1_distance_atr": 5.241431303192288,
+      "net_r": -1.0,
+      "exit_interval_start_ny": "2026-11-07T15:45:00-05:00",
+      "exit_interval_end_ny": "2026-11-07T16:00:00-05:00",
+      "hold_min_minutes": 210,
+      "hold_max_minutes": 225,
+      "signal_atr15": 79.56285714285643,
+      "stop_distance": 128.97071428572235,
+      "stop_distance_pct": 0.17037147736196392,
+      "stop_distance_atr15": 1.6209914892090074,
+      "stop_buffer_atr15": 0.25000000000008166,
+      "l1": 75507.9,
+      "l2": 75590.63,
+      "higher_low_gap_atr": 1.0398068014509256,
+      "local_h1": 75688.31,
+      "signal_close_above_local_h1": true,
+      "close_beyond_trigger_atr": 0.14014076920325674,
+      "pre_entry_24h_low": 75376.02,
+      "pre_entry_24h_high": 76152.43,
+      "entry_location_in_prior_24h_range": 0.4169060161512692,
+      "pre_exit_max_high": 75789.4,
+      "exit_bar_high": 75617.91,
+      "favorable_stop_distance_lower": 0.695429194889067,
+      "favorable_stop_distance_upper": 0.695429194889067,
+      "initial_stop_touched": true,
+      "stop_bar_open": 75611.49,
+      "stop_bar_high": 75617.91,
+      "stop_bar_low": 75489.17,
+      "stop_bar_close": 75584.59,
+      "stop_bar_close_below_initial_stop": false,
+      "stop_bar_close_below_l2": true,
+      "stop_bar_close_above_entry": false,
+      "stop_bar_also_traded_through_t1": false,
+      "hourly": {
+        "available": true,
+        "last_end_utc": "2026-11-07T17:00:00Z",
+        "last_close": 75640.68,
+        "sma20": 75854.531,
+        "sma20_change": -6.462999999988824,
+        "close_vs_sma_pct": -0.2819225129742198,
+        "atr14": 167.49857142857218,
+        "hour_highs": [
+          {
+            "time": "2026-11-07T03:00:00Z",
+            "price": 75999.11
+          },
+          {
+            "time": "2026-11-07T09:00:00Z",
+            "price": 76152.43
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-11-07T03:00:00Z",
+            "price": 75674.47
+          },
+          {
+            "time": "2026-11-07T12:00:00Z",
+            "price": 75711.39
+          }
+        ],
+        "swing_highs": "HH",
+        "swing_lows": "HL",
+        "entry_vs_known_sma_pct": -0.20410250773285066,
+        "entry_below_latest_confirmed_low": true
+      },
+      "fourhour": {
+        "available": true,
+        "last_end_utc": "2026-11-07T16:00:00Z",
+        "last_close": 75662.97,
+        "sma20": 77298.537,
+        "sma20_change": -117.77700000000186,
+        "close_vs_sma_pct": -2.115909386486825,
+        "atr14": 1014.5978571428578,
+        "hour_highs": [
+          {
+            "time": "2026-11-04T12:00:00Z",
+            "price": 81130.79
+          },
+          {
+            "time": "2026-11-06T12:00:00Z",
+            "price": 76256.44
+          }
+        ],
+        "hour_lows": [
+          {
+            "time": "2026-11-05T20:00:00Z",
+            "price": 75035.1
+          },
+          {
+            "time": "2026-11-06T12:00:00Z",
+            "price": 74722.0
+          }
+        ],
+        "swing_highs": "LH",
+        "swing_lows": "LL",
+        "entry_vs_known_sma_pct": -2.0683793795476246,
+        "entry_below_latest_confirmed_low": false
+      },
+      "prior_6h_return_pct": -0.24011655688064293,
+      "prior_24h_return_pct": -0.18470013587484901,
+      "stop_distance_atr1h": 0.7699809806480673,
+      "post_exit": [
+        {
+          "hours": 1,
+          "complete": true,
+          "high": 75644.0,
+          "low": 75452.88,
+          "closing_price": 75638.53,
+          "close_change_from_entry_pct": -0.08081933206878222,
+          "first_close_above_entry_utc": null,
+          "minutes_from_stop_bar_end_to_recovery": null,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 4,
+          "complete": true,
+          "high": 75811.88,
+          "low": 75452.88,
+          "closing_price": 75697.94,
+          "close_change_from_entry_pct": -0.0023381859719173725,
+          "first_close_above_entry_utc": "2026-11-07T23:45:00Z",
+          "minutes_from_stop_bar_end_to_recovery": 165,
+          "first_target_trade_through_interval_utc": null,
+          "broke_l1": true
+        },
+        {
+          "hours": 24,
+          "complete": false,
+          "observed_bars": 76,
+          "expected_bars": 96
+        }
+      ]
+    }
+  ]
+}

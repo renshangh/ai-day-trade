@@ -1,0 +1,245 @@
+{
+  "scope": "Only the Nov 8 08:15--08:30 candle and this nominated trade; no monthly rerun",
+  "source": {
+    "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60&start=2026-11-08T13%3A15%3A00Z&end=2026-11-08T13%3A31%3A00Z",
+    "retrieved_at": "2026-11-08T19:17:06.762635+00:00",
+    "http_status": 200,
+    "sha256": "aa3126de2313cf18dabdf69f7796ed48bc57514834ed2038fbaa3d92a7b49c92",
+    "granularity_seconds": 60
+  },
+  "source_venue": "Coinbase BTC-USD; kept consistent with the original chart",
+  "source_rollup_matches_archived_15m": true,
+  "rollup": {
+    "open": 76015.62,
+    "high": 76094.99,
+    "low": 75944.77,
+    "close": 75956.19,
+    "volume": 17.2015192
+  },
+  "signal_start_ny": "2026-11-08T08:15:00-05:00",
+  "signal_end_ny": "2026-11-08T08:30:00-05:00",
+  "eligible_window_start_ny": "2026-11-08T08:29:00-05:00",
+  "eligible_window_end_exclusive_ny": "2026-11-08T08:30:00-05:00",
+  "observed_trigger": {
+    "observation_minute_start_ny": "2026-11-08T08:29:00-05:00",
+    "observation_minute_end_ny": "2026-11-08T08:30:00-05:00",
+    "precision": "First trade in this minute bucket; exact trade second is not returned",
+    "in_last_minute": true,
+    "shape_condition": true,
+    "trigger": true,
+    "last_closed_minute_end_ny": "2026-11-08T08:29:00-05:00",
+    "current_price_reference": 75955.04,
+    "known_high": 76094.99,
+    "known_low": 75944.77,
+    "opening_15m": 76015.62,
+    "upper_wick": 79.3700000000099,
+    "range": 150.22000000000116,
+    "upper_wick_fraction": 0.5283584076688143,
+    "watch_level": 76000.0,
+    "used_current_minute_final_high_low_close": false
+  },
+  "entry_start_ny": "2026-11-07T21:30:00-05:00",
+  "entry_end_ny": "2026-11-07T21:45:00-05:00",
+  "entry_reference": 75650.0,
+  "initial_d_start_ny": "2026-11-07T16:30:00-05:00",
+  "initial_d_price": 75452.88,
+  "initial_stop_reference": 75436.61857142858,
+  "original_entry_l2_price": 75545.34,
+  "protection_updates": [
+    {
+      "reason": "raise_parent_stop",
+      "fraction_initial": 0,
+      "known_at_ny": "2026-11-08T03:00:00-05:00",
+      "effective_from_ny": "2026-11-08T03:00:00-05:00",
+      "reference_low": 75655.86,
+      "reference_low_start_ny": "2026-11-08T01:30:00-05:00",
+      "parent_low_confirmed_ny": "2026-11-08T03:00:00-05:00",
+      "reference_peak": 75868.27,
+      "reference_peak_confirmed_ny": "2026-11-08T01:00:00-05:00",
+      "breakout_interval_start_ny": "2026-11-08T02:45:00-05:00",
+      "atr_known_before_breakout": 60.62071428571445,
+      "price_reference": 75640.70482142858
+    },
+    {
+      "reason": "raise_parent_stop",
+      "fraction_initial": 0,
+      "known_at_ny": "2026-11-08T07:00:00-05:00",
+      "effective_from_ny": "2026-11-08T07:00:00-05:00",
+      "reference_low": 75690.0,
+      "reference_low_start_ny": "2026-11-08T05:30:00-05:00",
+      "parent_low_confirmed_ny": "2026-11-08T07:00:00-05:00",
+      "reference_peak": 75880.25,
+      "reference_peak_confirmed_ny": "2026-11-08T04:00:00-05:00",
+      "breakout_interval_start_ny": "2026-11-08T06:15:00-05:00",
+      "atr_known_before_breakout": 63.59428571428517,
+      "price_reference": 75674.10142857143
+    }
+  ],
+  "active_structural_stop_at_observation": 75674.10142857143,
+  "unchanged_first_target": 76118.18496428571,
+  "initial_net_reward_risk": 1.7973463459260528,
+  "exit_fraction": 1.0,
+  "model_pnl_per_initial_btc": {
+    "fraction_initial": 1.0,
+    "quantity_btc": 1.0,
+    "entry_reference": 75650.0,
+    "exit_reference": 75955.04,
+    "gross_pnl": 305.0399999999936,
+    "assumed_roundtrip_friction": 30.321007999999996,
+    "net_pnl": 274.7189919999936
+  },
+  "execution_basis": "Observed minute first-trade price as a paper reference, not a bid/ask quote or confirmed order fill",
+  "cost_basis": "ETF zero-commission learning assumption plus unchanged 2bps per side friction; not an Alpaca crypto fee model",
+  "minutes": [
+    {
+      "start_ny": "2026-11-08T08:15:00-05:00",
+      "end_ny": "2026-11-08T08:16:00-05:00",
+      "open": 76015.62,
+      "high": 76015.63,
+      "low": 76000.33,
+      "close": 76005.61,
+      "volume": 0.82293818,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:16:00-05:00",
+      "end_ny": "2026-11-08T08:17:00-05:00",
+      "open": 76005.61,
+      "high": 76052,
+      "low": 76000,
+      "close": 76050.09,
+      "volume": 3.75915629,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:17:00-05:00",
+      "end_ny": "2026-11-08T08:18:00-05:00",
+      "open": 76050.1,
+      "high": 76052,
+      "low": 76024.14,
+      "close": 76051.42,
+      "volume": 0.74079136,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:18:00-05:00",
+      "end_ny": "2026-11-08T08:19:00-05:00",
+      "open": 76051.42,
+      "high": 76067.12,
+      "low": 76034.44,
+      "close": 76035.56,
+      "volume": 1.00691636,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:19:00-05:00",
+      "end_ny": "2026-11-08T08:20:00-05:00",
+      "open": 76035.55,
+      "high": 76063.49,
+      "low": 76035.55,
+      "close": 76063.49,
+      "volume": 0.57168843,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:20:00-05:00",
+      "end_ny": "2026-11-08T08:21:00-05:00",
+      "open": 76063.49,
+      "high": 76079.92,
+      "low": 76059.67,
+      "close": 76077.52,
+      "volume": 0.32400152,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:21:00-05:00",
+      "end_ny": "2026-11-08T08:22:00-05:00",
+      "open": 76077.53,
+      "high": 76081.82,
+      "low": 76073.56,
+      "close": 76078.31,
+      "volume": 0.68119535,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:22:00-05:00",
+      "end_ny": "2026-11-08T08:23:00-05:00",
+      "open": 76078.32,
+      "high": 76094.99,
+      "low": 76053.47,
+      "close": 76060.08,
+      "volume": 1.18247577,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:23:00-05:00",
+      "end_ny": "2026-11-08T08:24:00-05:00",
+      "open": 76060.08,
+      "high": 76060.08,
+      "low": 75995.95,
+      "close": 75995.95,
+      "volume": 2.41069425,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:24:00-05:00",
+      "end_ny": "2026-11-08T08:25:00-05:00",
+      "open": 75995.95,
+      "high": 75995.95,
+      "low": 75958.21,
+      "close": 75968.96,
+      "volume": 2.373777,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:25:00-05:00",
+      "end_ny": "2026-11-08T08:26:00-05:00",
+      "open": 75967.02,
+      "high": 75981.16,
+      "low": 75967.02,
+      "close": 75978.03,
+      "volume": 0.34498464,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:26:00-05:00",
+      "end_ny": "2026-11-08T08:27:00-05:00",
+      "open": 75978.03,
+      "high": 75978.04,
+      "low": 75944.77,
+      "close": 75949.81,
+      "volume": 1.22692972,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:27:00-05:00",
+      "end_ny": "2026-11-08T08:28:00-05:00",
+      "open": 75949.8,
+      "high": 75960.74,
+      "low": 75949.8,
+      "close": 75955.23,
+      "volume": 0.95977214,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:28:00-05:00",
+      "end_ny": "2026-11-08T08:29:00-05:00",
+      "open": 75955.22,
+      "high": 75961.13,
+      "low": 75952.37,
+      "close": 75955.03,
+      "volume": 0.30898323,
+      "role": "completed before last-minute observation"
+    },
+    {
+      "start_ny": "2026-11-08T08:29:00-05:00",
+      "end_ny": "2026-11-08T08:30:00-05:00",
+      "open": 75955.04,
+      "high": 75961.7,
+      "low": 75953.85,
+      "close": 75956.19,
+      "volume": 0.48721496,
+      "role": "last-minute first-trade observation; final HLC excluded from trigger"
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "scope": "Only Nov 8 08:00 through completed 18:15 bar; candidate rule revision after observing this case, not out-of-sample validation",
+  "source": "Alpaca US BTC/USD 1Min",
+  "source_sha256": "50232b0e395f56e243ba4784164c731560df0cfccd74c38cc4a9c3ab8fbff74f",
+  "source_count": 630,
+  "source_end_exclusive": "2026-11-08T23:30:00Z",
+  "source_last_minute": "2026-11-08T18:29:00-05:00",
+  "timeframe": "15Min",
+  "alternate_timeframes_run": false,
+  "monthly_replay_run": false,
+  "orders_submitted": false,
+  "proposed_routes": {
+    "gradual_decline": "Keep four independent LL phases separated by LH; child rebounds do not reset the whole-cycle count.",
+    "shock_rebound": "Separate draft route: completed bearish new-low impulse with max(open, previous close)-low >= 2 pre-impulse ATR14, completed bullish rebound, pullback holds above impulse D, intrabar break of previous completed 15m high.",
+    "status": "Research draft; explicit new route, not a reduction from four to three and not yet applied to the frozen engine.",
+    "draft_shock_atr_multiple": 2.0,
+    "threshold_search_performed": false,
+    "shared": "Previous-D protection, 0.25 ATR buffer, no chase beyond 0.10 ATR, target/cost/net-2R checks and exits remain separate."
+  },
+  "day_decline_reference": [
+    {
+      "time": "2026-11-08T09:00:00-05:00",
+      "low": 75769.51
+    },
+    {
+      "time": "2026-11-08T12:30:00-05:00",
+      "low": 75561.4305
+    },
+    {
+      "time": "2026-11-08T16:45:00-05:00",
+      "low": 73530.0885
+    }
+  ],
+  "internal_higher_low": {
+    "time": "2026-11-08T14:00:00-05:00",
+    "low": 75728.5535,
+    "prior_low": 75561.4305
+  },
+  "shock": {
+    "start": "2026-11-08T16:45:00-05:00",
+    "end": "2026-11-08T17:00:00-05:00",
+    "open": 75500.0,
+    "high": 75500.0,
+    "low": 73530.0885,
+    "close": 74051.849,
+    "low_minute": "2026-11-08T16:55:00-05:00",
+    "atr_before": 90.61428571428716,
+    "true_range": 1973.9765000000043,
+    "atr_multiple": 21.78438514898283
+  },
+  "rebound": {
+    "start": "2026-11-08T17:00:00-05:00",
+    "known_at": "2026-11-08T17:15:00-05:00",
+    "high": 74660.945,
+    "low": 73939.98,
+    "close": 74428.627
+  },
+  "higher_low": {
+    "start": "2026-11-08T17:30:00-05:00",
+    "known_low_at": "2026-11-08T17:45:00-05:00",
+    "low": 74090.65,
+    "higher_than_shock_d": true
+  },
+  "signal": {
+    "bar_start": "2026-11-08T17:45:00-05:00",
+    "bar_end": "2026-11-08T18:00:00-05:00",
+    "reference_previous_high": 74429.2025,
+    "trigger": 74429.2125,
+    "minute_start": "2026-11-08T17:58:00-05:00",
+    "minute_end": "2026-11-08T17:59:00-05:00",
+    "price_reference": 74429.2125,
+    "l2_held_before_trigger": true,
+    "chase_cap_passed": true,
+    "exact_second_verified": false,
+    "price_reference_not_actual_fill": true,
+    "quote_reference_minute": true,
+    "intrabar_signal": true,
+    "final_15m_close": 74386.017,
+    "close_still_above_trigger": false
+  },
+  "initial_stop": {
+    "d": 73530.0885,
+    "atr_before_entry": 300.77760714285876,
+    "buffer_multiple": 0.25,
+    "price": 73454.89409821428
+  },
+  "larger_structure": {
+    "rebound_high": 74660.945,
+    "reclaimed_before_signal": false,
+    "later_reclaim_minute": "2026-11-08T18:00:00-05:00",
+    "later_information_not_used_for_entry": true
+  },
+  "target_screen": {
+    "target1": 76097.99772142858,
+    "target2": 76293.10715892857,
+    "net_reward_risk": 1.6323215228730312,
+    "net_2r_passed": false,
+    "unchanged_target_state": {
+      "asof": "2026-11-08T22:45:00Z",
+      "entry": 74429.2125,
+      "atr_before": 300.77760714285876,
+      "initial_d": 73530.0885,
+      "stop": 73454.89409821428,
+      "target1": 76097.99772142858,
+      "target2": 76293.10715892857,
+      "net_reward_risk": 1.6323215228730312,
+      "matching_overlap_minutes": 375,
+      "note": "Unchanged draft-3 target selection reconstructed from 9 days of real history, entries disabled. This is a timestamp state audit, not a monthly backtest. New raw data and frozen cache overlap matched exactly."
+    },
+    "nearest_rebound_resistance": 74660.945,
+    "before_nearest_target": 74630.86723928573,
+    "net_rr_to_nearest": 0.1711759548036423
+  },
+  "signal_passed_under_proposed_route": true,
+  "qualified_order": false,
+  "qualification_reason": "Local signal and draft shock route pass; unchanged larger-D protection and original target yield only 1.6323 net R, below 2. No order or eligible-strategy P/L is asserted."
+}

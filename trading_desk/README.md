@@ -1225,3 +1225,14 @@ selection rules.
 
 Crypto research below the selected chart includes token-specific CoinGecko and
 CoinMarketCap links. Switching coins updates both links.
+
+
+## BTC Research Release 0.2
+
+Open /btc-lab for the frozen 0.1/E1/E2 full-sequence comparison. Current-only
+trade/stop/exit tables and the downloadable five-sheet workbook retain gap
+partitions and observed-minute coverage. The original 0.1 execution baseline
+is preserved; both alternatives are separate. The release ZIP verifies and
+reproduces all three sequences offline and can install results for a fresh desk.
+See [0.2 release and installation](../docs/releases/BTC_STRUCTURE_0_2.md) and
+[research rules](../docs/BTC_RESEARCH_DESK.md). No orders are enabled.

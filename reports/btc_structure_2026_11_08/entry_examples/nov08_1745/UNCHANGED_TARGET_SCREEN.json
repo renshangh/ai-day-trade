@@ -1,0 +1,12 @@
+{
+  "asof": "2026-11-08T22:45:00Z",
+  "entry": 74429.2125,
+  "atr_before": 300.77760714285876,
+  "initial_d": 73530.0885,
+  "stop": 73454.89409821428,
+  "target1": 76097.99772142858,
+  "target2": 76293.10715892857,
+  "net_reward_risk": 1.6323215228730312,
+  "matching_overlap_minutes": 375,
+  "note": "Unchanged draft-3 target selection reconstructed from 9 days of real history, entries disabled. This is a timestamp state audit, not a monthly backtest. New raw data and frozen cache overlap matched exactly."
+}

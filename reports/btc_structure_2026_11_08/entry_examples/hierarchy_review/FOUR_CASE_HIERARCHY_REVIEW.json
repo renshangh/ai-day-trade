@@ -1,0 +1,771 @@
+{
+  "scope": "Only #23, #24, #25 and November 7 21:30/21:45 follow-up; no monthly rerun or engine changes",
+  "run_id": "20261108T212857Z-30",
+  "original_run_sha256": "2ced7ba5e48912adc5b97ce7e460672f62b0d9dea652ea4e1b835076a55c23ec",
+  "source_sha256": "be5fc6616d80800cd55c613e887dcbf2cefedba0e32aed195374f587f97738d4",
+  "source": "Alpaca US BTC/USD 1Min, normalized existing archive extraction; not a fresh raw API response",
+  "source_observations": 3239,
+  "review_rules": {
+    "parent": "Keep setup parent D/H1; classify internal pullbacks separately. Promote only the lowest point of a whole correction after the retained parent peak breaks, with confirmation available at the time. Broken D is invalid, not frozen forever.",
+    "new_high": "Must exceed frozen formation H1 and all earlier completed post-entry highs; tiny internal post-entry highs do not qualify.",
+    "midpoint": "Next bar trades strictly below the previous completed new-wave-high candle full-range midpoint. No wait for current 15m close. Full remaining exit.",
+    "wick": "At last-minute first observation, >=50% upper wick at a new wave high, above entry; no $1000 gate. Shape-only interpretation, without an unagreed extra resistance filter.",
+    "costs": "Zero commission, 2bps each way; 1 initial BTC; not actual ETF returns"
+  },
+  "cases": {
+    "23": {
+      "entry": 75560.3875,
+      "entry_time": "2026-11-06T03:15:00-05:00",
+      "original_references": {
+        "l1": {
+          "time": "2026-11-06T05:32:00Z",
+          "price": 75241.685,
+          "known_at": "2026-11-06T07:00:00Z"
+        },
+        "h1": {
+          "time": "2026-11-06T07:45:00Z",
+          "price": 75723.25
+        },
+        "l2": {
+          "time": "2026-11-06T08:00:00Z",
+          "price": 75353.91
+        },
+        "trigger": 75560.3875,
+        "stop": 75179.7030625,
+        "target": 77844.28880357143,
+        "net_reward_risk": 5.484523770040235
+      },
+      "exit_review": {
+        "first_candidate": {
+          "type": "last_minute_new_wave_high_upper_wick",
+          "time": "2026-11-06T04:29:00-05:00",
+          "interval_end": "2026-11-06T04:30:00-05:00",
+          "reference_bar": "2026-11-06T04:15:00-05:00",
+          "known_prefix_minutes": 14,
+          "observed_high": 76172.785,
+          "observed_low": 75989.216,
+          "opening_15m": 75997.3055,
+          "upper_wick_fraction": 0.8821424096661507,
+          "peak_before": 76022.211,
+          "price": 76010.851,
+          "price_basis": "current minute first provider observation; no current final H/L/C",
+          "integer_watch_gate": false,
+          "exact_second_verified": false,
+          "fraction_initial": 1.0,
+          "pnl": {
+            "gross": 450.463499999998,
+            "cost": 30.314247699999996,
+            "net": 420.149252299998,
+            "normalization": "per 1 initial BTC, not ETF actual fills"
+          },
+          "conditional_after_earlier_exit": false
+        },
+        "events": [
+          {
+            "type": "last_minute_new_wave_high_upper_wick",
+            "time": "2026-11-06T04:29:00-05:00",
+            "interval_end": "2026-11-06T04:30:00-05:00",
+            "reference_bar": "2026-11-06T04:15:00-05:00",
+            "known_prefix_minutes": 14,
+            "observed_high": 76172.785,
+            "observed_low": 75989.216,
+            "opening_15m": 75997.3055,
+            "upper_wick_fraction": 0.8821424096661507,
+            "peak_before": 76022.211,
+            "price": 76010.851,
+            "price_basis": "current minute first provider observation; no current final H/L/C",
+            "integer_watch_gate": false,
+            "exact_second_verified": false,
+            "fraction_initial": 1.0,
+            "pnl": {
+              "gross": 450.463499999998,
+              "cost": 30.314247699999996,
+              "net": 420.149252299998,
+              "normalization": "per 1 initial BTC, not ETF actual fills"
+            },
+            "conditional_after_earlier_exit": false
+          },
+          {
+            "type": "next_bar_below_previous_new_high_midpoint",
+            "time": "2026-11-06T04:30:00-05:00",
+            "interval_end": "2026-11-06T04:31:00-05:00",
+            "reference_bar": "2026-11-06T04:15:00-05:00",
+            "reference_known_at": "2026-11-06T04:30:00-05:00",
+            "reference_high": 76172.785,
+            "reference_low": 75989.216,
+            "threshold": 76081.0005,
+            "price": 76034.2845,
+            "price_basis": "actual minute open if already below threshold, otherwise threshold-crossing model",
+            "exact_second_verified": false,
+            "fraction_initial": 1.0,
+            "pnl": {
+              "gross": 473.8969999999972,
+              "cost": 30.3189344,
+              "net": 443.5780655999972,
+              "normalization": "per 1 initial BTC, not ETF actual fills"
+            },
+            "conditional_after_earlier_exit": true
+          },
+          {
+            "type": "next_bar_below_previous_new_high_midpoint",
+            "time": "2026-11-06T05:45:00-05:00",
+            "interval_end": "2026-11-06T05:46:00-05:00",
+            "reference_bar": "2026-11-06T05:30:00-05:00",
+            "reference_known_at": "2026-11-06T05:45:00-05:00",
+            "reference_high": 76188.315,
+            "reference_low": 76030.65,
+            "threshold": 76109.4825,
+            "price": 76109.4825,
+            "price_basis": "actual minute open if already below threshold, otherwise threshold-crossing model",
+            "exact_second_verified": false,
+            "fraction_initial": 1.0,
+            "pnl": {
+              "gross": 549.0950000000012,
+              "cost": 30.333974,
+              "net": 518.7610260000012,
+              "normalization": "per 1 initial BTC, not ETF actual fills"
+            },
+            "conditional_after_earlier_exit": true
+          },
+          {
+            "type": "next_bar_below_previous_new_high_midpoint",
+            "time": "2026-11-06T07:32:00-05:00",
+            "interval_end": "2026-11-06T07:33:00-05:00",
+            "reference_bar": "2026-11-06T07:15:00-05:00",
+            "reference_known_at": "2026-11-06T07:30:00-05:00",
+            "reference_high": 76259.375,
+            "reference_low": 75999.311,
+            "threshold": 76129.343,
+            "price": 76129.343,
+            "price_basis": "actual minute open if already below threshold, otherwise threshold-crossing model",
+            "exact_second_verified": false,
+            "fraction_initial": 1.0,
+            "pnl": {
+              "gross": 568.9554999999964,
+              "cost": 30.337946100000003,
+              "net": 538.6175538999964,
+              "normalization": "per 1 initial BTC, not ETF actual fills"
+            },
+            "conditional_after_earlier_exit": true
+          },
+          {
+            "type": "original_model_exit",
+            "time": "2026-11-06T08:04:00-05:00",
+            "price": 75804.84736607144,
+            "fraction_initial": 1.0,
+            "pnl": {
+              "gross": 244.45986607144005,
+              "cost": 30.27304697321429,
+              "net": 214.18681909822575,
+              "normalization": "per 1 initial BTC, not ETF actual fills"
+            },
+            "conditional_after_earlier_exit": true
+          }
+        ],
+        "original_exit": {
+          "type": "original_model_exit",
+          "time": "2026-11-06T08:04:00-05:00",
+          "price": 75804.84736607144,
+          "fraction_initial": 1.0,
+          "pnl": {
+            "gross": 244.45986607144005,
+            "cost": 30.27304697321429,
+            "net": 214.18681909822575,
+            "normalization": "per 1 initial BTC, not ETF actual fills"
+          },
+          "conditional_after_earlier_exit": true
+        },
+        "caveat": "Conditional on retaining the frozen entry. Later signals are observations only after the earliest exit. No rule cancels a previous-bar midpoint when the current bar makes another new high; that would need a separate decision."
+      },
+      "hierarchy": {
+        "original_d": {
+          "time": "2026-11-06T05:32:00Z",
+          "price": 75241.685,
+          "known_at": "2026-11-06T07:00:00Z"
+        },
+        "first_undercut": "2026-11-06T02:28:00-05:00",
+        "original_d_already_undercut_before_entry": true,
+        "new_large_d_candidate": {
+          "time": "2026-11-06T02:31:00-05:00",
+          "price": 75200.475,
+          "low_bar_end": "2026-11-06T02:45:00-05:00",
+          "hour_pivot_confirmed_at": "2026-11-06T04:00:00-05:00"
+        },
+        "qualification": "Local entry trigger is retained for the exit exercise. Strict hourly D eligibility is unresolved at entry; no future confirmation is backdated and no existing stop is widened."
+      }
+    },
+    "24": {
+      "entry": 75841.45999999999,
+      "entry_time": "2026-11-06T18:25:00-05:00",
+      "original_references": {
+        "l1": {
+          "time": "2026-11-06T21:33:00Z",
+          "price": 75611.95,
+          "known_at": "2026-11-06T23:00:00Z"
+        },
+        "h1": {
+          "time": "2026-11-06T22:00:00Z",
+          "price": 76091.144
+        },
+        "l2": {
+          "time": "2026-11-06T23:00:00Z",
+          "price": 75780.673
+        },
+        "trigger": 75841.45999999999,
+        "stop": 75578.47616964285,
+        "target": 77915.12023571428,
+        "net_reward_risk": 6.966018080155422
+      },
+      "exit_review": {
+        "first_candidate": {
+          "type": "next_bar_below_previous_new_high_midpoint",
+          "time": "2026-11-07T04:02:00-05:00",
+          "interval_end": "2026-11-07T04:03:00-05:00",
+          "reference_bar": "2026-11-07T03:45:00-05:00",
+          "reference_known_at": "2026-11-07T04:00:00-05:00",
+          "reference_high": 76104.247,
+          "reference_low": 76034.59,
+          "threshold": 76069.4185,
+          "price": 76069.4185,
+          "price_basis": "actual minute open if already below threshold, otherwise threshold-crossing model",
+          "exact_second_verified": false,
+          "fraction_initial": 1.0,
+          "pnl": {
+            "gross": 227.95850000000792,
+            "cost": 30.3821757,
+            "net": 197.5763243000079,
+            "normalization": "per 1 initial BTC, not ETF actual fills"
+          },
+          "conditional_after_earlier_exit": false
+        },
+        "events": [
+          {
+            "type": "next_bar_below_previous_new_high_midpoint",
+            "time": "2026-11-07T04:02:00-05:00",
+            "interval_end": "2026-11-07T04:03:00-05:00",
+            "reference_bar": "2026-11-07T03:45:00-05:00",
+            "reference_known_at": "2026-11-07T04:00:00-05:00",
+            "reference_high": 76104.247,
+            "reference_low": 76034.59,
+            "threshold": 76069.4185,
+            "price": 76069.4185,
+            "price_basis": "actual minute open if already below threshold, otherwise threshold-crossing model",
+            "exact_second_verified": false,
+            "fraction_initial": 1.0,
+            "pnl": {
+              "gross": 227.95850000000792,
+              "cost": 30.3821757,
+              "net": 197.5763243000079,
+              "normalization": "per 1 initial BTC, not ETF actual fills"
+            },
+            "conditional_after_earlier_exit": false
+          },
+          {
+            "type": "last_minute_new_wave_high_upper_wick",
+            "time": "2026-11-07T04:14:00-05:00",
+            "interval_end": "2026-11-07T04:15:00-05:00",
+            "reference_bar": "2026-11-07T04:00:00-05:00",
+            "known_prefix_minutes": 14,
+            "observed_high": 76156.095,
+            "observed_low": 76044.035,
+            "opening_15m": 76099.042,
+            "upper_wick_fraction": 0.5091290380153585,
+            "peak_before": 76104.247,
+            "price": 76095.87,
+            "price_basis": "current minute first provider observation; no current final H/L/C",
+            "integer_watch_gate": false,
+            "exact_second_verified": false,
+            "fraction_initial": 1.0,
+            "pnl": {
+              "gross": 254.4100000000035,
+              "cost": 30.387466,
+              "net": 224.0225340000035,
+              "normalization": "per 1 initial BTC, not ETF actual fills"
+            },
+            "conditional_after_earlier_exit": true
+          },
+          {
+            "type": "next_bar_below_previous_new_high_midpoint",
+            "time": "2026-11-07T04:15:00-05:00",
+            "interval_end": "2026-11-07T04:16:00-05:00",
+            "reference_bar": "2026-11-07T04:00:00-05:00",
+            "reference_known_at": "2026-11-07T04:15:00-05:00",
+            "reference_high": 76156.095,
+            "reference_low": 76044.035,
+            "threshold": 76100.065,
+            "price": 76096.46,
+            "price_basis": "actual minute open if already below threshold, otherwise threshold-crossing model",
+            "exact_second_verified": false,
+            "fraction_initial": 1.0,
+            "pnl": {
+              "gross": 255.00000000001455,
+              "cost": 30.387583999999997,
+              "net": 224.61241600001455,
+              "normalization": "per 1 initial BTC, not ETF actual fills"
+            },
+            "conditional_after_earlier_exit": true
+          },
+          {
+            "type": "original_model_exit",
+            "time": "2026-11-07T05:30:00-05:00",
+            "price": 75844.92083035714,
+            "fraction_initial": 1.0,
+            "pnl": {
+              "gross": 3.4608303571440047,
+              "cost": 30.33727616607143,
+              "net": -26.876445808927425,
+              "normalization": "per 1 initial BTC, not ETF actual fills"
+            },
+            "conditional_after_earlier_exit": true
+          }
+        ],
+        "original_exit": {
+          "type": "original_model_exit",
+          "time": "2026-11-07T05:30:00-05:00",
+          "price": 75844.92083035714,
+          "fraction_initial": 1.0,
+          "pnl": {
+            "gross": 3.4608303571440047,
+            "cost": 30.33727616607143,
+            "net": -26.876445808927425,
+            "normalization": "per 1 initial BTC, not ETF actual fills"
+          },
+          "conditional_after_earlier_exit": true
+        },
+        "caveat": "Conditional on retaining the frozen entry. Later signals are observations only after the earliest exit. No rule cancels a previous-bar midpoint when the current bar makes another new high; that would need a separate decision."
+      },
+      "hierarchy": {
+        "parent_peak": {
+          "time": "2026-11-06T22:00:00Z",
+          "price": 76091.144
+        },
+        "first_parent_peak_break": "2026-11-07T03:56:00-05:00",
+        "whole_pullback_low": {
+          "time": "2026-11-06T22:43:00-05:00",
+          "price": 75681.0945,
+          "hour_pivot_confirmed_at": "2026-11-07T00:00:00-05:00"
+        },
+        "internal_low_not_parent": 75862.817,
+        "internal_low_time": "2026-11-07T02:23:00-05:00",
+        "original_promoted_stop": 75844.92083035714,
+        "cycle_stop_candidate": 75664.233125,
+        "candidate_effective_at": "2026-11-07T04:00:00-05:00",
+        "breakout_atr_before": 67.44550000000163,
+        "scope": "Audit the fixed formation H1 and its complete correction after the frozen entry; this does not prove the original entry D was the only possible ancestor."
+      }
+    },
+    "25": {
+      "entry": 75696.68,
+      "entry_time": "2026-11-07T14:57:00-05:00",
+      "original_references": {
+        "l1": {
+          "time": "2026-11-07T15:48:00Z",
+          "price": 75513.915,
+          "known_at": "2026-11-07T17:00:00Z"
+        },
+        "h1": {
+          "time": "2026-11-07T18:15:00Z",
+          "price": 75794.65
+        },
+        "l2": {
+          "time": "2026-11-07T19:30:00Z",
+          "price": 75640.356
+        },
+        "trigger": 75696.68,
+        "stop": 75496.99867857143,
+        "target": 76316.41839107142,
+        "net_reward_risk": 2.563220358683754
+      },
+      "exit_review": {
+        "first_candidate": {
+          "type": "original_model_exit",
+          "time": "2026-11-07T16:31:00-05:00",
+          "price": 75496.99867857143,
+          "fraction_initial": 1.0,
+          "pnl": {
+            "gross": -199.68132142856484,
+            "cost": 30.238735735714286,
+            "net": -229.92005716427911,
+            "normalization": "per 1 initial BTC, not ETF actual fills"
+          },
+          "conditional_after_earlier_exit": false
+        },
+        "events": [
+          {
+            "type": "original_model_exit",
+            "time": "2026-11-07T16:31:00-05:00",
+            "price": 75496.99867857143,
+            "fraction_initial": 1.0,
+            "pnl": {
+              "gross": -199.68132142856484,
+              "cost": 30.238735735714286,
+              "net": -229.92005716427911,
+              "normalization": "per 1 initial BTC, not ETF actual fills"
+            },
+            "conditional_after_earlier_exit": false
+          }
+        ],
+        "original_exit": {
+          "type": "original_model_exit",
+          "time": "2026-11-07T16:31:00-05:00",
+          "price": 75496.99867857143,
+          "fraction_initial": 1.0,
+          "pnl": {
+            "gross": -199.68132142856484,
+            "cost": 30.238735735714286,
+            "net": -229.92005716427911,
+            "normalization": "per 1 initial BTC, not ETF actual fills"
+          },
+          "conditional_after_earlier_exit": false
+        },
+        "caveat": "Conditional on retaining the frozen entry. Later signals are observations only after the earliest exit. No rule cancels a previous-bar midpoint when the current bar makes another new high; that would need a separate decision."
+      },
+      "hierarchy": {
+        "parent_d": {
+          "time": "2026-11-07T15:48:00Z",
+          "price": 75513.915,
+          "known_at": "2026-11-07T17:00:00Z"
+        },
+        "parent_peak": {
+          "time": "2026-11-07T18:15:00Z",
+          "price": 75794.65
+        },
+        "highest_after_entry": 75708.631,
+        "parent_peak_broken": false,
+        "parent_promotions": [],
+        "initial_stop": 75496.99867857143,
+        "original_stop_exit": {
+          "reason": "stop",
+          "time_utc": "2026-11-07T21:31:00Z",
+          "time_ny": "2026-11-07T16:31:00-05:00",
+          "time_basis": "1-minute interval/model reference; exact second and actual fill unverified",
+          "price": 75496.99867857143,
+          "fraction": 1.0,
+          "gross": -199.68132142856484,
+          "cost": 30.238735735714286,
+          "net": -229.92005716427911
+        }
+      }
+    },
+    "2130": {
+      "parent_d": {
+        "time": "2026-11-07T16:31:00-05:00",
+        "price": 75462.2,
+        "confirmed_at": "2026-11-07T18:00:00-05:00"
+      },
+      "parent_peak": {
+        "time": "2026-11-07T18:45:00-05:00",
+        "price": 75815.937
+      },
+      "internal_d_rejected": {
+        "time": "2026-11-07T19:36:00-05:00",
+        "price": 75607.5,
+        "reason": "Internal rebound did not break the retained parent peak"
+      },
+      "previous_15m": {
+        "time": "2026-11-07T21:15:00-05:00",
+        "high": 75655.83,
+        "low": 75545.7915
+      },
+      "candidate_15m": {
+        "time": "2026-11-07T21:30:00-05:00",
+        "high": 75655.535,
+        "low": 75578.7285
+      },
+      "higher_low_pass": true,
+      "trigger": 75655.84,
+      "own_feed_breakout": false,
+      "shortfall_to_previous_high": 0.29499999999825377,
+      "later_crossing_minute": "2026-11-07T21:58:00-05:00",
+      "initial_stop_if_triggered": 75445.00720535713,
+      "unchanged_target": 76121.19836428571,
+      "target_known_at": "2026-11-08T02:30:00Z",
+      "hypothetical_net_reward_risk": 1.8045949290272556,
+      "entry": false,
+      "reason": "L1 rank correction restores the larger-base higher-low structure, but neither an own-feed breakout nor the unchanged 2R gate passes at 21:30. Do not mix Coinbase highs with Alpaca current prices.",
+      "four_swing_gate_passed": true
+    },
+    "2145": {
+      "parent_d": {
+        "time": "2026-11-07T16:31:00-05:00",
+        "price": 75462.2,
+        "confirmed_at": "2026-11-07T18:00:00-05:00"
+      },
+      "parent_peak": {
+        "time": "2026-11-07T18:45:00-05:00",
+        "price": 75815.937
+      },
+      "retained_l2": {
+        "time": "2026-11-07T21:15:00-05:00",
+        "price": 75545.7915
+      },
+      "trigger_bar": {
+        "time": "2026-11-07T21:45:00-05:00",
+        "end": "2026-11-07T22:00:00-05:00"
+      },
+      "previous_15m": {
+        "time": "2026-11-07T21:30:00-05:00",
+        "high": 75655.535,
+        "low": 75578.7285
+      },
+      "trigger": 75655.545,
+      "price": 75655.545,
+      "price_signal": true,
+      "signal_time": "2026-11-07T21:58:00-05:00",
+      "signal_interval_end": "2026-11-07T21:59:00-05:00",
+      "exact_second_verified": false,
+      "quote_reference_minute": true,
+      "l2_unbroken_before_trigger": true,
+      "legacy_previous_bar_is_pullback_minimum": false,
+      "legacy_previous_bar_lower_than_older": false,
+      "atr_before": 69.29449999999841,
+      "initial_stop_if_triggered": 75444.87637499999,
+      "target": 76121.14603214286,
+      "target_zone_known_at": "2026-11-08T02:30:00Z",
+      "gross_reward_risk": 2.210110936751258,
+      "net_reward_risk": 1.8068331024993958,
+      "qualified_under_unchanged_2r": false,
+      "reason": "A real price signal occurs within the 21:45 bar. The frozen engine silently loses it because it requires the immediately preceding bar to be a fresh pullback minimum; the retained L2 remains unbroken. With parent D restored, net 2R still fails. Record the price signal separately from entry eligibility.",
+      "new_four_swing_rule": {
+        "required_independent_lower_swings": 4,
+        "consecutive_lower_candles_do_not_count_as_independent_swings": true,
+        "local_peak": {
+          "time": "2026-11-07T20:00:00-05:00",
+          "price": 75725.2395
+        },
+        "local_peak_diagnostic_candidates": [
+          {
+            "bar_start": "2026-11-07T20:15:00-05:00",
+            "low": 75658.3,
+            "diagnostic_known_at": "2026-11-07T20:45:00-05:00",
+            "status": "local-trough candidate; not asserted to satisfy an unquantified rebound rule"
+          },
+          {
+            "bar_start": "2026-11-07T21:15:00-05:00",
+            "low": 75545.7915,
+            "diagnostic_known_at": "2026-11-07T21:45:00-05:00",
+            "status": "local-trough candidate; not asserted to satisfy an unquantified rebound rule"
+          }
+        ],
+        "parent_peak_diagnostic_candidates": [
+          {
+            "bar_start": "2026-11-07T19:30:00-05:00",
+            "low": 75607.5,
+            "diagnostic_known_at": "2026-11-07T20:00:00-05:00",
+            "status": "local-trough candidate; not asserted to satisfy an unquantified rebound rule"
+          },
+          {
+            "bar_start": "2026-11-07T21:15:00-05:00",
+            "low": 75545.7915,
+            "diagnostic_known_at": "2026-11-07T21:45:00-05:00",
+            "status": "local-trough candidate; not asserted to satisfy an unquantified rebound rule"
+          }
+        ],
+        "owner_full_decline_review": {
+          "count_origin": "2026-11-07T04:00:00-05:00",
+          "origin_role": "full-decline peak, not the 18:45 or 20:00 internal rebound",
+          "coinbase_origin_high": 76152.43,
+          "alpaca_origin_high": 76156.095,
+          "source_sha256": "37d85900edda50010f460e91cf4b68f94a70e4ea89691770f39040a1c884d139",
+          "screenshot_sha256": "77e818e94a81d89b77d2730821fa67d0ea6ba224c012cb263567c9a06085929c",
+          "evidence": [
+            {
+              "number": 1,
+              "owner_15m_start": "2026-11-07T06:15:00-05:00",
+              "coinbase_low": 75818.42,
+              "coinbase_rebound_bar": "2026-11-07T06:30:00-05:00",
+              "coinbase_rebound_ohlc": {
+                "open": 75876.56,
+                "high": 75938.61,
+                "low": 75876.55,
+                "close": 75924.36
+              },
+              "coinbase_known_by": "2026-11-07T06:45:00-05:00",
+              "alpaca_phase_low": 75831.7535,
+              "alpaca_low_minute": "2026-11-07T06:19:00-05:00",
+              "alpaca_rebound_bar": "2026-11-07T06:30:00-05:00",
+              "alpaca_known_by": "2026-11-07T06:45:00-05:00",
+              "confirmation_status": "owner-accepted independent wave, with completed real rebound evidence"
+            },
+            {
+              "number": 2,
+              "owner_15m_start": "2026-11-07T07:30:00-05:00",
+              "coinbase_low": 75711.39,
+              "coinbase_rebound_bar": "2026-11-07T07:45:00-05:00",
+              "coinbase_rebound_ohlc": {
+                "open": 75742.32,
+                "high": 75798.64,
+                "low": 75722.91,
+                "close": 75798.64
+              },
+              "coinbase_known_by": "2026-11-07T08:00:00-05:00",
+              "alpaca_phase_low": 75726.326,
+              "alpaca_low_minute": "2026-11-07T07:46:00-05:00",
+              "alpaca_rebound_bar": "2026-11-07T08:15:00-05:00",
+              "alpaca_known_by": "2026-11-07T08:30:00-05:00",
+              "confirmation_status": "owner-accepted independent wave, with completed real rebound evidence"
+            },
+            {
+              "number": 3,
+              "owner_15m_start": "2026-11-07T10:45:00-05:00",
+              "coinbase_low": 75507.9,
+              "coinbase_rebound_bar": "2026-11-07T11:00:00-05:00",
+              "coinbase_rebound_ohlc": {
+                "open": 75665.69,
+                "high": 75688.31,
+                "low": 75633.16,
+                "close": 75678.04
+              },
+              "coinbase_known_by": "2026-11-07T11:15:00-05:00",
+              "alpaca_phase_low": 75513.915,
+              "alpaca_low_minute": "2026-11-07T10:48:00-05:00",
+              "alpaca_rebound_bar": "2026-11-07T11:00:00-05:00",
+              "alpaca_known_by": "2026-11-07T11:15:00-05:00",
+              "confirmation_status": "owner-accepted independent wave, with completed real rebound evidence"
+            },
+            {
+              "number": 4,
+              "owner_15m_start": "2026-11-07T16:30:00-05:00",
+              "coinbase_low": 75452.88,
+              "coinbase_rebound_bar": "2026-11-07T16:45:00-05:00",
+              "coinbase_rebound_ohlc": {
+                "open": 75591.38,
+                "high": 75644.0,
+                "low": 75559.86,
+                "close": 75638.53
+              },
+              "coinbase_known_by": "2026-11-07T17:00:00-05:00",
+              "alpaca_phase_low": 75462.2,
+              "alpaca_low_minute": "2026-11-07T16:31:00-05:00",
+              "alpaca_rebound_bar": "2026-11-07T16:45:00-05:00",
+              "alpaca_known_by": "2026-11-07T17:00:00-05:00",
+              "confirmation_status": "owner-accepted independent wave, with completed real rebound evidence"
+            }
+          ],
+          "confirmed_count": 4,
+          "known_by": "2026-11-07T17:00:00-05:00",
+          "alpaca_known_by": "2026-11-07T17:00:00-05:00",
+          "manual_case_only": true,
+          "child_rebounds_do_not_reset_count": true,
+          "caveat": "Owner annotations identify the four waves. The general automated parent-wave selection algorithm is not validated by this one case; no monthly result is changed."
+        },
+        "owner_ll_lh_sequence": {
+          "timeframe": "15Min",
+          "owner_confirmed_label_rule": "A rebound exceeding the preceding rebound high is structure strengthening (HH), not LH.",
+          "sequence": "LL1 -> LH1 -> LL2 -> LH2 -> LL3 -> LH3 -> LL4 -> HH -> HL -> local breakout",
+          "providers": {
+            "Coinbase": {
+              "rebounds": [
+                {
+                  "after_low_number": 1,
+                  "bar_start": "2026-11-07T06:45:00-05:00",
+                  "high": 75946.76,
+                  "previous_rebound_high": 76152.43,
+                  "label": "LH",
+                  "turn_known_by": "2026-11-07T07:15:00-05:00"
+                },
+                {
+                  "after_low_number": 2,
+                  "bar_start": "2026-11-07T08:45:00-05:00",
+                  "high": 75892.6,
+                  "previous_rebound_high": 75946.76,
+                  "label": "LH",
+                  "turn_known_by": "2026-11-07T09:15:00-05:00"
+                },
+                {
+                  "after_low_number": 3,
+                  "bar_start": "2026-11-07T13:15:00-05:00",
+                  "high": 75789.4,
+                  "previous_rebound_high": 75892.6,
+                  "label": "LH",
+                  "turn_known_by": "2026-11-07T13:45:00-05:00"
+                },
+                {
+                  "after_low_number": 4,
+                  "bar_start": "2026-11-07T18:45:00-05:00",
+                  "high": 75811.88,
+                  "previous_rebound_high": 75789.4,
+                  "label": "HH",
+                  "turn_known_by": "2026-11-07T19:15:00-05:00"
+                }
+              ],
+              "first_three_are_lower_highs": true,
+              "fourth_rebound_label": "HH",
+              "structure_strengthens": true,
+              "strength_signal_15m_interval": "2026-11-07T18:45:00-05:00",
+              "strength_signal_interval_end": "2026-11-07T19:00:00-05:00",
+              "strength_reference": 75789.4,
+              "strength_highest_reference": "previous rebound high, not 04:00 whole-decline peak",
+              "subsequent_higher_low": {
+                "bar_start": "2026-11-07T21:15:00-05:00",
+                "low": 75545.34,
+                "base_low": 75452.88,
+                "higher": true,
+                "turn_known_by": "2026-11-07T21:45:00-05:00"
+              }
+            },
+            "Alpaca": {
+              "rebounds": [
+                {
+                  "after_low_number": 1,
+                  "bar_start": "2026-11-07T06:30:00-05:00",
+                  "high": 75951.7,
+                  "previous_rebound_high": 76156.095,
+                  "label": "LH",
+                  "turn_known_by": "2026-11-07T07:00:00-05:00"
+                },
+                {
+                  "after_low_number": 2,
+                  "bar_start": "2026-11-07T08:45:00-05:00",
+                  "high": 75897.91,
+                  "previous_rebound_high": 75951.7,
+                  "label": "LH",
+                  "turn_known_by": "2026-11-07T09:15:00-05:00"
+                },
+                {
+                  "after_low_number": 3,
+                  "bar_start": "2026-11-07T13:15:00-05:00",
+                  "high": 75794.65,
+                  "previous_rebound_high": 75897.91,
+                  "label": "LH",
+                  "turn_known_by": "2026-11-07T13:45:00-05:00"
+                },
+                {
+                  "after_low_number": 4,
+                  "bar_start": "2026-11-07T18:45:00-05:00",
+                  "high": 75815.937,
+                  "previous_rebound_high": 75794.65,
+                  "label": "HH",
+                  "turn_known_by": "2026-11-07T19:15:00-05:00"
+                }
+              ],
+              "first_three_are_lower_highs": true,
+              "fourth_rebound_label": "HH",
+              "structure_strengthens": true,
+              "strength_signal_15m_interval": "2026-11-07T18:45:00-05:00",
+              "strength_signal_interval_end": "2026-11-07T19:00:00-05:00",
+              "strength_reference": 75794.65,
+              "strength_highest_reference": "previous rebound high, not 04:00 whole-decline peak",
+              "subsequent_higher_low": {
+                "bar_start": "2026-11-07T21:15:00-05:00",
+                "low": 75545.7915,
+                "base_low": 75462.2,
+                "higher": true,
+                "turn_known_by": "2026-11-07T21:45:00-05:00"
+              }
+            }
+          },
+          "source_sha256": "5752b60aa8ad1d38500f12fc36a2fbb1b23b7997dc43fc420ac22bc70192f54c",
+          "monthly_engine_unchanged": true,
+          "other_timeframes": "30Min and 1Hour reserved for later same-source comparisons; not used to relabel this case",
+          "scope": "Owner-annotated in-sample sequence only. Extrema are reviewed within nominated intervals; turn-known-by evidence is reported, not presented as a validated general live wave detector."
+        },
+        "previous_short_scope_conclusion": "superseded: counting from child rebound peaks incorrectly discarded earlier waves",
+        "qualifying_four_swings_demonstrated": true,
+        "entry": false,
+        "remaining_entry_block": "unchanged net reward/risk is below 2; four-wave condition now passes",
+        "scope": "Owner supplied the count origin and four wave lows, correcting the prior mistaken child-peak reset. Verify each provider separately. General automatic wave ranking remains to be specified; this is an annotated case, not a monthly rerun."
+      }
+    }
+  }
+}

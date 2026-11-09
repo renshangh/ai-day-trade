@@ -833,3 +833,13 @@ aws route53 list-resource-record-sets --hosted-zone-id <ZONEID>
 - `docsrc/` = Sphinx source for the public documentation site
 - `generated-docs/` = local build output from `docsrc/` (gitignored)
 - GitHub Pages should be built + deployed by GitHub Actions on pushes to `dev`
+
+
+## Trading Desk BTC research archive (2026-11-08)
+
+The separate read-only desk BTC path uses the owner-requested Alpaca US crypto
+minute API, preserving raw hashes and absent minutes. Observed-only aggregates
+carry coverage; source quote-midprice bars are labeled and gap-exposed trades
+remain conditional, never silently treated as fully observed broker fills.
+See [BTC_RESEARCH_DESK.md](BTC_RESEARCH_DESK.md) for causal event ordering,
+mechanical/manual differences, negative frozen results and local storage.

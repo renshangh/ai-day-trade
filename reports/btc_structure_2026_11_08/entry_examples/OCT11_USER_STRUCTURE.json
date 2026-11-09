@@ -1,0 +1,1089 @@
+{
+  "scope": "October 11 only; owner-selected D stop and larger-wave target clarification; no monthly rerun.",
+  "original_replay_sha256": "261a78cb347b4b2a832732e0f3e9ca27df1ab4ab35ff6e4c74984e723cf11390",
+  "entry_interval_start_ny": "2026-10-11T10:00:00-04:00",
+  "entry_interval_end_ny": "2026-10-11T10:15:00-04:00",
+  "anchors": {
+    "macro_L1": {
+      "t": 1791691200,
+      "open": 82737.33,
+      "high": 82800.0,
+      "low": 82714.25,
+      "close": 82784.5,
+      "volume": 21.82795767,
+      "start_ny": "2026-10-11T00:00:00-04:00",
+      "end_ny": "2026-10-11T00:15:00-04:00"
+    },
+    "macro_H1": {
+      "t": 1791702000,
+      "open": 83080.72,
+      "high": 83143.24,
+      "low": 83023.52,
+      "close": 83061.02,
+      "volume": 32.36867571,
+      "start_ny": "2026-10-11T03:00:00-04:00",
+      "end_ny": "2026-10-11T03:15:00-04:00"
+    },
+    "macro_L2_D": {
+      "t": 1791715500,
+      "open": 82894.37,
+      "high": 82936.2,
+      "low": 82869.45,
+      "close": 82915.66,
+      "volume": 14.59706315,
+      "start_ny": "2026-10-11T06:45:00-04:00",
+      "end_ny": "2026-10-11T07:00:00-04:00"
+    },
+    "local_H2": {
+      "t": 1791720000,
+      "open": 83074.47,
+      "high": 83176.22,
+      "low": 83074.46,
+      "close": 83133.4,
+      "volume": 20.42542153,
+      "start_ny": "2026-10-11T08:00:00-04:00",
+      "end_ny": "2026-10-11T08:15:00-04:00"
+    },
+    "local_pullback_at_entry": {
+      "t": 1791726300,
+      "open": 82997.57,
+      "high": 83017.48,
+      "low": 82949.22,
+      "close": 82991.75,
+      "volume": 18.95275921,
+      "start_ny": "2026-10-11T09:45:00-04:00",
+      "end_ny": "2026-10-11T10:00:00-04:00"
+    }
+  },
+  "entry_reference": 83017.49,
+  "user_confirmed_stop": 82865.0,
+  "d_to_stop_buffer": 4.44999999999709,
+  "atr_known_at_entry": 71.27428571428547,
+  "larger_resistance_peak": {
+    "time_utc": "2026-10-09T08:00:00Z",
+    "price": 83452.99,
+    "known_at_utc": "2026-10-09T20:00:00Z"
+  },
+  "primary_supply_zone": {
+    "lower": 83398.49982142857,
+    "upper": 83712.56571428571,
+    "members": [
+      {
+        "t": 1791543600,
+        "known_at": 1791554400,
+        "price": 83452.99,
+        "lower": 83398.49982142857,
+        "upper": 83507.48017857144,
+        "atr_hour": 363.26785714285717,
+        "prominence": 1039.9900000000052
+      },
+      {
+        "t": 1791421200,
+        "known_at": 1791432000,
+        "price": 83473.42,
+        "lower": 83413.45010714285,
+        "upper": 83533.38989285714,
+        "atr_hour": 399.7992857142859,
+        "prominence": 407.4400000000023
+      },
+      {
+        "t": 1791403200,
+        "known_at": 1791414000,
+        "price": 83567.58,
+        "lower": 83506.11160714286,
+        "upper": 83629.04839285715,
+        "atr_hour": 409.78928571428594,
+        "prominence": 470.0899999999965
+      },
+      {
+        "t": 1791388800,
+        "known_at": 1791399600,
+        "price": 83655.03,
+        "lower": 83597.49428571429,
+        "upper": 83712.56571428571,
+        "atr_hour": 383.57142857143066,
+        "prominence": 665.8899999999994
+      }
+    ]
+  },
+  "intermediate_obstacles": [
+    {
+      "lower": 83049.54846428572,
+      "upper": 83115.79785714285,
+      "members": [
+        {
+          "t": 1791684000,
+          "known_at": 1791694800,
+          "price": 83070.66,
+          "lower": 83049.54846428572,
+          "upper": 83091.77153571429,
+          "atr_hour": 140.7435714285748,
+          "prominence": 225.1200000000099
+        },
+        {
+          "t": 1791651600,
+          "known_at": 1791662400,
+          "price": 83093.39,
+          "lower": 83070.98214285714,
+          "upper": 83115.79785714285,
+          "atr_hour": 149.3857142857149,
+          "prominence": 191.9100000000035
+        }
+      ]
+    },
+    {
+      "lower": 83120.28228571429,
+      "upper": 83166.19771428572,
+      "members": [
+        {
+          "t": 1791702000,
+          "known_at": 1791712800,
+          "price": 83143.24,
+          "lower": 83120.28228571429,
+          "upper": 83166.19771428572,
+          "atr_hour": 153.05142857143179,
+          "prominence": 208.88000000000466
+        }
+      ]
+    },
+    {
+      "lower": 83174.48839285715,
+      "upper": 83293.95160714285,
+      "members": [
+        {
+          "t": 1791442800,
+          "known_at": 1791453600,
+          "price": 83234.22,
+          "lower": 83174.48839285715,
+          "upper": 83293.95160714285,
+          "atr_hour": 398.21071428571406,
+          "prominence": 508.41999999999825
+        }
+      ]
+    }
+  ],
+  "target1_reference": 83391.37239285714,
+  "next_target_reference": 85434.04692857142,
+  "gross_reward_risk": 2.451848598971235,
+  "net_reward_risk": 1.834475384883682,
+  "minimum_target_for_unchanged_2r": 83422.11091618324,
+  "passes_unchanged_t1_rr": false,
+  "first_target_interval_start_ny": "2026-10-11T11:45:00-04:00",
+  "min_price_before_target_bar": 82929.08,
+  "exit_policy": {
+    "first_exit_fraction_initial": 0.25,
+    "remaining_fraction_initial": 0.75,
+    "initial_stop": 82865.0,
+    "first_exit_moves_stop": false,
+    "stop_recalculation_requires_new_high": true,
+    "stop_may_only_increase": true,
+    "new_high_reference": "strict intrabar break of previous wave peak; baseline first-target bar high",
+    "pullback_reference": "lowest completed bar after prior peak bar and before breakout bar",
+    "stop_buffer_atr": 0.25,
+    "atr_timing": "completed bars known at breakout bar start",
+    "stop_effective": "next 15m bar; OHLC does not prove intrabar order",
+    "remaining_exit_status": "conditional_single_case_exit",
+    "interpretation": "explicit single-case audit convention, not optimized or monthly-validated"
+  },
+  "conditional_exit_trace": [
+    {
+      "interval_start_ny": "2026-10-11T11:45:00-04:00",
+      "interval_end_ny": "2026-10-11T12:00:00-04:00",
+      "reason": "target1",
+      "price_reference": 83391.37239285714,
+      "fraction_initial": 0.25,
+      "stop_after_first_exit": 82865.0,
+      "time_basis": "15m interval only; not a verified fill"
+    },
+    {
+      "known_at_ny": "2026-10-11T12:45:00-04:00",
+      "breakout_interval_start_ny": "2026-10-11T12:30:00-04:00",
+      "effective_from_ny": "2026-10-11T12:45:00-04:00",
+      "reason": "raise_after_new_high",
+      "price_reference": 83594.76464285715,
+      "fraction_initial": 0,
+      "reference_low": 83630.0,
+      "reference_low_start_ny": "2026-10-11T12:00:00-04:00",
+      "atr_known_at_breakout_start": 140.9414285714291
+    },
+    {
+      "known_at_ny": "2026-10-11T13:45:00-04:00",
+      "breakout_interval_start_ny": "2026-10-11T13:30:00-04:00",
+      "effective_from_ny": "2026-10-11T13:45:00-04:00",
+      "reason": "raise_after_new_high",
+      "price_reference": 83613.65232142857,
+      "fraction_initial": 0,
+      "reference_low": 83658.11,
+      "reference_low_start_ny": "2026-10-11T13:00:00-04:00",
+      "atr_known_at_breakout_start": 177.83071428571253
+    },
+    {
+      "interval_start_ny": "2026-10-11T14:45:00-04:00",
+      "interval_end_ny": "2026-10-11T15:00:00-04:00",
+      "reason": "stop",
+      "price_reference": 83613.65232142857,
+      "fraction_initial": 0.75,
+      "time_basis": "15m interval only; conditional reference, not verified fill"
+    }
+  ],
+  "after_first_target_bars": [
+    {
+      "start_ny": "2026-10-11T12:00:00-04:00",
+      "end_ny": "2026-10-11T12:15:00-04:00",
+      "open": 83818.51,
+      "high": 83898.47,
+      "low": 83630.0,
+      "close": 83774.36,
+      "active_stop": 82865.0,
+      "previous_wave_high": 83904.73,
+      "previous_wave_high_start_ny": "2026-10-11T11:45:00-04:00",
+      "new_high": false,
+      "reference_low": null,
+      "reference_low_start_ny": null,
+      "atr_known_at_start": 118.85428571428513,
+      "new_stop": null,
+      "effective_from_ny": null,
+      "action": "hold; no new wave high"
+    },
+    {
+      "start_ny": "2026-10-11T12:15:00-04:00",
+      "end_ny": "2026-10-11T12:30:00-04:00",
+      "open": 83774.4,
+      "high": 83881.03,
+      "low": 83666.0,
+      "close": 83840.51,
+      "active_stop": 82865.0,
+      "previous_wave_high": 83904.73,
+      "previous_wave_high_start_ny": "2026-10-11T11:45:00-04:00",
+      "new_high": false,
+      "reference_low": null,
+      "reference_low_start_ny": null,
+      "atr_known_at_start": 132.04785714285703,
+      "new_stop": null,
+      "effective_from_ny": null,
+      "action": "hold; no new wave high"
+    },
+    {
+      "start_ny": "2026-10-11T12:30:00-04:00",
+      "end_ny": "2026-10-11T12:45:00-04:00",
+      "open": 83840.52,
+      "high": 83957.76,
+      "low": 83707.53,
+      "close": 83856.98,
+      "active_stop": 82865.0,
+      "previous_wave_high": 83904.73,
+      "previous_wave_high_start_ny": "2026-10-11T11:45:00-04:00",
+      "new_high": true,
+      "reference_low": 83630.0,
+      "reference_low_start_ny": "2026-10-11T12:00:00-04:00",
+      "atr_known_at_start": 140.9414285714291,
+      "new_stop": 83594.76464285715,
+      "effective_from_ny": "2026-10-11T12:45:00-04:00",
+      "action": "new wave high; raise stop next bar"
+    },
+    {
+      "start_ny": "2026-10-11T12:45:00-04:00",
+      "end_ny": "2026-10-11T13:00:00-04:00",
+      "open": 83842.09,
+      "high": 83926.34,
+      "low": 83792.39,
+      "close": 83816.37,
+      "active_stop": 83594.76464285715,
+      "previous_wave_high": 83957.76,
+      "previous_wave_high_start_ny": "2026-10-11T12:30:00-04:00",
+      "new_high": false,
+      "reference_low": null,
+      "reference_low_start_ny": null,
+      "atr_known_at_start": 155.17357142857094,
+      "new_stop": null,
+      "effective_from_ny": null,
+      "action": "hold; no new wave high"
+    },
+    {
+      "start_ny": "2026-10-11T13:00:00-04:00",
+      "end_ny": "2026-10-11T13:15:00-04:00",
+      "open": 83816.37,
+      "high": 83819.95,
+      "low": 83658.11,
+      "close": 83745.6,
+      "active_stop": 83594.76464285715,
+      "previous_wave_high": 83957.76,
+      "previous_wave_high_start_ny": "2026-10-11T12:30:00-04:00",
+      "new_high": false,
+      "reference_low": null,
+      "reference_low_start_ny": null,
+      "atr_known_at_start": 161.39642857142775,
+      "new_stop": null,
+      "effective_from_ny": null,
+      "action": "hold; no new wave high"
+    },
+    {
+      "start_ny": "2026-10-11T13:15:00-04:00",
+      "end_ny": "2026-10-11T13:30:00-04:00",
+      "open": 83745.58,
+      "high": 83919.0,
+      "low": 83745.57,
+      "close": 83911.92,
+      "active_stop": 83594.76464285715,
+      "previous_wave_high": 83957.76,
+      "previous_wave_high_start_ny": "2026-10-11T12:30:00-04:00",
+      "new_high": false,
+      "reference_low": null,
+      "reference_low_start_ny": null,
+      "atr_known_at_start": 170.3185714285698,
+      "new_stop": null,
+      "effective_from_ny": null,
+      "action": "hold; no new wave high"
+    },
+    {
+      "start_ny": "2026-10-11T13:30:00-04:00",
+      "end_ny": "2026-10-11T13:45:00-04:00",
+      "open": 83911.92,
+      "high": 84110.99,
+      "low": 83866.87,
+      "close": 83904.93,
+      "active_stop": 83594.76464285715,
+      "previous_wave_high": 83957.76,
+      "previous_wave_high_start_ny": "2026-10-11T12:30:00-04:00",
+      "new_high": true,
+      "reference_low": 83658.11,
+      "reference_low_start_ny": "2026-10-11T13:00:00-04:00",
+      "atr_known_at_start": 177.83071428571253,
+      "new_stop": 83613.65232142857,
+      "effective_from_ny": "2026-10-11T13:45:00-04:00",
+      "action": "new wave high; raise stop next bar"
+    },
+    {
+      "start_ny": "2026-10-11T13:45:00-04:00",
+      "end_ny": "2026-10-11T14:00:00-04:00",
+      "open": 83904.92,
+      "high": 83914.88,
+      "low": 83737.0,
+      "close": 83737.0,
+      "active_stop": 83613.65232142857,
+      "previous_wave_high": 84110.99,
+      "previous_wave_high_start_ny": "2026-10-11T13:30:00-04:00",
+      "new_high": false,
+      "reference_low": null,
+      "reference_low_start_ny": null,
+      "atr_known_at_start": 191.88642857142779,
+      "new_stop": null,
+      "effective_from_ny": null,
+      "action": "hold; no new wave high"
+    },
+    {
+      "start_ny": "2026-10-11T14:00:00-04:00",
+      "end_ny": "2026-10-11T14:15:00-04:00",
+      "open": 83737.0,
+      "high": 83822.28,
+      "low": 83699.56,
+      "close": 83747.31,
+      "active_stop": 83613.65232142857,
+      "previous_wave_high": 84110.99,
+      "previous_wave_high_start_ny": "2026-10-11T13:30:00-04:00",
+      "new_high": false,
+      "reference_low": null,
+      "reference_low_start_ny": null,
+      "atr_known_at_start": 197.41071428571428,
+      "new_stop": null,
+      "effective_from_ny": null,
+      "action": "hold; no new wave high"
+    },
+    {
+      "start_ny": "2026-10-11T14:15:00-04:00",
+      "end_ny": "2026-10-11T14:30:00-04:00",
+      "open": 83747.31,
+      "high": 83819.0,
+      "low": 83714.71,
+      "close": 83792.53,
+      "active_stop": 83613.65232142857,
+      "previous_wave_high": 84110.99,
+      "previous_wave_high_start_ny": "2026-10-11T13:30:00-04:00",
+      "new_high": false,
+      "reference_low": null,
+      "reference_low_start_ny": null,
+      "atr_known_at_start": 199.94642857142858,
+      "new_stop": null,
+      "effective_from_ny": null,
+      "action": "hold; no new wave high"
+    },
+    {
+      "start_ny": "2026-10-11T14:30:00-04:00",
+      "end_ny": "2026-10-11T14:45:00-04:00",
+      "open": 83792.54,
+      "high": 83802.99,
+      "low": 83658.64,
+      "close": 83670.68,
+      "active_stop": 83613.65232142857,
+      "previous_wave_high": 84110.99,
+      "previous_wave_high_start_ny": "2026-10-11T13:30:00-04:00",
+      "new_high": false,
+      "reference_low": null,
+      "reference_low_start_ny": null,
+      "atr_known_at_start": 204.14285714285612,
+      "new_stop": null,
+      "effective_from_ny": null,
+      "action": "hold; no new wave high"
+    },
+    {
+      "start_ny": "2026-10-11T14:45:00-04:00",
+      "end_ny": "2026-10-11T15:00:00-04:00",
+      "open": 83670.68,
+      "high": 83684.93,
+      "low": 83487.73,
+      "close": 83595.19,
+      "active_stop": 83613.65232142857,
+      "previous_wave_high": 84110.99,
+      "previous_wave_high_start_ny": "2026-10-11T13:30:00-04:00",
+      "new_high": false,
+      "reference_low": null,
+      "reference_low_start_ny": null,
+      "atr_known_at_start": 212.22928571428514,
+      "new_stop": null,
+      "effective_from_ny": null,
+      "action": "exit remaining 75%: stop"
+    }
+  ],
+  "old_config": {
+    "version": "V1.2-major-hourly-2026-11-08",
+    "pivot_left_right_bars": 1,
+    "min_higher_low_atr": 0.1,
+    "stop_buffer_atr": 0.25,
+    "target_buffer_atr": 0.1,
+    "limit_chase_atr": 0.1,
+    "setup_expiry_bars": 8,
+    "resistance_lookback_bars": 672,
+    "atr_period": 14,
+    "min_reward_risk": 2.0,
+    "one_way_friction_bps": 2.0,
+    "first_sale_fraction": 0.5,
+    "upper_wick_fraction": 0.5,
+    "resistance_mode": "major1h",
+    "major_pivot_hours": 2,
+    "major_prominence_atr": 1.0,
+    "major_zone_half_atr": 0.15
+  },
+  "target_bar_after_close": {
+    "known_at_ny": "2026-10-11T12:00:00-04:00",
+    "open": 83339.07,
+    "high": 83904.73,
+    "low": 83311.26,
+    "close": 83818.5,
+    "true_range": 593.4700000000012,
+    "prior_completed_atr": 83.60357142857018,
+    "tr_to_prior_atr": 7.098620188816388,
+    "close_location": 0.8547020068411281
+  },
+  "bars": [
+    {
+      "start_ny": "2026-10-11T00:00:00-04:00",
+      "end_ny": "2026-10-11T00:15:00-04:00",
+      "open": 82737.33,
+      "high": 82800.0,
+      "low": 82714.25,
+      "close": 82784.5,
+      "label": "macro_L1",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T00:15:00-04:00",
+      "end_ny": "2026-10-11T00:30:00-04:00",
+      "open": 82784.5,
+      "high": 82828.19,
+      "low": 82784.5,
+      "close": 82823.98,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T00:30:00-04:00",
+      "end_ny": "2026-10-11T00:45:00-04:00",
+      "open": 82823.99,
+      "high": 82920.71,
+      "low": 82822.2,
+      "close": 82917.6,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T00:45:00-04:00",
+      "end_ny": "2026-10-11T01:00:00-04:00",
+      "open": 82917.6,
+      "high": 82947.83,
+      "low": 82910.09,
+      "close": 82934.37,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T01:00:00-04:00",
+      "end_ny": "2026-10-11T01:15:00-04:00",
+      "open": 82934.36,
+      "high": 82967.93,
+      "low": 82934.36,
+      "close": 82950.18,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T01:15:00-04:00",
+      "end_ny": "2026-10-11T01:30:00-04:00",
+      "open": 82950.18,
+      "high": 83009.99,
+      "low": 82940.26,
+      "close": 82976.47,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T01:30:00-04:00",
+      "end_ny": "2026-10-11T01:45:00-04:00",
+      "open": 82976.47,
+      "high": 83009.25,
+      "low": 82971.74,
+      "close": 82991.74,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T01:45:00-04:00",
+      "end_ny": "2026-10-11T02:00:00-04:00",
+      "open": 82991.74,
+      "high": 82991.78,
+      "low": 82961.25,
+      "close": 82963.04,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T02:00:00-04:00",
+      "end_ny": "2026-10-11T02:15:00-04:00",
+      "open": 82963.05,
+      "high": 82988.3,
+      "low": 82956.44,
+      "close": 82957.86,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T02:15:00-04:00",
+      "end_ny": "2026-10-11T02:30:00-04:00",
+      "open": 82957.85,
+      "high": 82985.99,
+      "low": 82951.01,
+      "close": 82985.99,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T02:30:00-04:00",
+      "end_ny": "2026-10-11T02:45:00-04:00",
+      "open": 82985.99,
+      "high": 83051.58,
+      "low": 82985.88,
+      "close": 83049.18,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T02:45:00-04:00",
+      "end_ny": "2026-10-11T03:00:00-04:00",
+      "open": 83049.18,
+      "high": 83116.52,
+      "low": 83046.92,
+      "close": 83081.97,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T03:00:00-04:00",
+      "end_ny": "2026-10-11T03:15:00-04:00",
+      "open": 83080.72,
+      "high": 83143.24,
+      "low": 83023.52,
+      "close": 83061.02,
+      "label": "macro_H1",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T03:15:00-04:00",
+      "end_ny": "2026-10-11T03:30:00-04:00",
+      "open": 83061.02,
+      "high": 83139.71,
+      "low": 82962.45,
+      "close": 82991.05,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T03:30:00-04:00",
+      "end_ny": "2026-10-11T03:45:00-04:00",
+      "open": 82991.06,
+      "high": 83002.61,
+      "low": 82925.06,
+      "close": 82930.48,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T03:45:00-04:00",
+      "end_ny": "2026-10-11T04:00:00-04:00",
+      "open": 82930.48,
+      "high": 82942.06,
+      "low": 82919.52,
+      "close": 82941.07,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T04:00:00-04:00",
+      "end_ny": "2026-10-11T04:15:00-04:00",
+      "open": 82941.08,
+      "high": 82982.99,
+      "low": 82941.08,
+      "close": 82974.89,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T04:15:00-04:00",
+      "end_ny": "2026-10-11T04:30:00-04:00",
+      "open": 82974.89,
+      "high": 82994.83,
+      "low": 82895.59,
+      "close": 82967.9,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T04:30:00-04:00",
+      "end_ny": "2026-10-11T04:45:00-04:00",
+      "open": 82967.91,
+      "high": 83019.24,
+      "low": 82916.0,
+      "close": 82997.93,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T04:45:00-04:00",
+      "end_ny": "2026-10-11T05:00:00-04:00",
+      "open": 83007.0,
+      "high": 83007.0,
+      "low": 82952.34,
+      "close": 82956.58,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T05:00:00-04:00",
+      "end_ny": "2026-10-11T05:15:00-04:00",
+      "open": 82956.58,
+      "high": 83042.52,
+      "low": 82932.81,
+      "close": 82951.28,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T05:15:00-04:00",
+      "end_ny": "2026-10-11T05:30:00-04:00",
+      "open": 82951.27,
+      "high": 82988.4,
+      "low": 82940.5,
+      "close": 82957.69,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T05:30:00-04:00",
+      "end_ny": "2026-10-11T05:45:00-04:00",
+      "open": 82963.28,
+      "high": 82980.22,
+      "low": 82942.85,
+      "close": 82965.79,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T05:45:00-04:00",
+      "end_ny": "2026-10-11T06:00:00-04:00",
+      "open": 82965.79,
+      "high": 82969.39,
+      "low": 82905.11,
+      "close": 82961.12,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T06:00:00-04:00",
+      "end_ny": "2026-10-11T06:15:00-04:00",
+      "open": 82961.12,
+      "high": 83008.0,
+      "low": 82941.4,
+      "close": 82945.9,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T06:15:00-04:00",
+      "end_ny": "2026-10-11T06:30:00-04:00",
+      "open": 82945.9,
+      "high": 82947.97,
+      "low": 82900.01,
+      "close": 82905.76,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T06:30:00-04:00",
+      "end_ny": "2026-10-11T06:45:00-04:00",
+      "open": 82905.76,
+      "high": 82908.88,
+      "low": 82891.37,
+      "close": 82894.37,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T06:45:00-04:00",
+      "end_ny": "2026-10-11T07:00:00-04:00",
+      "open": 82894.37,
+      "high": 82936.2,
+      "low": 82869.45,
+      "close": 82915.66,
+      "label": "macro_L2_D",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T07:00:00-04:00",
+      "end_ny": "2026-10-11T07:15:00-04:00",
+      "open": 82910.23,
+      "high": 82966.48,
+      "low": 82910.23,
+      "close": 82922.39,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T07:15:00-04:00",
+      "end_ny": "2026-10-11T07:30:00-04:00",
+      "open": 82922.39,
+      "high": 83012.88,
+      "low": 82922.39,
+      "close": 82981.66,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T07:30:00-04:00",
+      "end_ny": "2026-10-11T07:45:00-04:00",
+      "open": 82981.67,
+      "high": 82985.82,
+      "low": 82949.83,
+      "close": 82975.22,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T07:45:00-04:00",
+      "end_ny": "2026-10-11T08:00:00-04:00",
+      "open": 82975.21,
+      "high": 83127.06,
+      "low": 82975.21,
+      "close": 83074.47,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T08:00:00-04:00",
+      "end_ny": "2026-10-11T08:15:00-04:00",
+      "open": 83074.47,
+      "high": 83176.22,
+      "low": 83074.46,
+      "close": 83133.4,
+      "label": "local_H2",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T08:15:00-04:00",
+      "end_ny": "2026-10-11T08:30:00-04:00",
+      "open": 83123.05,
+      "high": 83125.84,
+      "low": 83033.44,
+      "close": 83046.51,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T08:30:00-04:00",
+      "end_ny": "2026-10-11T08:45:00-04:00",
+      "open": 83046.51,
+      "high": 83100.34,
+      "low": 83016.58,
+      "close": 83085.48,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T08:45:00-04:00",
+      "end_ny": "2026-10-11T09:00:00-04:00",
+      "open": 83085.48,
+      "high": 83091.9,
+      "low": 83001.38,
+      "close": 83017.27,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T09:00:00-04:00",
+      "end_ny": "2026-10-11T09:15:00-04:00",
+      "open": 83017.28,
+      "high": 83030.99,
+      "low": 82980.01,
+      "close": 83009.63,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T09:15:00-04:00",
+      "end_ny": "2026-10-11T09:30:00-04:00",
+      "open": 83009.62,
+      "high": 83037.33,
+      "low": 82990.5,
+      "close": 83002.87,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T09:30:00-04:00",
+      "end_ny": "2026-10-11T09:45:00-04:00",
+      "open": 83002.86,
+      "high": 83031.32,
+      "low": 82994.39,
+      "close": 82997.57,
+      "label": "",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T09:45:00-04:00",
+      "end_ny": "2026-10-11T10:00:00-04:00",
+      "open": 82997.57,
+      "high": 83017.48,
+      "low": 82949.22,
+      "close": 82991.75,
+      "label": "local_pullback_at_entry",
+      "user_stop": null
+    },
+    {
+      "start_ny": "2026-10-11T10:00:00-04:00",
+      "end_ny": "2026-10-11T10:15:00-04:00",
+      "open": 82991.75,
+      "high": 83025.06,
+      "low": 82977.72,
+      "close": 82992.78,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T10:15:00-04:00",
+      "end_ny": "2026-10-11T10:30:00-04:00",
+      "open": 82992.78,
+      "high": 83029.62,
+      "low": 82929.08,
+      "close": 83010.53,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T10:30:00-04:00",
+      "end_ny": "2026-10-11T10:45:00-04:00",
+      "open": 83010.53,
+      "high": 83088.35,
+      "low": 83001.13,
+      "close": 83047.01,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T10:45:00-04:00",
+      "end_ny": "2026-10-11T11:00:00-04:00",
+      "open": 83047.0,
+      "high": 83078.94,
+      "low": 83033.4,
+      "close": 83046.82,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T11:00:00-04:00",
+      "end_ny": "2026-10-11T11:15:00-04:00",
+      "open": 83046.84,
+      "high": 83068.74,
+      "low": 83037.6,
+      "close": 83044.89,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T11:15:00-04:00",
+      "end_ny": "2026-10-11T11:30:00-04:00",
+      "open": 83044.9,
+      "high": 83086.29,
+      "low": 83015.27,
+      "close": 83051.37,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T11:30:00-04:00",
+      "end_ny": "2026-10-11T11:45:00-04:00",
+      "open": 83051.37,
+      "high": 83361.78,
+      "low": 83051.37,
+      "close": 83339.07,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T11:45:00-04:00",
+      "end_ny": "2026-10-11T12:00:00-04:00",
+      "open": 83339.07,
+      "high": 83904.73,
+      "low": 83311.26,
+      "close": 83818.5,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T12:00:00-04:00",
+      "end_ny": "2026-10-11T12:15:00-04:00",
+      "open": 83818.51,
+      "high": 83898.47,
+      "low": 83630.0,
+      "close": 83774.36,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T12:15:00-04:00",
+      "end_ny": "2026-10-11T12:30:00-04:00",
+      "open": 83774.4,
+      "high": 83881.03,
+      "low": 83666.0,
+      "close": 83840.51,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T12:30:00-04:00",
+      "end_ny": "2026-10-11T12:45:00-04:00",
+      "open": 83840.52,
+      "high": 83957.76,
+      "low": 83707.53,
+      "close": 83856.98,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T12:45:00-04:00",
+      "end_ny": "2026-10-11T13:00:00-04:00",
+      "open": 83842.09,
+      "high": 83926.34,
+      "low": 83792.39,
+      "close": 83816.37,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T13:00:00-04:00",
+      "end_ny": "2026-10-11T13:15:00-04:00",
+      "open": 83816.37,
+      "high": 83819.95,
+      "low": 83658.11,
+      "close": 83745.6,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T13:15:00-04:00",
+      "end_ny": "2026-10-11T13:30:00-04:00",
+      "open": 83745.58,
+      "high": 83919.0,
+      "low": 83745.57,
+      "close": 83911.92,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T13:30:00-04:00",
+      "end_ny": "2026-10-11T13:45:00-04:00",
+      "open": 83911.92,
+      "high": 84110.99,
+      "low": 83866.87,
+      "close": 83904.93,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T13:45:00-04:00",
+      "end_ny": "2026-10-11T14:00:00-04:00",
+      "open": 83904.92,
+      "high": 83914.88,
+      "low": 83737.0,
+      "close": 83737.0,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T14:00:00-04:00",
+      "end_ny": "2026-10-11T14:15:00-04:00",
+      "open": 83737.0,
+      "high": 83822.28,
+      "low": 83699.56,
+      "close": 83747.31,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T14:15:00-04:00",
+      "end_ny": "2026-10-11T14:30:00-04:00",
+      "open": 83747.31,
+      "high": 83819.0,
+      "low": 83714.71,
+      "close": 83792.53,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T14:30:00-04:00",
+      "end_ny": "2026-10-11T14:45:00-04:00",
+      "open": 83792.54,
+      "high": 83802.99,
+      "low": 83658.64,
+      "close": 83670.68,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T14:45:00-04:00",
+      "end_ny": "2026-10-11T15:00:00-04:00",
+      "open": 83670.68,
+      "high": 83684.93,
+      "low": 83487.73,
+      "close": 83595.19,
+      "label": "",
+      "user_stop": 82865.0
+    },
+    {
+      "start_ny": "2026-10-11T15:00:00-04:00",
+      "end_ny": "2026-10-11T15:15:00-04:00",
+      "open": 83595.19,
+      "high": 83646.83,
+      "low": 83559.79,
+      "close": 83612.88,
+      "label": "",
+      "user_stop": 82865.0
+    }
+  ]
+}

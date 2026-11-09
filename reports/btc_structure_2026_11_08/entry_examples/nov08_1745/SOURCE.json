@@ -1,0 +1,16 @@
+{
+  "source": "Alpaca US BTC/USD 1Min",
+  "params": {
+    "symbols": "BTC/USD",
+    "timeframe": "1Min",
+    "start": "2026-11-08T13:00:00Z",
+    "end": "2026-11-08T23:30:00Z",
+    "limit": 10000,
+    "sort": "asc"
+  },
+  "retrieved_at_utc": "2026-11-08T23:43:01Z",
+  "sha256": "50232b0e395f56e243ba4784164c731560df0cfccd74c38cc4a9c3ab8fbff74f",
+  "count": 630,
+  "missing_minutes": 0,
+  "normalization": "BTC signal study only, not ETF fills"
+}

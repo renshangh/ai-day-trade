@@ -1,0 +1,6 @@
+{
+  "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=900&start=2026-11-08T13%3A00%3A00Z&end=2026-11-08T23%3A30%3A00Z",
+  "sha256": "d38588b6bf5d6a74ec8f993d1552df97a2c192aa2117d7a482cce8ab00d9fdc8",
+  "retrieved_at_utc": "2026-11-08T23:43:54Z",
+  "note": "Cross-check chart timestamps only; do not mix these prices into Alpaca entry or P/L"
+}

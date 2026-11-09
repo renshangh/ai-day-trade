@@ -1,0 +1,1 @@
+{"source": "Alpaca US BTC/USD real observed minute archive", "baseline_run": "20261109T002127Z-30-ab", "start": "2026-10-03T00:00:00Z", "end_exclusive": "2026-10-14T04:00:00Z", "count": 14780, "missing_minutes": 1300, "sha256": "bd9673218226f8836f1b2281f7d7974afc2c9fbfd0446f12ac4bbd159ca3773d", "policy": "Absent minutes stay absent; no interpolation or synthetic bars"}

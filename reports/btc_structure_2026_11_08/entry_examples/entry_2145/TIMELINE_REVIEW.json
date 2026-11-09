@@ -1,0 +1,168 @@
+{
+  "scope": "Only conditional November 7 21:45 setup; no monthly run, broker orders or entry-gate override",
+  "source": "Alpaca US BTC/USD 1Min; normalized read-only extraction of preserved archive, not raw API response",
+  "source_sha256": "c8e7be7f8310982c7737bf35f7e708dd1709a340e1935b38f2b0ed19aa189244",
+  "source_start": "2026-11-07T19:00:00Z",
+  "source_end_exclusive": "2026-11-08T14:00:00Z",
+  "entry_qualification": {
+    "four_independent_lows": true,
+    "hh_then_hl": true,
+    "price_signal": true,
+    "net_reward_risk": 1.8068331024993958,
+    "net_2r_passed": false,
+    "mode": "conditional teaching entry, not a qualified strategy trade"
+  },
+  "entry_reference": 75655.545,
+  "entry_time": "2026-11-07T21:58:00-05:00",
+  "initial_d": {
+    "time": "2026-11-07T16:31:00-05:00",
+    "price": 75462.2,
+    "confirmed_at": "2026-11-07T18:00:00-05:00"
+  },
+  "atr_before": 69.29449999999841,
+  "initial_stop": 75444.87637499999,
+  "target": 76121.14603214286,
+  "target_touched_before_exit": false,
+  "whole_initial_pullback_low": {
+    "time": "2026-11-07T21:16:00-05:00",
+    "price": 75545.7915
+  },
+  "stop_raises": [],
+  "stop_raises_before_exit": 0,
+  "initial_stop_touched_before_exit": false,
+  "confirmed_new_lows_before_exit_15m": [],
+  "confirmed_new_lows_before_exit_hourly": [],
+  "next_low_candidate": {
+    "bar_start": "2026-11-07T22:30:00-05:00",
+    "low_time": "2026-11-07T22:35:00-05:00",
+    "low": 75734.171,
+    "known_at": "2026-11-07T23:00:00-05:00",
+    "step_seconds": 900
+  },
+  "next_low_known_after_exit": true,
+  "first_new_high": "2026-11-07T22:12:00-05:00",
+  "second_new_high": "2026-11-07T22:47:00-05:00",
+  "prior_completed_high": 75820.689,
+  "new_high_increment": 0.8659999999945285,
+  "midpoint_check": {
+    "reference_bar": "2026-11-07T22:00:00-05:00",
+    "known_at": "2026-11-07T22:15:00-05:00",
+    "threshold": 75754.455,
+    "following_bar_low": 75756.175,
+    "triggered": false
+  },
+  "exit": {
+    "type": "last_minute_new_wave_high_upper_wick",
+    "time": "2026-11-07T22:59:00-05:00",
+    "interval_end": "2026-11-07T23:00:00-05:00",
+    "reference_bar": "2026-11-07T22:45:00-05:00",
+    "known_prefix_minutes": 14,
+    "observed_high": 75821.555,
+    "observed_low": 75761.41,
+    "opening_15m": 75769.8815,
+    "upper_wick_fraction": 0.7055449330784781,
+    "peak_before": 75820.689,
+    "price": 75779.12,
+    "price_basis": "current minute first provider observation; no current final H/L/C",
+    "integer_watch_gate": false,
+    "exact_second_verified": false,
+    "fraction_initial": 1.0,
+    "pnl": {
+      "gross": 123.575,
+      "cost": 30.286933,
+      "net": 93.288067,
+      "normalization": "per 1 initial BTC, not ETF actual fills"
+    },
+    "conditional_after_earlier_exit": false
+  },
+  "exit_minute_final_hlc_excluded_from_wick": true,
+  "exit_minute_actual_final_close_not_used": 75810.965,
+  "fraction_exited": 1.0,
+  "pnl": {
+    "gross": 123.575,
+    "cost": 30.286933,
+    "net": 93.288067,
+    "normalization": "per 1 initial BTC, not ETF actual fills"
+  },
+  "timeline": [
+    {
+      "event": "结构就绪",
+      "time": "2026-11-07T21:45:00-05:00",
+      "basis": "四轮下探已完成；18:45反弹转HH，21:15回踩为HL，右侧完整K线已结束",
+      "reference": 75545.7915,
+      "stop": null,
+      "remaining": 0.0,
+      "realized": null
+    },
+    {
+      "event": "假设入场",
+      "time": "2026-11-07T21:58:00-05:00",
+      "interval_end": "2026-11-07T21:59:00-05:00",
+      "basis": "突破21:30–21:45完整K线最高75,655.535＋0.01",
+      "reference": 75655.545,
+      "stop": 75444.87637499999,
+      "remaining": 1.0,
+      "realized": null
+    },
+    {
+      "event": "初始止损立即保护",
+      "time": "2026-11-07T21:58:00-05:00",
+      "interval_end": "2026-11-07T21:59:00-05:00",
+      "basis": "假设成交后立即；16:30前D75,462.20减0.25×入场前ATR69.2945",
+      "reference": 75462.2,
+      "stop": 75444.87637499999,
+      "remaining": 1.0,
+      "realized": null
+    },
+    {
+      "event": "首次破较大反弹峰；不上移",
+      "time": "2026-11-07T22:12:00-05:00",
+      "interval_end": "2026-11-07T22:13:00-05:00",
+      "basis": "越过18:45峰75,815.937；整段回调最低仍为入场前L2，不把内部21:45低点当新父D",
+      "reference": 75820.689,
+      "stop": 75444.87637499999,
+      "remaining": 1.0,
+      "realized": null
+    },
+    {
+      "event": "50%回吐未触发",
+      "time": "2026-11-07T22:30:00-05:00",
+      "basis": "此时22:15–22:30已完成，最低75,756.175仍高于前根新高中点75,754.455",
+      "reference": 75754.455,
+      "stop": 75444.87637499999,
+      "remaining": 1.0,
+      "realized": null
+    },
+    {
+      "event": "再创新高；不上移",
+      "time": "2026-11-07T22:47:00-05:00",
+      "interval_end": "2026-11-07T22:48:00-05:00",
+      "basis": "22:30低点75,734.171仍是候选，右侧22:45–23:00尚未结束；此前没有有效同级上移锚点",
+      "reference": 75821.555,
+      "stop": 75444.87637499999,
+      "remaining": 1.0,
+      "realized": null
+    },
+    {
+      "event": "长上影退出全部",
+      "time": "2026-11-07T22:59:00-05:00",
+      "interval_end": "2026-11-07T23:00:00-05:00",
+      "basis": "最后一分钟首价；此前14分钟＋当前首价已知上影70.55%，不绑定整数关口",
+      "reference": 75779.12,
+      "stop": 75444.87637499999,
+      "remaining": 0.0,
+      "realized": {
+        "gross": 123.575,
+        "cost": 30.286933,
+        "net": 93.288067,
+        "normalization": "per 1 initial BTC, not ETF actual fills"
+      }
+    }
+  ],
+  "notes": [
+    "No fixed target was reached, so no 25%/75% target legs exist.",
+    "The new high is only $0.866 above the preceding peak; no unapproved minimum-breakout filter is added.",
+    "No stop raises occurred before exit; later highs/lows are not attributed to an already closed trade.",
+    "Minute observations may be quotes. Exact trigger seconds, bid/ask and actual fills are unverified."
+  ]
+}

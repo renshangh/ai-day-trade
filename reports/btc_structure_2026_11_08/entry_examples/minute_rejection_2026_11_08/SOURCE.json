@@ -1,0 +1,7 @@
+{
+  "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60&start=2026-11-08T13%3A15%3A00Z&end=2026-11-08T13%3A31%3A00Z",
+  "retrieved_at": "2026-11-08T19:17:06.762635+00:00",
+  "http_status": 200,
+  "sha256": "aa3126de2313cf18dabdf69f7796ed48bc57514834ed2038fbaa3d92a7b49c92",
+  "granularity_seconds": 60
+}
