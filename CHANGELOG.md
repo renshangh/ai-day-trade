@@ -1,5 +1,14 @@
 # Changelog
 
+## BTC Live Paper - Unreleased
+
+### Fixed
+- Enable and verify the macOS launchd login worker using internal-home startup/log paths, the existing removable-volume permission and explicit launchd ownership. Safely migrate the exact earlier registration with a backup, preserve the live session and retire the local-session supervisor. KeepAlive recovery operates independently of browser/dashboard startup; trading rules, frozen artifacts and no-order mode remain unchanged.
+- Keep rolled-back model state out of conflict reports, scope date queries to New York day boundaries, discard delayed responses after model/date changes, and reap manually supervised children on termination. Add actual-minute, daylight-saving, request-ordering and lifecycle regression checks.
+
+### Added
+- Add an operating BTC/USD comparison-only page and persistent worker for independent 0.1/E1/E2 forward records. Pin thirteen trading-source hashes to frozen 0.2, preserve actual minute provenance, separate detection times and current quotes from historical reference prices, and reconstruct state idempotently after restart. Add supervised-process startup, freshness/gap status, explicit no-order controls and real-minute recovery/HTTP regressions. Retain the frozen 1-BTC/2bps benchmark label; no actual crypto fee-adjusted return, broker paper fill or ETF execution is claimed.
+
 ## BTC Research 0.2 - 2026-11-09
 
 ### Added

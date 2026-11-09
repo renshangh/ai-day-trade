@@ -8,6 +8,17 @@ Audience: Trading Desk owner and maintainers
 
 ## Overview
 
+The separate [Live Paper operating page](BTC_LIVE_PAPER.md) is available at
+/btc-live. It runs newly received BTC/USD observations in three independent
+comparison records, under the owner's comparison-only instruction. This is a
+minute-based signal benchmark, not an Alpaca broker-paper execution path.
+Detection time, market reference time, quote freshness and recovery are explicit.
+The macOS login service now starts the comparison directly under launchd with
+RunAtLoad and KeepAlive. Python removable-volume access was verified enabled;
+the internal-disk working/log paths avoid the earlier external-directory
+startup failure. No browser/dashboard dependency or broader privacy grant is
+introduced. See the operating guide for installation and recovery checks.
+
 The approved comparison is published as BTC Research Release 0.2, tag
 btc-research-v0.2. See [release contents and offline installation](releases/BTC_STRUCTURE_0_2.md).
 The desk labels this review 0.2 while 0.1 remains the original execution

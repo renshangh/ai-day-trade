@@ -1,5 +1,28 @@
 # Trading Desk
 
+## BTC Live Paper
+
+Open <http://127.0.0.1:8799/btc-live>, verify **Running** and fresh data, then
+choose **0.1**, **E1** or **E2**. **Pause comparison** stops processing;
+**Start / resume comparison** continues the same session. The page can stay
+closed: the macOS login service runs independently and restarts the worker.
+This is BTC/USD comparison only; no broker orders or paper-account fills.
+
+From this repository, read status without starting another worker:
+
+    python3 scripts/run_btc_live.py --status
+
+Install/enable automatic login startup and comparison intent:
+
+    python3 scripts/run_btc_live.py --install-agent --enable
+
+If the viewing server is not running:
+
+    python3 trading_desk/server.py --port 8799
+
+Keep the external drive connected. Frozen 0.2 rules and artifacts remain
+unchanged. See [operation and recovery](../docs/BTC_LIVE_PAPER.md).
+
 ## Trading learning manual
 
 Read the [交易学习手册 / Trading Learning Manual](../docs/TRADING_LEARNING_MANUAL.md)

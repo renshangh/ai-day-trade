@@ -10,6 +10,49 @@ A read-only thirty-day BTCUSD signal experiment and spreadsheet.
 Overview
 --------
 
+BTC/USD live comparison
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Open ``/btc-live`` for the owner's comparison-only BTC/USD workflow. IBIT and
+ETF execution are excluded. The separate worker polls completed Alpaca minutes
+every 15 seconds, uses seven days of actual warmup, verifies thirteen frozen
+0.2 strategy-source hashes and keeps independent 0.1/E1/E2 records.
+
+The interface separates the rule's historical reference time from actual
+receipt/detection time and current BTC quotes. It never backdates a broker fill.
+The inherited next-minute completion convention adds observation latency;
+this is not tick-based execution. The 1-BTC/2bps-per-side benchmark still uses
+the frozen ETF-cost proxy and is not actual BTC fee-adjusted profit.
+
+Durable observations and idempotent event records reconstruct model state after
+restart without duplicated events or changed first-detection timestamps.
+Missing minutes remain absent; late conflicting inputs pause for review.
+Freshness, warmup, recovery, paused, stale and offline states are displayed.
+Start/resume and pause change comparison intent only. The HTTP interface
+rejects order arguments and no broker client is loaded.
+
+Run ``python3 scripts/run_btc_live.py --enable --supervise`` from the checkout.
+The macOS ``--install-agent`` option registers login supervision, provided
+background Python has operating-system access to the external-drive checkout.
+Opening the page itself does not launch a worker or fetch provider data.
+
+For normal use, open ``/btc-live``, verify Running/fresh observations, choose a
+model, and use Pause or Start / resume. Closing the page leaves the worker
+running. From the checkout, ``python3 scripts/run_btc_live.py --status`` only
+reads status; ``python3 scripts/run_btc_live.py --install-agent --enable``
+installs/enables login startup and enabled comparison intent. If the page server
+is not running, start ``python3 trading_desk/server.py --port 8799`` to view it.
+Manual supervision is an alternative and should not run alongside launchd.
+
+The login service uses an internal-home working directory and internal logs,
+with an absolute script path on the external drive. Python removable-volume
+access was verified enabled; no broader disk permission was granted. RunAtLoad
+and KeepAlive activate/restart the worker without a browser or dashboard server.
+The installer migrates only its exact previous registration with a backup,
+refuses unrelated registrations, and publishes launchd ownership only after
+the exclusive writer lock is held. Login activation was verified through
+launchd, without logging the user out or rebooting.
+
 Research release 0.2
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

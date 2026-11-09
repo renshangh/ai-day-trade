@@ -51,6 +51,7 @@ import v3_store  # noqa: E402
 import onchain_crypto  # noqa: E402
 import rwa_market  # noqa: E402
 from trading_desk import btc_lab  # noqa: E402
+from trading_desk import btc_live  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -1820,6 +1821,9 @@ def build_paper_recommendations(force: bool = False) -> dict:
 # HTTP
 # --------------------------------------------------------------------------
 STATIC = {
+    "/btc-live": ("btc_live.html", "text/html; charset=utf-8"),
+    "/btc_live.js": ("btc_live.js", "application/javascript; charset=utf-8"),
+    "/btc_live.css": ("btc_live.css", "text/css; charset=utf-8"),
     "/btc-lab": ("btc_lab.html", "text/html; charset=utf-8"),
     "/btc_lab.js": ("btc_lab.js", "application/javascript; charset=utf-8"),
     "/btc_lab.css": ("btc_lab.css", "text/css; charset=utf-8"),
@@ -1894,6 +1898,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(get_board(force=qs.get("force", ["0"])[0] == "1"))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
+            return
+
+        if path == "/api/btc-live":
+            try:
+                self._json(btc_live.CONTROLLER.status((qs.get('model') or ['0.1'])[0],(qs.get('day') or [None])[0]))
+            except (ValueError,TypeError):
+                self._json({'error':'Choose model 0.1/E1/E2 and a valid New York date'},400)
+            except Exception:
+                self._json({'error':'Live comparison state unavailable; no order attempted'},503)
             return
 
         if path == "/api/btc-lab/export":
@@ -2079,7 +2092,7 @@ class Handler(BaseHTTPRequestHandler):
         # HTTP/1.1 keep-alive socket the unread bytes would be parsed as the
         # *next* request line, so the connection is closed instead: a 70 KB
         # POST followed by GET /api/health on the same socket came back 414.
-        if path not in ("/api/cycle", "/api/schwab/preview", "/api/v3/state", "/api/btc-lab"):
+        if path not in ("/api/cycle", "/api/schwab/preview", "/api/v3/state", "/api/btc-lab", "/api/btc-live"):
             self.close_connection = True
             self._send(404, b"not found", "text/plain")
             return
@@ -2097,6 +2110,29 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": f"request body must be at most {limit} bytes"}, 413)
             return
         body = self.rfile.read(length) if length else b""
+        if path == "/api/btc-live":
+            if "application/json" not in self.headers.get("Content-Type",""):
+                self._json({'error':'Content-Type must be application/json'},415)
+                return
+            origin=self.headers.get('Origin')
+            if origin:
+                try:
+                    parsed=urllib.parse.urlparse(origin)
+                    allowed=parsed.hostname in {'127.0.0.1','localhost','::1'} and parsed.scheme=='http' and parsed.port==self.server.server_address[1]
+                except ValueError:
+                    allowed=False
+                if not allowed:
+                    self._json({'error':'Cross-origin comparison controls are not allowed'},403)
+                    return
+            try:
+                data=json.loads(body or b'{}')
+                if not isinstance(data,dict) or set(data)!={'operation'}:
+                    raise ValueError('Only operation=start or pause is accepted; no orders')
+                self._json(btc_live.CONTROLLER.control(data['operation']))
+            except (ValueError,UnicodeDecodeError) as exc:
+                self._json({'error':str(exc)},400)
+            return
+
         if path == "/api/btc-lab":
             if "application/json" not in self.headers.get("Content-Type", ""):
                 self._json({'error': 'Content-Type must be application/json'}, 415)
