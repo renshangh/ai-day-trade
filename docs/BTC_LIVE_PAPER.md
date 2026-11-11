@@ -2,7 +2,7 @@
 
 Operate the frozen 0.2 strategies on newly received Alpaca BTC/USD observations.
 
-Last Updated: 2026-11-09  
+Last Updated: 2026-11-10
 Status: Comparison only; no broker orders or broker paper fills  
 Audience: Trading Desk owner and maintainers
 
@@ -18,6 +18,12 @@ The North Star remains sourced, explicit decisions: every signal has its actual
 observation and detection time; no invented minutes, duplicate signal records,
 backdated fills or broker requests. This forward sample is separate from the
 already reviewed historical month.
+
+The page also has a separate IBIT manual thinkorswim 24/5 display overlay. It shows
+current session hours and per-entry/exit availability/freshness without
+changing or filtering any BTC model record. IBIT execution remains manual
+and unverified; owner-reported EXTO eligibility does not establish API access. See
+`docs/IBIT_HOURS_INDICATOR.md`.
 
 ## Observation and timing contract
 

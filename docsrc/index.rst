@@ -221,6 +221,7 @@ Table of Contents
    getting_started
    TRADING_DESK
    BTC_STRUCTURE_RETEST
+   IBIT_HOURS_INDICATOR
    imports_and_startup
    agents
    cash_accounting

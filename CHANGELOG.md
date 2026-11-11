@@ -1,5 +1,10 @@
 # Changelog
 
+## IBIT Hours Display on BTC Live Paper - Unreleased
+
+### Added
+- Add current and per-entry/exit IBIT timing badges on `/btc-live` for manual thinkorswim EXTO 24/5 review. Distinguish regular, pre-market, after-hours, overnight and transition breaks; apply sourced calendar holidays/early closes/DST, actual detection versus completed-minute timing, historical/delay guards and explicit unknown states. Record IBIT eligibility as owner-reported, separate from API support and the planned Nasdaq expansion. Independently cache metadata using a pinned GET without research dependencies. Preserve BTC strategy, frozen 0.2, worker process/session and all original signal data; no orders, filtering or new price worker. Add portable regression fixtures/tests and engineering/public documentation.
+
 ## BTC Live Paper - Unreleased
 
 ### Fixed

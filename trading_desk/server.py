@@ -52,6 +52,7 @@ import onchain_crypto  # noqa: E402
 import rwa_market  # noqa: E402
 from trading_desk import btc_lab  # noqa: E402
 from trading_desk import btc_live  # noqa: E402
+from trading_desk import ibit_hours  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -1902,7 +1903,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/btc-live":
             try:
-                self._json(btc_live.CONTROLLER.status((qs.get('model') or ['0.1'])[0],(qs.get('day') or [None])[0]))
+                state=btc_live.CONTROLLER.status((qs.get('model') or ['0.1'])[0],(qs.get('day') or [None])[0])
+                state['ibit_hours']=ibit_hours.SERVICE.overlay(state)
+                self._json(state)
             except (ValueError,TypeError):
                 self._json({'error':'Choose model 0.1/E1/E2 and a valid New York date'},400)
             except Exception:
