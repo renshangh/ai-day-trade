@@ -6,16 +6,22 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '../..');
 const source = fs.readFileSync(path.join(root, 'trading_desk/chart_review.js'), 'utf8');
 const saved = () => JSON.parse(fs.readFileSync(path.join(root, 'trading_desk/chart_review.json'), 'utf8'));
-async function render(data, mode = 'full') {
+async function render(data, mode = 'full', hash = '') {
   const target = {dataset: {chartReview: mode}, innerHTML: '', textContent: ''};
   const requests = [];
-  const context = vm.createContext({Intl, Date, URL, Set,
-    document: {querySelectorAll: () => [target]},
+  const scrolled = [];
+  const context = vm.createContext({Intl, Date, URL, Set, location: {hash},
+    document: {
+      querySelectorAll: () => [target],
+      getElementById: id => target.innerHTML.includes(`id="${id}"`)
+        ? {scrollIntoView: () => scrolled.push(id)}
+        : null
+    },
     fetch: async (...args) => { requests.push(args); return {ok: true, json: async () => data}; }
   });
   vm.runInContext(source, context);
   await new Promise(setImmediate);
-  return {html: target.innerHTML, requests};
+  return {html: target.innerHTML, requests, scrolled};
 }
 test('all five pairs and judgments are visible in both Daily Review and the full gallery', async () => {
   for (const mode of ['compact', 'full']) {
@@ -107,4 +113,24 @@ test('expired plans are labeled historical; missing plan quotes and unsafe text 
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.match(html, /Unavailable/);
   assert.doesNotMatch(html, /<script>|href="javascript:/);
+});
+
+test('Daily Review puts the Elliott study links ahead of the plan and exposes saved scenario conditions', async () => {
+  const data = saved();
+  const {html} = await render(data, 'compact');
+  const shortcuts = html.slice(0, html.indexOf('id="next-session-plan"'));
+  assert.match(shortcuts, /Elliott Wave scenarios/);
+  for (const symbol of ['NDX', 'SPX', 'BTC', 'COIN', 'CRCL']) {
+    const start = html.indexOf(`id="chart-${symbol}"`);
+    const card = html.slice(start, html.indexOf('</article>', start));
+    assert.ok(shortcuts.includes(`href="#chart-${symbol}"`));
+    assert.match(card, /<strong>Confirmation:<\/strong>/);
+    assert.match(card, /<strong>Invalidation \/ warning:<\/strong>/);
+    assert.match(card, /<th>Review test<\/th>/);
+  }
+});
+
+test('direct gallery links scroll to the requested ticker after rendering the manifest', async () => {
+  assert.deepEqual((await render(saved(), 'full', '#chart-CRCL')).scrolled, ['chart-CRCL']);
+  assert.deepEqual((await render(saved(), 'full', '#chart-unavailable')).scrolled, []);
 });

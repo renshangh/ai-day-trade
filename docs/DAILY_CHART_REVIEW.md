@@ -15,10 +15,16 @@ saved manifest only. It does not refresh quotes, accounts, orders or monitors.
 
 ## Comparison records
 
+Use the **Elliott Wave scenarios** ticker links at the top of Daily Review to
+jump straight to a saved study. The compact view includes each study’s levels,
+confirmation and invalidation alongside the original and updated drawings.
+The full gallery's direct ticker links scroll to the study after its saved data
+loads.
+
 Each asset's optional `comparison` selects an `original_url` and `updated_url`
 from its existing `charts` manifest. Both captures remain visible in compact
 and full views. The renderer shows a verdict, changes, reasoning, dated evidence,
-next test and limitations. Other captures stay in full-view expandable history;
+next test and limitations. Other captures stay in expandable history in either view;
 the selected pair and separately shown futures image are not duplicated there.
 Desktop pairs use two columns; screens below800px stack the images. Long source
 notes and point tables wrap rather than forcing the comparison wider.

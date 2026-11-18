@@ -3,3 +3,22 @@
 .chart-review-wrap .chart-review-table{table-layout:fixed;max-width:100%}.chart-review-wrap .chart-review-table th,.chart-review-wrap .chart-review-table td{white-space:normal;overflow-wrap:anywhere}.chart-review-wrap .chart-review-table th:first-child{width:180px}.chart-review-wrap .chart-review-table td{width:auto}.chart-review-pair figcaption,.chart-review-verdict,.chart-review-futures{overflow-wrap:anywhere}@media(max-width:800px){.chart-review-wrap .chart-review-table th:first-child{width:110px}}
 .chart-review-wrap{overflow-wrap:anywhere}
 .chart-review-plan{border-color:#578e9a}.chart-review-plan-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:20px 0}.chart-review-plan-card{min-width:0;border:1px solid #344656;border-radius:10px;padding:18px;background:#101d2a}.chart-review-plan-card p{margin:10px 0}.chart-review-plan-card h4{margin-top:0}.chart-review-plan ol{padding-left:24px}.chart-review-plan li{margin:8px 0}@media(max-width:900px){.chart-review-plan-grid{grid-template-columns:1fr}}
+
+.chart-review-scenarios h2 { margin-top: 0; }
+.chart-review-wrap .chart-review-navigation {
+  position: static;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  border: 0;
+}
+.chart-review-navigation a {
+  display: block;
+  padding: 6px 12px;
+  border: 1px solid #344656;
+  border-radius: 7px;
+}
+.chart-review-asset { scroll-margin-top: 74px; }

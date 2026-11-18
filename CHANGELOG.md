@@ -8,6 +8,7 @@
 ## Daily Chart Review Gallery - Unreleased
 
 ### Changed
+- Put direct Elliott Wave study links above the Daily Review plan and show saved levels, confirmation and invalidation in the embedded cards.
 - Add the dated November18 COIN/CRCL/IBIT hold, trim and bottom-invalidation plan above the existing comparisons, with independent NQ/ES/BTC confirmation tests and the FOMC-minutes reminder. Preserve November17 evidence times, exclude account details and mark expired plans historical; no quote refresh or orders.
 - Show original and updated BTC/CRCL/COIN/NDX/SPX captures side by side in Daily Review with count-specific judgments, evidence and next tests. Update native NDX/SPX observed-low points after the close and add separately timestamped December NQ/ES futures quotes, delayed15m captures and independent levels; preserve original captures and exclude missing/inconsistent observations.
 - Recount COIN as extended local5 versus a tentative nested larger3, with native conditional paths, explicit wave-degree limits and completed closing IEX evidence. Keep117.32 fixed-bottom failure separate from impulse validity and preserve all earlier captures.
