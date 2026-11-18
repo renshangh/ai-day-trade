@@ -50,7 +50,9 @@ participation, then asks local Qwen (`qwen3.5:35b`) at
 `http://127.0.0.1:11436/v1` to rerank and explain the watchlist. The local path
 uses the installed Ollama model and needs no OpenAI account or key. If the local
 call fails, the scanner uses its deterministic ranking. It writes the full
-report to `reports/day_trade_candidates_latest.json`.
+report to `reports/day_trade_candidates_latest.json`. A normal scan also keeps a dated
+snapshot in `reports/` for the Trading Desk's **Qwen watchlist** comparison.
+Use the watchlist panel's **Refresh** button after a new scan.
 
 Use `--no-llm` for deterministic scoring only. To opt into a different model,
 pass `--model <id>` and configure the OpenAI SDK with `OPENAI_API_KEY` and, for a
