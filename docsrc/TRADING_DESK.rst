@@ -73,6 +73,10 @@ An **Intraday update** can appear above the historical drawings. It shows
 completed candles with individual feed cutoffs, selected prior levels, and
 conditional recovery and extension tests.
 
+In the November 18 review, the CRCL first-reclaim range is $57.08–$57.66.
+The upper bound is the November 17 regular-session high. Dated TradingView
+drawings show the earlier $57.65 annotation.
+
 Original versus updated drawings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

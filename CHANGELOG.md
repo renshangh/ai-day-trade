@@ -7,6 +7,9 @@
 
 ## Daily Chart Review Gallery - Unreleased
 
+### Fixed
+- Align the CRCL recovery range across the November 18 intraday update, next-session plan and confirmation table using the November 17 regular-session high of $57.66 as the upper bound.
+
 ### Changed
 - Add dated November 18 intraday candles and updated conditional Elliott Wave paths for NDX, SPX, BTC, COIN, and CRCL while retaining the prior drawings.
 - Put direct Elliott Wave study links above the Daily Review plan and show saved levels, confirmation and invalidation in the embedded cards.
