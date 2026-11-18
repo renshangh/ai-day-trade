@@ -1,0 +1,271 @@
+{
+  "review_at_utc": "2026-11-17T11:44:00.943925Z",
+  "review_at_ny": "2026-11-17T06:44:00.943925-05:00",
+  "automation_id": "btc-two-scenario-review-every-12-hours",
+  "baseline_screenshot_at_ny": "2026-11-16T16:21:02-05:00",
+  "source": "Coinbase connector products_ticker and products_candles; BTC-USD; 4h; candle request end 2026-11-17T11:43:35Z",
+  "quote": {
+    "best_ask": "64756.12",
+    "best_bid": "64756.11",
+    "trades": [
+      {
+        "price": "64756.41",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.07033632",
+        "time": "2026-11-17T11:44:00.943925Z",
+        "trade_id": "1133087935"
+      },
+      {
+        "price": "64756.41",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.00603055",
+        "time": "2026-11-17T11:44:00.943836Z",
+        "trade_id": "1133087934"
+      },
+      {
+        "price": "64756.41",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.01828963",
+        "time": "2026-11-17T11:44:00.943836Z",
+        "trade_id": "1133087933"
+      }
+    ]
+  },
+  "raw_candles": [
+    {
+      "close": "64747.38",
+      "high": "64771.43",
+      "low": "64001.22",
+      "open": "64675.31",
+      "start": "1794902400",
+      "volume": "1269.11258708"
+    },
+    {
+      "close": "64675.32",
+      "high": "65036.96",
+      "low": "64228.41",
+      "open": "64995.87",
+      "start": "1794888000",
+      "volume": "1089.64504979"
+    },
+    {
+      "close": "64995.88",
+      "high": "65150",
+      "low": "64315.14",
+      "open": "64816.79",
+      "start": "1794873600",
+      "volume": "1517.06467634"
+    },
+    {
+      "close": "64816.79",
+      "high": "65476.38",
+      "low": "64723.89",
+      "open": "65000.94",
+      "start": "1794859200",
+      "volume": "2270.70239487"
+    },
+    {
+      "close": "65000.94",
+      "high": "65137.77",
+      "low": "64161",
+      "open": "64398.78",
+      "start": "1794844800",
+      "volume": "2928.61300519"
+    },
+    {
+      "close": "64398.78",
+      "high": "65626.98",
+      "low": "63833.47",
+      "open": "64377.13",
+      "start": "1794830400",
+      "volume": "4154.79904997"
+    },
+    {
+      "close": "64377.12",
+      "high": "64930.87",
+      "low": "64055.1",
+      "open": "64920.21",
+      "start": "1794816000",
+      "volume": "1574.92303471"
+    },
+    {
+      "close": "64920.21",
+      "high": "65127.81",
+      "low": "64236.56",
+      "open": "65052.25",
+      "start": "1794801600",
+      "volume": "1118.24339658"
+    },
+    {
+      "close": "65052.26",
+      "high": "65366.39",
+      "low": "64488.02",
+      "open": "65315.35",
+      "start": "1794787200",
+      "volume": "1631.41412037"
+    },
+    {
+      "close": "65315.35",
+      "high": "65480.77",
+      "low": "64650.4",
+      "open": "64908.43",
+      "start": "1794772800",
+      "volume": "1640.56690144"
+    },
+    {
+      "close": "64908.43",
+      "high": "65170.56",
+      "low": "64231.88",
+      "open": "64706.34",
+      "start": "1794758400",
+      "volume": "1530.08979385"
+    },
+    {
+      "close": "64706.34",
+      "high": "65767.35",
+      "low": "64387.11",
+      "open": "65315.58",
+      "start": "1794744000",
+      "volume": "2123.71019277"
+    },
+    {
+      "close": "65315.58",
+      "high": "66100",
+      "low": "63832.36",
+      "open": "63970.87",
+      "start": "1794729600",
+      "volume": "2267.75898812"
+    },
+    {
+      "close": "63970.88",
+      "high": "65126.87",
+      "low": "63725.59",
+      "open": "64783.4",
+      "start": "1794715200",
+      "volume": "1435.64880682"
+    },
+    {
+      "close": "64783.4",
+      "high": "65564.18",
+      "low": "61946.17",
+      "open": "64118.86",
+      "start": "1794700800",
+      "volume": "6516.1702746"
+    },
+    {
+      "close": "64118.79",
+      "high": "65831.81",
+      "low": "63270",
+      "open": "65674.52",
+      "start": "1794686400",
+      "volume": "5162.78272833"
+    },
+    {
+      "close": "65674.52",
+      "high": "66150.59",
+      "low": "64978",
+      "open": "65688.78",
+      "start": "1794672000",
+      "volume": "2891.8952629"
+    },
+    {
+      "close": "65688.59",
+      "high": "67265.39",
+      "low": "65011",
+      "open": "67214.93",
+      "start": "1794657600",
+      "volume": "3324.58977046"
+    },
+    {
+      "close": "67214.93",
+      "high": "67462.72",
+      "low": "66901.49",
+      "open": "67095.62",
+      "start": "1794643200",
+      "volume": "899.84531129"
+    },
+    {
+      "close": "67095.99",
+      "high": "67401.07",
+      "low": "66369.12",
+      "open": "66688.35",
+      "start": "1794628800",
+      "volume": "1416.72495274"
+    },
+    {
+      "close": "66689.32",
+      "high": "68380",
+      "low": "66550",
+      "open": "68236.54",
+      "start": "1794614400",
+      "volume": "2658.70278898"
+    }
+  ],
+  "candles_truncated": false,
+  "levels": {
+    "local_support": 63833.47,
+    "confirmation_zone": [
+      66100,
+      66369
+    ],
+    "decision_zone": [
+      67918,
+      71612
+    ],
+    "green_bottom_invalidation_below": 61946.17,
+    "orange_wave4_invalidation_above": 82510.37,
+    "larger_hurdles": [
+      76095,
+      84856
+    ]
+  },
+  "scenarios": {
+    "green": {
+      "status": "possible_unconfirmed",
+      "invalidated": false,
+      "reason": "No lower low below the fixed 61946.17 bottom; local support 63833.47 still intact in observations after baseline. No completed 4h recovery close through the 66100-66369 zone and no confirmed retest."
+    },
+    "orange": {
+      "status": "possible_unconfirmed",
+      "invalidated": false,
+      "reason": "No breach above 82510.37. A wave-4 rebound remains a hypothesis; failure to reach the recovery or decision zone does not by itself invalidate the larger bearish path. Internal wave subdivisions remain unvalidated."
+    }
+  },
+  "latest_completed_4h": {
+    "start_utc": "2026-11-17T04:00:00Z",
+    "end_utc": "2026-11-17T08:00:00Z",
+    "start_ny": "2026-11-16T23:00:00-05:00",
+    "end_ny": "2026-11-17T03:00:00-05:00",
+    "open": 64995.87,
+    "high": 65036.96,
+    "low": 64228.41,
+    "close": 64675.32
+  },
+  "unfinished_4h": {
+    "start_ny": "2026-11-17T03:00:00-05:00",
+    "end_ny": "2026-11-17T07:00:00-05:00",
+    "observed_low": 64001.22,
+    "observed_close_reference": 64747.38,
+    "complete": false
+  },
+  "chart_update_required": false,
+  "last_successful_observation_utc": "2026-11-17T11:43:35Z",
+  "caveats": [
+    "The 15:00-19:00 EST Nov16 candle overlaps the 16:21 baseline screenshot. Its aggregate is context, not exact post-screenshot tick chronology.",
+    "No missing bars are filled. Latest 03:00-07:00 4h candle is incomplete.",
+    "Latest ticker trade and bid/ask are separate snapshots and need not be synchronous.",
+    "These are provisional scenario checks, not a validated Elliott wave count or an order signal."
+  ],
+  "notification_baseline": {
+    "local_support": "holding_unconfirmed_candle",
+    "confirmation": "not_reclaimed",
+    "decision_zone": "below",
+    "green": "possible_unconfirmed",
+    "orange": "possible_unconfirmed",
+    "data_health": "available"
+  },
+  "orders_enabled": false
+}

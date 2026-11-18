@@ -1,0 +1,62 @@
+{
+  "verified_date": "2026-11-10",
+  "fed_source": "https://www.federalreserve.gov/newsevents/2026-november.htm",
+  "events": [
+    {
+      "title": "Consumer Price Index \u2014 October",
+      "date": "2026-11-10",
+      "at": "2026-11-10T08:30:00-05:00",
+      "agency": "BLS",
+      "source": "https://www.bls.gov/schedule/2026/11_sched.htm",
+      "verified_date": "2026-11-10"
+    },
+    {
+      "title": "Producer Price Index \u2014 October",
+      "date": "2026-11-13",
+      "at": "2026-11-13T08:30:00-05:00",
+      "agency": "BLS",
+      "source": "https://www.bls.gov/schedule/2026/11_sched.htm",
+      "verified_date": "2026-11-10"
+    },
+    {
+      "title": "U.S. Import and Export Price Indexes \u2014 October",
+      "date": "2026-11-17",
+      "at": "2026-11-17T08:30:00-05:00",
+      "agency": "BLS",
+      "source": "https://www.bls.gov/schedule/2026/11_sched.htm",
+      "verified_date": "2026-11-10"
+    },
+    {
+      "title": "Job Openings and Labor Turnover \u2014 October",
+      "date": "2026-12-01",
+      "at": "2026-12-01T10:00:00-05:00",
+      "agency": "BLS",
+      "source": "https://www.bls.gov/schedule/2026/11_sched.htm",
+      "verified_date": "2026-11-10"
+    },
+    {
+      "title": "Employment Situation \u2014 November",
+      "date": "2026-12-04",
+      "at": "2026-12-04T08:30:00-05:00",
+      "agency": "BLS",
+      "source": "https://www.bls.gov/schedule/2026/11_sched.htm",
+      "verified_date": "2026-11-10"
+    },
+    {
+      "title": "FOMC Minutes \u2014 October 27\u201328 meeting",
+      "date": "2026-11-18",
+      "at": "2026-11-18T14:00:00-05:00",
+      "agency": "Federal Reserve",
+      "source": "https://www.federalreserve.gov/newsevents/2026-november.htm",
+      "verified_date": "2026-11-10"
+    },
+    {
+      "title": "Beige Book",
+      "date": "2026-11-25",
+      "at": "2026-11-25T14:00:00-05:00",
+      "agency": "Federal Reserve",
+      "source": "https://www.federalreserve.gov/newsevents/2026-november.htm",
+      "verified_date": "2026-11-10"
+    }
+  ]
+}

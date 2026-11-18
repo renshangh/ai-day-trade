@@ -1,0 +1,22 @@
+﻿status,entry_time,route,control_id,variant_id,control_net,variant_net,delta,directly_parent_blocked,control_occupied_by,variant_occupied_by,reason
+removed,2026-10-13T18:50:00Z,C,5,,260.4392020000064,,-260.4392020000064,True,[5],[],direct parent-filter rejection
+added,2026-10-13T20:39:00Z,C,,5,,106.19071543469461,106.19071543469461,False,[5],[5],control held a position
+removed,2026-10-14T16:45:00Z,C,11,,-499.6976734513541,,499.6976734513541,True,[11],[],direct parent-filter rejection
+added,2026-10-14T19:52:00Z,C,,11,,-218.4497050000021,-218.4497050000021,False,[11],[11],control held a position
+removed,2026-10-16T04:22:00Z,C,20,,-138.86306179998337,,138.86306179998337,True,[20],[],direct parent-filter rejection
+removed,2026-10-26T00:25:00Z,C,68,,-353.99166160000163,,353.99166160000163,True,[68],[],direct parent-filter rejection
+removed,2026-10-26T02:48:00Z,C,69,,272.1681831999999,,-272.1681831999999,True,[69],[],direct parent-filter rejection
+removed,2026-10-27T05:19:00Z,C,77,,-200.37582199999477,,200.37582199999477,True,[77],[],direct parent-filter rejection
+removed,2026-10-27T07:48:00Z,C,78,,-126.18613569999499,,126.18613569999499,True,[78],[],direct parent-filter rejection
+added,2026-10-27T09:00:00Z,C,,74,,-396.2676942999986,-396.2676942999986,False,[78],[74],control held a position
+removed,2026-10-27T10:00:00Z,C,79,,-303.3391123000097,,303.3391123000097,False,[79],[74],variant held a different position
+removed,2026-10-27T10:45:00Z,C,80,,-109.61607669998813,,109.61607669998813,True,[80],[],direct parent-filter rejection
+removed,2026-11-02T12:15:00Z,C,111,,-486.4464693374882,,486.4464693374882,True,[111],[],direct parent-filter rejection
+added,2026-11-02T13:36:00Z,B1,,105,,184.73643345455764,184.73643345455764,False,[],[105],subsequent setup/history/entry-state sequence differs
+removed,2026-11-02T13:45:00Z,C,112,,-821.5266814214312,,821.5266814214312,False,[112],[105],variant held a different position
+added,2026-11-02T15:45:00Z,C,,106,,-628.6503429249893,-628.6503429249893,False,[112],[106],control held a position
+removed,2026-11-02T16:33:00Z,B1,113,,-330.1908329892724,,330.1908329892724,False,[113],[],subsequent setup/history/entry-state sequence differs
+removed,2026-11-07T22:01:00Z,C,136,,-95.95174499999243,,95.95174499999243,True,[136],[],direct parent-filter rejection
+added,2026-11-07T23:32:00Z,C,,129,,-128.92273199998894,-128.92273199998894,False,[136],[129],control held a position
+removed,2026-11-08T01:01:00Z,C,137,,75.84858600000874,,-75.84858600000874,False,[137],[129],variant held a different position
+added,2026-11-08T03:45:00Z,C,,130,,1.1381469000071043,1.1381469000071043,False,[137],[130],control held a position

@@ -9,6 +9,8 @@
 // Reversal needs a prior period *before* the trigger day, so it has nothing
 // to show on a 1-day window -- the server omits `reversal` there too.
 const VIEWS = [
+  { key: 'range-discovery', label: 'Range Trade Discovery', lookbacks: [], solo: true, card: 'range-discovery-card',
+    load: () => RangeDiscovery.mount($('range-discovery-board'), rangeDiscoveryOptions()), draw: () => RangeDiscovery.mount($('range-discovery-board'), rangeDiscoveryOptions()) },
   { key: 'momentum', label: 'Momentum', lookbacks: [1, 2, 3, 4, 5] },
   { key: 'reversal', label: 'Reversal candidates', lookbacks: [2, 3, 4, 5] },
   // The rest are "solo" views: each reports on something other than a ranked
@@ -25,7 +27,7 @@ const VIEWS = [
     load: () => fetchCycle(), draw: () => renderCycle() },
   { key: 'enterprise-ai', label: 'Enterprise AI', lookbacks: [], solo: true, card: 'enterprise-ai-card',
     load: () => fetchEnterpriseAI(), draw: () => renderEnterpriseAI() },
-  { key: 'ai-power', label: 'AI Power — Nuclear', lookbacks: [], solo: true, card: 'ai-power-card',
+  { key: 'ai-power', label: 'AI Power — Neocloud', lookbacks: [], solo: true, card: 'ai-power-card',
     load: force => renderAIPower(force), draw: () => renderAIPower() },
   { key: 'ai-crypto', label: 'Onchain Finance Buildout', lookbacks: [], solo: true, card: 'ai-crypto-card',
     load: () => { state.aiCrypto = true; renderAiCryptoWatchlist(); }, draw: () => renderAiCryptoWatchlist() },
@@ -164,6 +166,7 @@ const state = {
   schwabPositions: null,
   schwabPreview: null,
   paperRecommendations: null,
+  soltExit: null,
   cycle: null,
   cycleSeq: 0,        // same out-of-order guard as selectionSeq, for /api/cycle loads
   sector: null,
@@ -191,6 +194,7 @@ const slotColor = n => css(`--series-${n}`);
 
 const fmtPct = v => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`);
 const fmtPx = v => (v == null ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const fmtSnapshotPx = v => (v == null ? '—' : v.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:v<10?4:2}));
 const fmtNum = (v, d = 2) => (v == null ? '—' : v.toFixed(d));
 const signClass = v => (v == null ? '' : v >= 0 ? 'pos' : 'neg');
 /** Escape text for interpolation into an HTML template string, attribute values
@@ -331,13 +335,47 @@ function clearSelectedChart(symbol) {
   $('d-px').textContent = 'Loading chart…';
   $('d-feed').textContent = '';
   $('chart').getContext('2d').clearRect(0, 0, $('chart').width, $('chart').height);
-  ['table-view', 'chart-legend', 'c-stats', 'c-facts', 'c-news', 'c-links'].forEach(id => $(id)?.replaceChildren());
+  ['table-view', 'chart-legend', 'discovery-chart-context', 'c-stats', 'c-facts', 'c-news', 'c-links'].forEach(id => $(id)?.replaceChildren());
   $('c-title').textContent = `Research — ${symbol}`;
   $('c-entity').textContent = '';
   $('c-source').textContent = '';
   $('c-facts-hint').textContent = '';
   $('company-card').classList.remove('refetching');
   $('tooltip').classList.remove('on');
+}
+
+function rangeDiscoveryOptions() {
+  const query=new URLSearchParams(location.search);
+  return {onSelect:selectDiscoverySymbol,initialSymbol:(query.get('symbol')||'').toUpperCase(),initialAsset:query.get('asset')};
+}
+
+async function selectDiscoverySymbol(row, {scroll=true,scanStartedAt}={}) {
+  const mySeq=++state.selectionSeq;
+  state.loading=true;
+  clearSelectedChart(row.symbol);
+  $('chart-wrap').classList.add('refetching');
+  if(scroll){
+    const card=$('detail-card');
+    card.style.scrollMarginTop=((document.querySelector('header')?.getBoundingClientRect().height||0)+12)+'px';
+    card.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  try {
+    const query=new URLSearchParams({symbol:row.symbol,asset:row.asset});
+    if(scanStartedAt)query.set('scan',scanStartedAt);
+    const response=await fetch('/api/range-discovery/chart?'+query);
+    const data=await response.json();
+    if(!response.ok || data.error || !data.bars?.length)throw new Error(data.error||'Snapshot candles unavailable');
+    if(mySeq!==state.selectionSeq)return;
+    state.stock=data;state.symbol=row.symbol;state.hover=null;
+    renderDetail();
+    if(row.asset==='stock')fetchDetail(row.symbol,mySeq);
+  } catch(error) {
+    if(mySeq!==state.selectionSeq)return;
+    $('d-px').textContent='Chart unavailable: '+error.message;
+    $('d-feed').textContent='No substituted candles';
+  } finally {
+    if(mySeq===state.selectionSeq){state.loading=false;$('chart-wrap').classList.remove('refetching');}
+  }
 }
 
 function selectOnchainSymbol(symbol, kind) {
@@ -439,10 +477,11 @@ function renderViewTabs() {
     box.appendChild(btn);
   });
   const notes = {
+    'range-discovery': 'On-demand discovery: 14-day crypto ranges, 45-day stock ranges, or two-year stock boxes with liquidity and repeated-swing checks.',
     reversal: 'Groups down over the prior period that turned positive on the most recent session.',
     earnings: 'When each name reports next — so a swing position is never held through a print by accident.',
     momentum: 'Groups ranked by raw return over the window.',
-    'ai-power': 'Nuclear recovery evidence, operating assets, fuel, equipment and a staged trading plan.',
+    'ai-power': 'Neocloud and AI infrastructure earnings, cash quality, delivery and price strength.',
     'ai-crypto': 'Onchain finance across five daily-review layers — evidence, adoption, and COIN / CRCL implications.',
     review: 'Every open position against its own levels, sorted by how close it sits to support.',
     cycle: 'Is the AI data center buildout thesis still intact? Seven indicators scored by hand once a month.',
@@ -581,7 +620,39 @@ function labelTiming(t) {
 
 // ------------------------------------------------------------- daily review
 async function fetchReview(force) {
-  await Promise.all([fetchReviewData(force), fetchSessionVwap(force), fetchSchwabStatus(), fetchPaperRecommendations(force)]);
+  await Promise.all([fetchReviewData(force), fetchSessionVwap(force), fetchSchwabStatus(), fetchPaperRecommendations(force), fetchSoltExit(force)]);
+}
+
+async function fetchSoltExit(force = false) {
+  try {
+    const response = await fetch(`/api/solt-exit?account_last4=3652${force ? '&force=1' : ''}`);
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'SOLT exit plan unavailable');
+    state.soltExit = data;
+  } catch (error) {
+    state.soltExit = { error: error.message };
+  }
+  renderSoltExit();
+}
+
+function renderSoltExit() {
+  const box = $('solt-exit-plan');
+  if (!box) return;
+  const d = state.soltExit;
+  if (!d) { box.innerHTML = '<div class="loading">Loading the account-specific exit proposal…</div>'; return; }
+  if (d.error) { box.innerHTML = `<p class="sub neg">Exit proposal unavailable: ${esc(d.error)}</p>`; return; }
+  const stageRows = (d.stages || []).map(stage => `<tr><td><b>${esc(stage.name)}</b></td><td>${esc(stage.shares)}</td>`
+    + `<td>${stage.low == null ? 'No fixed target' : `${fmtPx(stage.low)}–${fmtPx(stage.high)}`}</td><td>${esc(stage.gate)}</td></tr>`).join('');
+  const sol = d.sol_equivalent || {};
+  const solText = sol.price == null ? 'Unavailable from the aligned observations.'
+    : `${fmtPx(sol.price)} using observed beta ${fmtNum(sol.observed_beta, 2)} across ${esc(sol.observations)} returns.`;
+  box.innerHTML = `<p class="sub"><strong>Read-only Schwab position · ${esc(d.account)} · ${esc(d.account_as_of || '')}.</strong> `
+    + `${esc(d.quantity)} shares at ${fmtPx(d.average_cost)} average cost; broker mark ${fmtPx(d.broker_mark)}. `
+    + `Market references use the latest common completed SOLT/SOL session, ${esc(d.reference_date)}.</p>`
+    + `<div class="table-wrap"><table class="rev-tbl" aria-label="SOLT staged recovery exit proposal"><thead><tr><th>Stage</th><th>Shares</th><th>SOLT review zone</th><th>Confirmation gate</th></tr></thead><tbody>${stageRows}</tbody></table></div>`
+    + `<p><strong>SOL cross-check:</strong> ${solText} This is a ${esc(sol.scope || 'single-session equivalent')}; daily leverage resets mean it is not a forecast or guaranteed conversion.</p>`
+    + `<p><strong>Risk review:</strong> Nearest measured SOLT support is ${fmtPx(d.support)}. A completed-session break is a thesis-review trigger, not an automatic stop. Waiting for average cost avoids voluntarily realizing a loss, but it does not cap further loss or overnight-gap risk.</p>`
+    + `<p class="sub">The first zone starts at broker average cost before fees and taxes. No order, stop, or automatic exit is created. Review fresh 30-minute bars, session VWAP, bid/ask, and the selected account before acting.</p>`;
 }
 
 async function fetchPaperRecommendations(force = false) {
@@ -621,13 +692,14 @@ function renderPaperAgent() {
       const liveHeld = liveQuantities.get(row.symbol);
       const heldShares = Number.isInteger(liveHeld) && liveHeld >= 0 ? liveHeld : row.held_shares;
       const heldSource = Number.isInteger(liveHeld) && liveHeld >= 0 ? 'Schwab live' : 'journal fallback';
+      const accountSpecificExit = row.symbol === 'SOLT';
       return `<tr class="paper-row" data-symbol="${esc(row.symbol)}" data-held="${heldShares == null ? '' : heldShares}" data-entry-high="${row.entry_range.high}" data-exit-low="${row.exit_range.low}">
         <td><b>${esc(row.symbol)}</b></td><td>${esc(labels[row.state] || row.state)}</td><td>${fmtPx(row.last)}</td>
         <td class="paper-entry">${fmtPx(row.entry_range.low)}–${fmtPx(row.entry_range.high)}</td>
-        <td><span class="paper-exit-range">${fmtPx(row.exit_range.low)}–${fmtPx(row.exit_range.high)}</span>${row.exit_basis === 'atr_projection_above_observed_high' ? '<small class="paper-exit-note">Projected · price discovery</small>' : ''}</td><td>${fmtPx(row.risk_reference)}</td>
+        <td>${accountSpecificExit ? '<span class="paper-exit-range">See account-specific recovery plan below</span>' : `<span class="paper-exit-range">${fmtPx(row.exit_range.low)}–${fmtPx(row.exit_range.high)}</span>${String(row.exit_basis || '').startsWith('atr_projection_') ? '<small class="paper-exit-note">Projected · recent 63-session high</small>' : ''}`}</td><td>${fmtPx(row.risk_reference)}</td>
         <td title="${esc(heldSource)}">${heldShares == null ? '—' : esc(heldShares)}</td>
         <td>${row.broker_preview_available ? `<select class="paper-pct" aria-label="${esc(row.symbol)} paper share percentage"><option value="25">25%</option><option value="50">50%</option><option value="75">75%</option><option value="100">100%</option></select>` : '<span class="muted">review only</span>'}</td>
-        <td class="paper-shares">—</td><td>${row.broker_preview_available ? `<button type="button" class="paper-prepare" data-side="BUY" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Buy review</button> <button type="button" class="paper-prepare" data-side="SELL" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Sell review</button>` : '<span class="muted">No Schwab preview</span>'}</td></tr>`;
+        <td class="paper-shares">—</td><td>${row.broker_preview_available ? `<button type="button" class="paper-prepare" data-side="BUY" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Buy review</button> ${accountSpecificExit ? '<span class="muted">Exit is account-specific</span>' : `<button type="button" class="paper-prepare" data-side="SELL" ${state.schwab && state.schwab.ok ? '' : 'disabled'}>Sell review</button>`}` : '<span class="muted">No Schwab preview</span>'}</td></tr>`;
     }).join('') + `</tbody></table></div>`
     + `<p class="sub">25%–75% sizes round down to whole shares; 100% uses the full held quantity. These are review proposals, not orders or simulated fills, and nothing is sent to Schwab.</p>`;
   box.querySelectorAll('.paper-row').forEach(row => {
@@ -677,6 +749,7 @@ async function fetchSchwabStatus() {
     state.schwab = { ok: false, message: `Schwab readiness unavailable: ${error.message}` };
   }
   if (state.schwab && state.schwab.ok) await fetchSchwabPositions();
+  else state.schwabPositions = null; // An expired session must not leave old holdings looking current.
   renderSchwabStatus();
 }
 
@@ -790,8 +863,9 @@ function renderSchwabTrade() {
   const s = state.schwab || {};
   const p = state.schwabPositions;
   const ready = Boolean(s.ok);
-  const positionHtml = p && p.ok ? renderSchwabAccounts(p)
-    : p && p.error ? `<p class="sub neg">Live positions unavailable: ${esc(p.error)}</p>` : '';
+  const holdingsBox = $('rev-live-holdings');
+  if (holdingsBox) holdingsBox.innerHTML = ready && p && p.ok ? renderSchwabAccounts(p)
+    : `<p class="sub neg">Current holdings unavailable: ${esc(p?.error || s.error || s.message || 'Waiting for Schwab authentication and both account reads.')} No historical snapshot is shown as current. If the OAuth session expired, reconnect Schwab and refresh.</p>`;
   const linked = p && p.ok ? schwabAccountViews(p) : (s.accounts || []);
   const accountOptions = linked.map(a => `<option value="${esc(a.label.slice(-4))}">${esc(schwabAccountName(a.label))}</option>`).join('');
   const selectedAccount = $('schwab-preview-form')?.elements.account_last4.value || '';
@@ -806,7 +880,6 @@ function renderSchwabTrade() {
         : esc(result.error || result.message || 'Preview failed'))
       + `</span></div>` : '';
   box.innerHTML = `<div class="detail-head"><h3 id="schwab-trade-title" class="rev-h3">Schwab holdings by account & guarded preview</h3></div>`
-    + positionHtml
     + `<form id="schwab-preview-form" class="size-form">
       <label>Preview account <select name="account_last4" required ${ready ? '' : 'disabled'}><option value="">Choose an account</option>${accountOptions}</select></label>
       <label>Side <select name="side" ${ready ? '' : 'disabled'}><option value="BUY">Buy</option><option value="SELL">Sell</option></select></label>
@@ -2409,6 +2482,13 @@ function selectStock(symbol) {
 function renderRangeTabs() {
   const box = $('range-tabs');
   box.innerHTML = '';
+  if(state.stock?.discovery){
+    const d=state.stock.discovery;
+    const tab=document.createElement('button');
+    tab.textContent=(d.lookback_days===730?'2Y':d.lookback_days+'D')+' · '+d.interval;
+    tab.setAttribute('role','tab');tab.setAttribute('aria-selected','true');tab.className='active';
+    box.appendChild(tab);return;
+  }
   RANGES.forEach(r => {
     const btn = document.createElement('button');
     btn.textContent = r.key;
@@ -2442,7 +2522,11 @@ function renderLegend() {
     `<span class="item"><span class="line" style="background:${css('--down')}"></span>Down day</span>`,
     ...on.map(o => `<span class="item"><span class="line" style="background:${slotColor(o.slot)}"></span>${o.label}</span>`),
   ];
-  if (state.overlays.sr) {
+  if (state.stock?.discovery) {
+    const d=state.stock.discovery;
+    items.push(`<span class="item">Discovery support ${fmtSnapshotPx(d.support)}</span>`,
+               `<span class="item">Discovery resistance ${fmtSnapshotPx(d.resistance)}</span>`);
+  } else if (state.overlays.sr) {
     const n = (state.stock && state.stock.levels) ? state.stock.levels.length : 0;
     items.push(
       `<span class="item"><span class="line dash-r" style="background:${slotColor(5)}"></span>Resistance</span>`,
@@ -2455,6 +2539,7 @@ function renderLegend() {
 // --------------------------------------------------------- the main chart
 function chartStartIndex(stock, range) {
   const bars = stock.bars;
+  if(stock.discovery)return 0;
   if (stock.asset_type !== 'crypto') return range.bars === Infinity ? 0 : Math.max(0, bars.length - range.bars);
   const months = {'3M':3, '6M':6, '1Y':12, '2Y':24}[range.key];
   const last = new Date(`${bars.at(-1).t}T00:00:00Z`);
@@ -2600,6 +2685,13 @@ function drawChart() {
   ctx.rect(padL, y0.price, plotW, h.price);
   ctx.clip();
 
+  // Snapshot bands are the discovery measurements, distinct from generic SR.
+  const discovery=state.stock?.discovery;
+  if(discovery){
+    ctx.save();ctx.fillStyle=C.bandLine;ctx.globalAlpha=.1;
+    ctx.fillRect(padL,yPrice(discovery.resistance),plotW,yPrice(discovery.support)-yPrice(discovery.resistance));ctx.restore();
+  }
+
   // ---- Bollinger band (fill first, under everything)
   if (state.overlays.bb && ind.bb_upper && ind.bb_lower) {
     ctx.fillStyle = C.band;
@@ -2659,7 +2751,18 @@ function drawChart() {
     ctx.stroke();
     ctx.restore();
   });
+  if(discovery){
+    for(const value of [discovery.support,discovery.resistance]){
+      ctx.save();ctx.strokeStyle=srColor;ctx.setLineDash([6,4]);hline(yPrice(value),srColor);ctx.restore();
+    }
+  }
   ctx.restore();
+  if(discovery){
+    for(const [name,value] of [['Range support',discovery.support],['Range resistance',discovery.resistance]]){
+      const yy=yPrice(value),text=name+' '+fmtSnapshotPx(value),width=ctx.measureText(text).width+8;
+      ctx.fillStyle=C.surface;ctx.fillRect(padL+2,yy-8,width,16);label(text,padL+6,yy,C.text);
+    }
+  }
 
   // Level labels sit outside the clip so they are never half-drawn.
   srLevels.forEach(l => {
@@ -2790,7 +2893,7 @@ function drawChart() {
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   let lastYear = null;
   for (let i = 0; i < n; i += step) {
-    const [y, m, d] = bars[i].t.split('-');
+    const [y, m, d] = bars[i].t.slice(0,10).split('-');
     let txt = `${MONTHS[+m - 1]} ${+d}`;
     if (y !== lastYear) { txt += ` '${y.slice(2)}`; lastYear = y; }
     // Keep the centered label inside the plot -- the first tick sits at
@@ -3261,7 +3364,7 @@ const CRYPTO_RESEARCH_SLUGS = {
   ALGO:['algorand','algorand'], SYRUP:['syrup','maple-finance'],
   PLUME:['plume','plume'], XDC:['xdce-crowd-sale','xdc-network'],
   CCCAUSD:['canton','canton-network'], HYPE:['hyperliquid','hyperliquid'],
-  NEAR:['near','near-protocol'], TAO:['bittensor','bittensor'],
+  DOT:['polkadot','polkadot'], NEAR:['near','near-protocol'], TAO:['bittensor','bittensor'],
   RENDER:['render-token','render'], FET:['artificial-superintelligence-alliance','artificial-superintelligence-alliance'],
   AKT:['akash-network','akash-network'], ZEC:['zcash','zcash'],
   ARB:['arbitrum','arbitrum'], OP:['optimism','optimism'],
@@ -3301,7 +3404,7 @@ function renderDetail() {
 
   $('d-sym').textContent = s.symbol;
   $('d-px').innerHTML =
-    `${fmtPx(last.c)} <span class="${signClass(chg)}">${fmtPct(chg)}</span>
+    `${s.discovery?fmtSnapshotPx(last.c):fmtPx(last.c)} <span class="${signClass(chg)}">${fmtPct(chg)}</span>
      <span style="color:var(--text-muted)"> · ${last.t}</span>`;
 
   if (s.asset_type === 'crypto') {
@@ -3311,6 +3414,15 @@ function renderDetail() {
     link.textContent = `Crypto: ${s.symbol} ↗`;
     link.title = `Open ${s.symbol} crypto market page`;
   } else updateYahooLink(s.symbol);
+  if(s.discovery && s.asset_type==='crypto'){
+    const market=$('yahoo-link');market.href='https://exchange.coinbase.com/spot/'+encodeURIComponent(s.symbol)+'-USD';
+    market.textContent=s.symbol+' market ↗';
+  }
+  const context=$('discovery-chart-context');
+  if(context)context.textContent=s.discovery ?
+    'Discovery snapshot · '+s.discovery.interval+' · '+s.discovery.lookback_days+' calendar days · Support '+fmtSnapshotPx(s.discovery.support)+
+    ' · Resistance '+fmtSnapshotPx(s.discovery.resistance)+' · Data through '+s.discovery.last_bar_at : '';
+  $('chart').setAttribute('aria-label',s.symbol+' price candlestick chart'+(s.discovery?' with measured discovery support and resistance':'')+', volume, RSI and MACD');
   $('d-feed').textContent = s.feed_note || s.feed || 'Feed unavailable';
   renderRangeTabs();
   renderOverlayToggles();
@@ -3321,6 +3433,11 @@ function renderDetail() {
 
 function renderAll() {
   renderViewTabs();
+  if (state.view === 'range-discovery') {
+    $('asof').textContent = 'On-demand discovery · source dates below';
+    // Broad-sector omissions are unrelated to this independent discovery scan.
+    $('notices').innerHTML = '';
+  }
 
   // A solo view reports on something other than a ranked group, so the
   // group-ranking furniture (hero, ranking bars, movers strip, ranking table)
@@ -3415,7 +3532,9 @@ function init() {
   $('refresh').onclick = () => {
     $('notices').innerHTML = '';
     fetchBoard(true);
-    if (state.symbol) (state.stock?.asset_type === 'crypto' || globalThis.CryptoFinanceInfra.assetKind(state.symbol) === 'crypto' ? fetchCrypto : fetchStock)(state.symbol, true);
+    if(state.view==='range-discovery' && state.stock?.discovery) {
+      selectDiscoverySymbol({symbol:state.symbol,asset:state.stock.asset_type},{scroll:false,scanStartedAt:state.stock.scan_started_at});
+    } else if (state.symbol) (state.stock?.asset_type === 'crypto' || globalThis.CryptoFinanceInfra.assetKind(state.symbol) === 'crypto' ? fetchCrypto : fetchStock)(state.symbol, true);
     // The solo views cache server-side (the cycle log is re-read per request,
     // but a row edited by hand still needs a re-pull to show up), so without
     // this Refresh left the one on screen stale with no way to force a rebuild.
@@ -3463,6 +3582,11 @@ function init() {
   if (state.view === 'ai-crypto' && chartKind) selectOnchainSymbol(chartSymbol, chartKind);
   if (state.view === 'rwa' && /^[A-Z0-9]{1,12}$/.test(chartSymbol)) selectOnchainSymbol(chartSymbol, 'crypto');
   if (state.view === 'sector' && /^[A-Z][A-Z0-9.\-]{0,11}$/.test(chartSymbol)) selectStock(chartSymbol);
+  if (state.view === 'range-discovery') {
+    // Discovery status is local and must not wait for the broad sector feed.
+    renderAll();
+    // The discovery module resolves deep links by asset and loads the saved snapshot.
+  }
   fetchBoard(false);
 }
 

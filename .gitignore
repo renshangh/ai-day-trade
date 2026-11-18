@@ -104,6 +104,10 @@ context*.json
 # Local scratch / diagnostics (never commit)
 tmp/
 trading_desk/cache.json
+output/
+outputs/
+trading_desk/DAILY_REVIEW_ARCHIVE.html
+reports/btc_elliott_wave_2026_11_16/SCENARIO_MONITOR_STATE.json
 trading_desk/*.json.tmp
 trading_desk/__pycache__/
 

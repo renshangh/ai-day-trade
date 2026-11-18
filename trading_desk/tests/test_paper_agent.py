@@ -11,6 +11,7 @@ if str(HERE) not in sys.path:
 
 import paper_agent as agent  # noqa: E402
 import server  # noqa: E402
+import solt_exit  # noqa: E402
 
 
 def stock(last=105.0, atr=10.0):
@@ -50,10 +51,58 @@ def test_price_discovery_exit_is_explicit_atr_projection():
     data["levels"] = [{"kind": "support", "level": 100.0}]
     result = agent.recommend("HYPEUSD", data)
     assert result["available"] is True
-    assert result["exit_basis"] == "atr_projection_above_observed_high"
+    # A recent-window projection avoids anchoring leveraged/reverse-split ETFs
+    # to economically stale all-history highs.
+    assert result["exit_basis"] == "atr_projection_above_recent_63_session_high"
     assert result["exit_range"] == {"low": 113.0, "high": 118.0}
     assert result["basis"]["resistance"] is None
     assert result["basis"]["observed_high"] == 108.0
+
+
+def test_projection_ignores_stale_high_outside_recent_quarter():
+    data = stock(last=105.0, atr=10.0)
+    data["levels"] = [{"kind": "support", "level": 100.0}]
+    data["bars"] = [{"c": 500.0, "h": 700.0}] + [
+        {"c": 105.0, "h": 108.0} for _ in range(agent.RECENT_HIGH_LOOKBACK)
+    ]
+
+    result = agent.recommend("SOLT", data, permitted_symbols=("SOLT",))
+
+    assert result["exit_range"] == {"low": 113.0, "high": 118.0}
+    assert result["basis"]["observed_high"] == 108.0
+    assert result["basis"]["observed_high_lookback_sessions"] == 63
+
+
+def test_solt_exit_plan_uses_account_basis_and_staged_whole_shares():
+    dates = [f"2026-09-{day:02d}" for day in range(1, 22)]
+    solt_bars = [{"t": day, "c": 60.0 + i, "h": 61.0 + i} for i, day in enumerate(dates)]
+    sol_bars = [{"t": day, "c": 100.0 + i} for i, day in enumerate(dates)]
+    plan = solt_exit.build(
+        {"quantity": 235, "average_price": 70.894383},
+        {"bars": solt_bars, "indicators": {"atr14": [4.0] * len(dates)},
+         "levels": [{"kind": "support", "level": 75.0}]},
+        {"bars": sol_bars},
+    )
+
+    assert plan["available"] is True
+    assert plan["average_cost"] == 70.894383
+    assert plan["stages"][0] == {
+        "name": "Recovery trim", "shares": 58, "low": 70.89, "high": 71.89,
+        "gate": "30-minute SOLT close above average cost and above session VWAP",
+    }
+    assert plan["stages"][1]["shares"] == 58
+    assert plan["stages"][2]["shares"] == 119
+    assert plan["support"] == 75.0
+    assert plan["sol_equivalent"]["observations"] == 20
+
+
+def test_solt_exit_plan_withholds_missing_market_inputs():
+    result = solt_exit.build(
+        {"quantity": 235, "average_price": 70.894383},
+        {"bars": [], "indicators": {}, "levels": []},
+        {"bars": []},
+    )
+    assert result == {"available": False, "reason": "aligned SOLT and SOL sessions are unavailable"}
 
 
 def test_unpermitted_symbol_is_rejected():

@@ -273,6 +273,14 @@ local HTTPS listener, so it captures the callback without the copy-paste step.
 
 ## Combined Daily Review
 
+As of October 28, the default review shows the current dated trading plan and
+always-visible per-account holdings. Expired authentication clears current
+holdings and displays a reconnect notice instead of stale data.
+Historical summaries live in `trading_desk/DAILY_REVIEW_ARCHIVE.html` and are
+linked from the plan. Live account widgets remain available in a collapsed
+disclosure; archiving does not alter broker records, permissions or orders.
+
+
 Daily Review reads all authorized Schwab accounts together using
 `python3 scripts/schwab_trade.py positions --all-accounts`. The main exposure review combines shared symbols with weighted cost.
 The **Schwab holdings by account & guarded preview** panel instead shows
@@ -339,3 +347,273 @@ entry or P&L. Label current bid/ask separately from delayed session VWAP, and
 leave unapproved stops, targets and exit executions blank. A written time-exit
 plan is advisory: a DAY order expires if unfilled, but does not sell a position
 that has filled. This workflow supports the sourced-decision North Star.
+
+## SOLT recovery-exit planner
+
+The Daily Review SOLT planner is read-only and account-specific. It requests the
+selected account's live position, then combines its quantity and average cost
+with real SOLT daily bars and completed Kraken SOL daily candles. The latest
+common session prevents an unfinished SOLT bar from being compared with a later
+or earlier SOL close. Missing aligned closes, ATR, or position basis makes the
+plan unavailable; values are never filled forward.
+
+The first review zone starts at average cost and extends 0.25 SOLT ATR. A second
+zone spans 0.5–1.0 ATR above average cost. Each is 25% of whole shares, rounded
+down, while the remainder is a runner managed with fresh 30-minute structure and
+session VWAP. The SOL cross-check estimates an observed short-window beta and
+reports only a single-session equivalent. It is not a multi-day forecast because
+SOLT resets leverage daily. Measured support is a thesis-review reference, not a
+submitted stop or permission to realize a loss. The endpoint creates no preview
+and has no placement path.
+
+
+## Multi-account cash-percentage buys
+
+Owner-approved project workflow, November 10, 2026; applies to other chats in this
+project. Submission remains a chat workflow using the existing guarded order helper.
+The read-only cash sizing page below does not add batch submission.
+
+A request supplies symbol, selected accounts, limit price, duration, and one of
+25%, 50%, 75%, or 100%. A percentage applies independently to each selected
+account, never to pooled account cash. Do not assume that earlier accounts or
+an earlier symbol remain selected. Normalize an unambiguous account suffix
+(e.g. 071 to linked 0071), and show masked account labels.
+
+1. Refresh authorized linked-account balances and outstanding buy orders using
+   read-only APIs. Verify cash available for this purchase without margin,
+   accounting for cash holds, existing buy commitments and applicable costs.
+   Do not double-subtract commitments already included in the available figure.
+   `cashBalance` alone is not proof of spendable cash; `availableFunds` and
+   `buyingPower` can include margin. If the response cannot establish cash-only
+   availability or outstanding-order coverage is incomplete, leave sizing for
+   that account unavailable and explain the gap; do not guess or substitute a
+   historical balance. A broker preview approving an order does not prove that
+   the funding is cash-only.
+2. Use decimal arithmetic: budget = verified uncommitted cash * percentage / 100;
+   shares = floor((budget - applicable cost reserve) / limit price), clamped to
+   zero. Cost reserves must be justified, not invented fees. Reject nonpositive
+   prices and unsupported percentages. Whole shares only; never round up.
+   At 100%, residual cash smaller than the cost of one share is expected.
+   Market orders cannot guarantee this budget, so obtain an explicit limit
+   price before using this workflow.
+3. Display each account's balance source/time, verified cash, percentage, budget,
+   whole-share quantity, estimated cost, and estimated cash remaining. Skip
+   accounts with zero affordable shares. Estimations are not fill guarantees.
+4. A sizing/recommendation request does not authorize previews or submission.
+   An explicit complete placement request authorizes processing calculated orders
+   through the existing Schwab skill in the same turn, subject to its validations.
+   Refresh sizing inputs when stale or after another order changes commitments;
+   never reuse an expired sizing table as a standing instruction.
+5. Validate and submit each exact account order through the existing helper;
+   preserve its account checks, single-use preview records and exact confirmation
+   matching. Never bypass warnings/rejections or retry uncertain submissions.
+   An account-specific rejection does not authorize changing quantity, percentage,
+   accounts, price, duration, or funding source. Report per-account outcomes and
+   order IDs; distinguish acceptance from fills. Multiple account orders are
+   separate and not atomic; partial success is possible. Do not roll back accepted
+   orders or cancel existing orders without explicit instruction.
+
+Example instruction: "Buy GLXY at $13.00 limit, DAY, using 25% of verified
+available cash in accounts 0071, 3652 and 6434." This example is not an order.
+No default allocation, account selection, new orders, or automated trading is
+authorized by saving this workflow. No margin-funded additions.
+
+
+## Taxable account 3652 wash-sale protection
+
+Owner instruction November 10, 2026: avoid wash sales affecting taxable
+Individual account ***3652. Other linked accounts are owner-identified retirement
+accounts. This preference persists across project chats and multi-account buys.
+
+Before broker preview or submission:
+
+- Review buys in every selected account for conflicts with ***3652 sales; review
+  sells only when the selling account is ***3652. Other accounts' sells do not
+  require wash-sale review (owner clarification November 13, 2026). Use the
+  read-only scan and inspect relevant transactions, including retirement purchases.
+  A scan failure, missing tax-lot evidence, or possible conflict is not clearance.
+- For a buy in any account, check for taxable ***3652 loss sales of the same or
+  substantially identical securities in the preceding 30 calendar days. Where
+  realized lot-level profit/loss is unavailable, treat relevant taxable sales as
+  unresolved and stop the affected buy until evidence resolves the risk.
+- For a sale in ***3652, verify the selected tax lots and check replacement
+  acquisitions in the preceding 30 calendar days across covered accounts.
+  Average position cost is not selected-lot basis. Check open buy orders,
+  reinvestments and other substantially identical securities; do not assume a
+  same-symbol scan captures every possible replacement.
+- After a confirmed taxable loss sale, record its date/security and the 30-day
+  forward replacement-purchase restriction privately. Future project-chat buys
+  must recheck this history. Do not imply that this prevents the owner, other
+  systems, dividend reinvestment, spouse accounts or outside brokers from creating
+  a subsequent conflict; flag missing external coverage when relevant.
+- IRA/Roth IRA purchases can disallow losses on taxable sales; retirement status
+  does not remove cross-account risk. Other retirement-plan applicability must
+  not be assumed identical without verification. Consult the tax guidance for
+  unresolved substantially-identical or retirement-plan questions.
+- If a possible conflict or required-data gap exists, do not preview/submit that
+  affected order under this workflow. Explain the conflict or missing evidence.
+  Do not silently change symbols, accounts, tax lots, price or timing, or cancel
+  existing orders. Do not claim "no wash sales guaranteed" from incomplete data.
+
+The existing `wash-sale-check` is advisory, same-symbol, and lacks reliable
+lot-level realized P/L. These agent instructions add a stop rule; they do not
+change the helper into a tax engine or automatically monitor future outside
+trades. No order is authorized by this preference.
+
+Primary reference checked November 10, 2026:
+https://www.irs.gov/publications/p550 (Wash Sales). The window includes 30 days
+before and 30 days after the loss sale. IRA/Roth replacement purchases can cause
+loss disallowance without the usual replacement-share basis increase.
+
+
+## Fast multi-account cash sizing
+
+Added November 10, 2026 after the owner reported more than two minutes to size
+an intraday multi-account purchase. Use the existing v3 **Order Drafts** link
+(`/cash-ticket`) for calculations, rather than round trips through chat for each
+price change. This page is read-only: it never previews, sends, replaces or
+cancels orders. The 3652 wash-sale guard above remains mandatory.
+
+The fresh snapshot makes one combined balance request and parallel per-account
+order requests, after one OAuth warm-up. Order coverage starts at UTC midnight
+180 days earlier, covering Schwab's maximum 180-calendar-day GTC duration.
+The source is Schwab's current account/order API, not cached chart data. Missing
+accounts, truncated order lists, unknown statuses and unbounded buy commitments
+cannot silently become available cash. Active contingent child buys are
+conservatively reserved too. The page displays timestamps and measured elapsed
+time. It never uses `availableFunds` or `buyingPower` as cash.
+
+A CASH account can use `cashAvailableForTrading`, capped by cash balance less
+remaining buy commitments. Taking the minimum avoids subtracting commitments
+again from a figure already net of those commitments. For accounts without a
+verified cash-only field, cash balance is only a ceiling: the owner must enter
+just-verified net cash without borrowing, after holds, commitments and applicable
+costs. Ordinary refresh preserves entered amounts only as unconfirmed drafts;
+it does not renew an old attestation. The explicit **Refresh & calculate**
+action means the owner has just rechecked those entered net-cash amounts. It
+fetches a fresh snapshot, renews that explicit confirmation for at most 30 seconds,
+and checks each amount against the new cash ceiling. Never use this button as
+a substitute for actually rechecking cash. Other costs are not estimated by
+this calculator. Explicit account selections survive a refresh of
+the same open ticket, but a new page starts with none selected.
+
+Cash expires after 30 seconds and must also be refreshed after any order, fill,
+cancellation, transfer or new commitment. Price and percentage changes on a
+fresh ticket use exact integer-cent calculations locally, with whole shares
+rounded down. The copy button produces exact **BUY/SELL order drafts for review**, including
+account, whole shares, LIMIT price, DAY/GTC and NORMAL session. Drafts are not
+submitted orders or authorization to place them. Tax clearance and broker validations are not included in the
+calculation latency. No promise of execution speed or fills is made.
+
+The same read-only fast path is available to every project chat:
+
+```bash
+python3 scripts/schwab_cash.py snapshot
+python3 scripts/schwab_cash.py size --accounts 0071 3652 --price 57.50 --percentage 50
+```
+
+The `size` command uses the latest private snapshot only while it is fresh. It
+does no network calls. If the API cannot verify cash, leave that account
+unavailable unless the owner has supplied a current net cash amount; pass that
+explicit amount with `--confirmed-cash LAST4=NET_CASH`. Never invent a
+confirmation from historical cash or the cash ceiling. Store no credentials,
+full account numbers or hashes in sizing output. The latest sanitized snapshot
+lives in gitignored `trading_records/schwab_cash_snapshot.json` with owner-only
+permissions; there is no standing trade instruction.
+
+Operational metrics: aim for a fresh five-account balance/order snapshot under
+10 seconds on a healthy connection and price/percentage recalculation under
+100ms, while maintaining zero oversize-from-rounding, zero margin substitutions
+and zero stale-snapshot sizing. These are targets, not broker service guarantees.
+Record elapsed time from live read-only checks privately; review slow requests
+and blocked cash sources before broadening automation. On November 10 a live
+combined balance read took 1.23 seconds and the complete snapshot took 6.53
+seconds. These are individual measurements, not percentile benchmarks.
+
+Schwab duration reference checked November 10, 2026:
+https://www.schwab.com/content/how-to-place-trade-using-good-till-canceled-on-schwab-mobile
+
+
+### Calculator input and copy feedback (November 11, 2026)
+
+Selected accounts stay listed in step 2 even when the price, percentage or cash
+confirmation is missing or the snapshot expires. Each row explains its next
+step. A percentage click cannot calculate shares without a limit price. The
+**Refresh & calculate** action lets the owner prepare the inputs first and
+explicitly reconfirm just-checked net cash while obtaining a new snapshot.
+The 30-second freshness limit is unchanged.
+
+A fresh, complete symbol/price/percentage selection can copy order drafts when
+at least one selected account supports a nonzero quantity. Blocked/zero
+accounts remain visible in the results table but are omitted from the draft
+box and clipboard. Copy contains only complete eligible BUY/SELL lines, with
+no header, footer or account-error messages. When all accounts are blocked or
+zero, Copy stays disabled and the table explains why. Copying is not submission.
+Copy explains any blocking inputs, and clipboard failure exposes a read-only
+text box for manual copying. No sizing or execution guards are weakened.
+
+
+### BUY and SELL order drafts (November 11, 2026)
+
+Choose **BUY** or **SELL**, DAY/GTC, the symbol and limit price, explicit
+accounts, then 25/50/75/100%. The visible draft box and **Copy order drafts to
+chat** show one exact leg per eligible account, omitting blocked/zero accounts
+and explanatory boilerplate from the copied text. Copying never previews or sends
+orders. A separate explicit placement instruction and all existing execution
+checks are required. There is no new order endpoint.
+
+BUY uses verified net cash as above. SELL uses freshly read stock/ETF long
+quantities less all potentially active sell commitments for the same symbol,
+including contingent and OCO children conservatively. Partial fills reserve
+remaining quantity. Fractional shares are rounded down after percentage sizing.
+Cash is not required to close verified long shares; unknown/missing holdings,
+short exposure, unknown order states, malformed sell legs or incomplete order
+coverage block sell drafts. No position is inferred from earlier snapshots.
+Prices are user-entered limits, not live quotes. Estimated proceeds exclude
+fees/taxes and do not guarantee a fill or settlement availability.
+
+100% SELL means all available long shares; 50% sells half, rounded down. The
+ticket does not enforce owner core/tactical allocations: follow the approved
+holding plan before choosing a percentage. Selected tax lots, owner-approved
+allocations and taxable/cross-account wash-sale clearance remain mandatory
+before any execution. A draft alone does not clear them.
+
+The same shared read-only helper supports sells:
+
+```bash
+python3 scripts/schwab_cash.py snapshot
+python3 scripts/schwab_cash.py size --side sell --symbol HUT --accounts 0071 3652 1638 --price 60.00 --percentage 50
+```
+
+This is a calculation example, not a price recommendation or trade instruction.
+The snapshot exposes only masked account suffixes and sanitized equity
+quantities. Missing positions or orders remain unavailable. BUY and SELL both
+expire after 30 seconds; refresh after any change in commitments.
+
+### Cash-ticket wash-sale scope (November 13, 2026)
+
+The page now runs a read-only 3652 same-symbol scan automatically once accounts,
+symbol and limit price are entered. BUY in any selected account checks sales in
+***3652 during the preceding 30 calendar days; retirement-account sales do not
+trigger this guard. Because realized lot-level profit/loss is unavailable, a
+matching taxable sale remains unresolved and blocks the affected buy drafts.
+
+SELL runs this check only when ***3652 is selected. It reads that account's
+position cost and replacement purchases across all linked accounts. A potential
+loss, unknown basis or incomplete check blocks the 3652 sell draft; other
+accounts' sell drafts remain eligible without a wash-sale check. Sizing stays
+visible for blocked rows, but their lines are omitted from the draft and copy.
+
+The GET-only `/api/schwab/cash-wash-check` uses
+`scripts/schwab_trade.py cash-ticket-wash-check` and cannot preview or submit an
+order. BUY history is scoped to 3652; SELL history covers linked accounts.
+Missing 3652 linkage/history is unavailable, never an empty successful scan.
+Results expire after 30 seconds and must match side, symbol and limit price.
+Changing those inputs invalidates the result; late responses cannot approve a
+changed ticket. **Refresh & calculate** retries failed/expired checks. Changing
+only percentage or selected buy destinations can reuse the same fresh scan.
+
+A successful scan is not tax clearance. Selected lots can differ from average
+cost; substantially identical securities, open replacement orders, reinvestment,
+outside accounts and future activity still require the execution review above.
+This supports the desk's sourced-decision North Star without permitting trades.

@@ -1,0 +1,439 @@
+{
+  "source": "Actual persisted BTC live model actions, Nov 14; reference metadata, no brokerage/account records",
+  "events": [
+    {
+      "event_id": "a6bea669ba013ae310f888cbb22f0b85d818557c37152ca0e9ebac9ddc91e26f",
+      "model": "0.1",
+      "ref": 1794692340,
+      "detected": 1794692410.433794,
+      "body": {
+        "model": "0.1",
+        "type": "entry",
+        "time_utc": "2026-11-14T21:39:00Z",
+        "time_ny": "2026-11-14T16:39:00-05:00",
+        "price": 64685.119,
+        "trade_id": 19,
+        "entry_rule": "B1",
+        "signal_id": 19,
+        "l1": {
+          "time": "2026-11-14T21:18:00Z",
+          "price": 63940.886699507,
+          "known_at": "2026-11-14T21:30:00Z"
+        },
+        "h1": {
+          "time": "2026-11-14T21:27:00Z",
+          "price": 64685.109
+        },
+        "l2": null,
+        "trigger": 64685.119,
+        "stop": 63843.98000664105,
+        "target": 69971.07446392505,
+        "net_reward_risk": 6.066857810522433,
+        "reference_time": "2026-11-14T21:39:00Z",
+        "detected_at": "2026-11-14T21:40:10.433794Z",
+        "detection_delay_seconds": 70.43379402160645,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "6076ba2b155cf0caf6ef40087310ce83e5bf7fbf7b2f3d29c6f9aee32ea4393e",
+      "model": "E1",
+      "ref": 1794692340,
+      "detected": 1794692410.433794,
+      "body": {
+        "model": "E1",
+        "type": "entry",
+        "time_utc": "2026-11-14T21:39:00Z",
+        "time_ny": "2026-11-14T16:39:00-05:00",
+        "price": 64685.119,
+        "trade_id": 19,
+        "entry_rule": "B1",
+        "signal_id": 19,
+        "l1": {
+          "time": "2026-11-14T21:18:00Z",
+          "price": 63940.886699507,
+          "known_at": "2026-11-14T21:30:00Z"
+        },
+        "h1": {
+          "time": "2026-11-14T21:27:00Z",
+          "price": 64685.109
+        },
+        "l2": null,
+        "trigger": 64685.119,
+        "stop": 63843.98000664105,
+        "target": 69971.07446392505,
+        "net_reward_risk": 6.066857810522433,
+        "reference_time": "2026-11-14T21:39:00Z",
+        "detected_at": "2026-11-14T21:40:10.433794Z",
+        "detection_delay_seconds": 70.43379402160645,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "6340ed7021d95feb7420b51fe2b7c649609f3f32893a7c7f6703ffb3b5a83076",
+      "model": "E2",
+      "ref": 1794692340,
+      "detected": 1794692410.433794,
+      "body": {
+        "model": "E2",
+        "type": "entry",
+        "time_utc": "2026-11-14T21:39:00Z",
+        "time_ny": "2026-11-14T16:39:00-05:00",
+        "price": 64685.119,
+        "trade_id": 19,
+        "entry_rule": "B1",
+        "signal_id": 19,
+        "l1": {
+          "time": "2026-11-14T21:18:00Z",
+          "price": 63940.886699507,
+          "known_at": "2026-11-14T21:30:00Z"
+        },
+        "h1": {
+          "time": "2026-11-14T21:27:00Z",
+          "price": 64685.109
+        },
+        "l2": null,
+        "trigger": 64685.119,
+        "stop": 63843.98000664105,
+        "target": 69971.07446392505,
+        "net_reward_risk": 6.066857810522433,
+        "reference_time": "2026-11-14T21:39:00Z",
+        "detected_at": "2026-11-14T21:40:10.433794Z",
+        "detection_delay_seconds": 70.43379402160645,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "0cbf7288d1b28f46177b512aad68134b715e36390a4dd735157889cc6797fb87",
+      "model": "0.1",
+      "ref": 1794693540,
+      "detected": 1794693612.849372,
+      "body": {
+        "model": "0.1",
+        "type": "turning_exit_remaining",
+        "time_utc": "2026-11-14T21:59:00Z",
+        "time_ny": "2026-11-14T16:59:00-05:00",
+        "price": 64404.1805,
+        "fraction": 1.0,
+        "trade_id": 19,
+        "reference_time": "2026-11-14T21:59:00Z",
+        "detected_at": "2026-11-14T22:00:12.849372Z",
+        "detection_delay_seconds": 72.84937191009521,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "67ed391f5e460f3e5a87eec372962da9476247c9da8c779d90d357d1ae39fe8c",
+      "model": "E1",
+      "ref": 1794693540,
+      "detected": 1794693612.849372,
+      "body": {
+        "model": "E1",
+        "type": "turning_exit_remaining",
+        "time_utc": "2026-11-14T21:59:00Z",
+        "time_ny": "2026-11-14T16:59:00-05:00",
+        "price": 64404.1805,
+        "fraction": 1.0,
+        "trade_id": 19,
+        "reference_time": "2026-11-14T21:59:00Z",
+        "detected_at": "2026-11-14T22:00:12.849372Z",
+        "detection_delay_seconds": 72.84937191009521,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "27b11665b547b54b38741291d288f5e8ad0c9d6cc3ca29d0039ef22a111e0d77",
+      "model": "E2",
+      "ref": 1794693540,
+      "detected": 1794693612.849372,
+      "body": {
+        "model": "E2",
+        "type": "turning_exit_remaining",
+        "time_utc": "2026-11-14T21:59:00Z",
+        "time_ny": "2026-11-14T16:59:00-05:00",
+        "price": 64404.1805,
+        "fraction": 1.0,
+        "trade_id": 19,
+        "reference_time": "2026-11-14T21:59:00Z",
+        "detected_at": "2026-11-14T22:00:12.849372Z",
+        "detection_delay_seconds": 72.84937191009521,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "d03440de94d5e62507279f862a19c23db6c4e080e5c6d78934a402a6e43713c0",
+      "model": "0.1",
+      "ref": 1794698340,
+      "detected": 1794698413.0596962,
+      "body": {
+        "model": "0.1",
+        "type": "entry",
+        "time_utc": "2026-11-14T23:19:00Z",
+        "time_ny": "2026-11-14T18:19:00-05:00",
+        "price": 63790.466,
+        "trade_id": 20,
+        "entry_rule": "B1",
+        "signal_id": 20,
+        "l1": {
+          "time": "2026-11-14T22:12:00Z",
+          "price": 63293.6,
+          "known_at": "2026-11-14T22:15:00Z"
+        },
+        "h1": {
+          "time": "2026-11-14T23:13:00Z",
+          "price": 63790.456
+        },
+        "l2": null,
+        "trigger": 63790.466,
+        "stop": 63142.78389731262,
+        "target": 69949.51069999648,
+        "net_reward_risk": 9.110951415229131,
+        "reference_time": "2026-11-14T23:19:00Z",
+        "detected_at": "2026-11-14T23:20:13.059696Z",
+        "detection_delay_seconds": 73.05969619750977,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "6e18fed890a54072b4c649c5e43026f0ea5084ca44b11bce75b6e8aa30081a5f",
+      "model": "E1",
+      "ref": 1794698340,
+      "detected": 1794698413.0596962,
+      "body": {
+        "model": "E1",
+        "type": "entry",
+        "time_utc": "2026-11-14T23:19:00Z",
+        "time_ny": "2026-11-14T18:19:00-05:00",
+        "price": 63790.466,
+        "trade_id": 20,
+        "entry_rule": "B1",
+        "signal_id": 20,
+        "l1": {
+          "time": "2026-11-14T22:12:00Z",
+          "price": 63293.6,
+          "known_at": "2026-11-14T22:15:00Z"
+        },
+        "h1": {
+          "time": "2026-11-14T23:13:00Z",
+          "price": 63790.456
+        },
+        "l2": null,
+        "trigger": 63790.466,
+        "stop": 63142.78389731262,
+        "target": 69949.51069999648,
+        "net_reward_risk": 9.110951415229131,
+        "reference_time": "2026-11-14T23:19:00Z",
+        "detected_at": "2026-11-14T23:20:13.059696Z",
+        "detection_delay_seconds": 73.05969619750977,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "c903d7ce396def981e37c669264faf4d6469d0fd39207df63c06c65b913cf9b9",
+      "model": "E2",
+      "ref": 1794698340,
+      "detected": 1794698413.0596962,
+      "body": {
+        "model": "E2",
+        "type": "entry",
+        "time_utc": "2026-11-14T23:19:00Z",
+        "time_ny": "2026-11-14T18:19:00-05:00",
+        "price": 63790.466,
+        "trade_id": 20,
+        "entry_rule": "B1",
+        "signal_id": 20,
+        "l1": {
+          "time": "2026-11-14T22:12:00Z",
+          "price": 63293.6,
+          "known_at": "2026-11-14T22:15:00Z"
+        },
+        "h1": {
+          "time": "2026-11-14T23:13:00Z",
+          "price": 63790.456
+        },
+        "l2": null,
+        "trigger": 63790.466,
+        "stop": 63142.78389731262,
+        "target": 69949.51069999648,
+        "net_reward_risk": 9.110951415229131,
+        "reference_time": "2026-11-14T23:19:00Z",
+        "detected_at": "2026-11-14T23:20:13.059696Z",
+        "detection_delay_seconds": 73.05969619750977,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "214b184478f29c01d9d271359173085afd2b4b376773306975fcab7311f6bad5",
+      "model": "0.1",
+      "ref": 1794702540,
+      "detected": 1794702604.192523,
+      "body": {
+        "model": "0.1",
+        "type": "giveback_exit_remaining",
+        "time_utc": "2026-11-15T00:29:00Z",
+        "time_ny": "2026-11-14T19:29:00-05:00",
+        "price": 63871.65,
+        "fraction": 1.0,
+        "trade_id": 20,
+        "reference_time": "2026-11-15T00:29:00Z",
+        "detected_at": "2026-11-15T00:30:04.192523Z",
+        "detection_delay_seconds": 64.19252300262451,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "c052d962790377737d3d822a90d4b6160833ef2e6fe9d44723f23b701e96bb90",
+      "model": "E1",
+      "ref": 1794702540,
+      "detected": 1794702604.192523,
+      "body": {
+        "model": "E1",
+        "type": "giveback_exit_remaining",
+        "time_utc": "2026-11-15T00:29:00Z",
+        "time_ny": "2026-11-14T19:29:00-05:00",
+        "price": 63871.65,
+        "fraction": 1.0,
+        "trade_id": 20,
+        "reference_time": "2026-11-15T00:29:00Z",
+        "detected_at": "2026-11-15T00:30:04.192523Z",
+        "detection_delay_seconds": 64.19252300262451,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    },
+    {
+      "event_id": "db9cd4f097069dead63a1aa4123cfae7c2dac985f1039d924f305823d760af10",
+      "model": "E2",
+      "ref": 1794702540,
+      "detected": 1794702604.192523,
+      "body": {
+        "model": "E2",
+        "type": "giveback_exit_remaining",
+        "time_utc": "2026-11-15T00:29:00Z",
+        "time_ny": "2026-11-14T19:29:00-05:00",
+        "price": 63871.65,
+        "fraction": 1.0,
+        "trade_id": 20,
+        "reference_time": "2026-11-15T00:29:00Z",
+        "detected_at": "2026-11-15T00:30:04.192523Z",
+        "detection_delay_seconds": 64.19252300262451,
+        "comparison_execution": "reference_only",
+        "broker_fill": false
+      }
+    }
+  ],
+  "minutes": [
+    {
+      "t": 1793642220,
+      "body": {
+        "close": 76989.405,
+        "high": 77058.525,
+        "low": 76989.4,
+        "n": 0,
+        "open": 77006.0,
+        "t": 1793642220,
+        "volume": 0.0
+      },
+      "received": 1794246981.645941,
+      "sha": "d1006bc02a5340461a2a1d10df2a39d51982bb6a48d2d2a00c2a6a09b8b8381d"
+    },
+    {
+      "t": 1794692340,
+      "body": {
+        "close": 64774.7715,
+        "high": 64820.18,
+        "low": 64646.7,
+        "n": 0,
+        "open": 64647.2045,
+        "t": 1794692340,
+        "volume": 0.0
+      },
+      "received": 1794692410.433794,
+      "sha": "a196b39b34294c7ec60b02257dcbbe14095049a5042d7c54c9d57658e118ecdf"
+    },
+    {
+      "t": 1794693540,
+      "body": {
+        "close": 64413.4,
+        "high": 64445.664,
+        "low": 64344.529,
+        "n": 1,
+        "open": 64404.1805,
+        "t": 1794693540,
+        "volume": 0.000114
+      },
+      "received": 1794693612.849372,
+      "sha": "557a2ec84000ae3cbc9ddb056defd77352326e41c123463fb0d21ef5250a89a8"
+    },
+    {
+      "t": 1794698340,
+      "body": {
+        "close": 63793.3975,
+        "high": 63807.3,
+        "low": 63712.2545,
+        "n": 0,
+        "open": 63741.55,
+        "t": 1794698340,
+        "volume": 0.0
+      },
+      "received": 1794698413.0596962,
+      "sha": "be7949b4587b368ec5cd379043f70d04a31856691cb81981e4441065b2ddd7f5"
+    },
+    {
+      "t": 1794702540,
+      "body": {
+        "close": 63721.335,
+        "high": 63891.2,
+        "low": 63706.615,
+        "n": 1,
+        "open": 63871.65,
+        "t": 1794702540,
+        "volume": 1.6e-05
+      },
+      "received": 1794702604.192523,
+      "sha": "5d521bdec67e812b9afec5319d818ed09ef9db10637e600f94da42b4a3ba7f5b"
+    },
+    {
+      "t": 1794753600,
+      "body": {
+        "close": 64566.385,
+        "high": 64721.28,
+        "low": 64537.095,
+        "n": 3,
+        "open": 64708.63,
+        "t": 1794753600,
+        "volume": 0.000101484
+      },
+      "received": 1794753663.4380732,
+      "sha": "f05de9950e6a379a54a7dbbd8a16a3378cb17a5c68bbb444582ad3e9b2b91a83"
+    }
+  ],
+  "state": {
+    "session": {
+      "id": "20261109T175620Z"
+    },
+    "health": "running",
+    "models": [],
+    "quote": {
+      "time": "2026-11-15T14:41:34.19994369Z",
+      "bid": 64498.311,
+      "ask": 64515.31,
+      "mid": 64506.8105,
+      "source": "Alpaca BTC/USD quote",
+      "execution": "reference_only_not_a_fill"
+    },
+    "quote_age_seconds": 13.2933509349823,
+    "quote_fresh": true,
+    "rows": []
+  }
+}

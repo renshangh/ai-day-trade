@@ -1,0 +1,27 @@
+{
+  "protected_files": 18,
+  "hashes": {
+    "trading_desk/btc_engine.py": "8e29e7623a5967a9614a48fc4af50760cd3afcf12bf5e8ee922dd1c2ed6449d9",
+    "trading_desk/btc_ab_replay.py": "e7c128e500fc3c74daa908790b4b6636af78ed8dfe4d618b83785d72e50545d4",
+    "trading_desk/btc_entry_detector.py": "c55574970f2031847cc7c3032ca3d5236bbadebe543fc28d59589b9306656e00",
+    "trading_desk/btc_entry_rules.py": "24946bb1c73e65394796e5437e8b33fb2a6f6af80a65ddcb0a94cee1ecc27fab",
+    "trading_desk/btc_shock_branches.py": "fb6fe99de26910cd0d08169f234470e9a99f6463fb5b2cb2b13fdb8ffa3fa198",
+    "trading_desk/btc_approved_exits.py": "68f35828980a17c3e40230915e49822513d2393339565b2d78c25d2b72ef3c53",
+    "trading_desk/btc_guarded_replay.py": "7aca18387c9b949f22af6c2139e4319cd7891a99f8050849e17394eeec511621",
+    "trading_desk/btc_structure_exits.py": "2e74fb40149900a044b383d9d44c7d6d2cc2eeb822e65b3ffde12c30657449f2",
+    "trading_desk/btc_turning_replay.py": "d96060fc7a029a5bd53538be742e3ef3855c7a8873fcabf4fb0c69e5152af5cf",
+    "trading_desk/btc_failed_rebound.py": "42a78ed6aec4675ac295f4f899c9a730719103a849e46019966d19e4af9bef6d",
+    "trading_desk/btc_early_sequential.py": "69bf81be97a30b8e2a08aeeb1baf7311f4caaa57a699dcd50d2f0c56ba5f8231",
+    "scripts/btc_structure_retest.py": "97c08c4a1a1154c78ca6b52bb415d78f744a31a855a6d2dc7b0de1bbe2d18635",
+    "scripts/audit_btc_release01_early_failure.py": "0a74f90d5e975083ba7e7afa83301047f95028dc8ccc662d4b9c3b4b7a9e91fa",
+    "trading_desk/btc_live.py": "f4ea5c4b32f3239549b05354b0747427141b1feb724822e684ab8d489c01e591",
+    "scripts/run_btc_live.py": "a8a668b3f179498e8abb0ff08f8d76da4a48873497373df80aafad19ca3c6496",
+    "/Volumes/SanDisk Extreme/github/ai-day-trade/trading_records/btc_structure/live/CONTROL.json": "fbb6d751897c8941c9304e59a8f903fd2413e6904fbf265d8a60b27cf99b36ee",
+    "/Volumes/SanDisk Extreme/github/ai-day-trade/trading_records/btc_structure/live/SESSION.json": "996934ed737dd6af1d3e1aea971fb05f3fc56b648a73a10da026edae1c8afca7",
+    "/Users/danielshan/Library/LaunchAgents/com.renshangh.btc-live-comparison.plist": "7e02c3a5da5965558aee2b63bda004ca838e9d7ea789cf2ac7616086531155c3"
+  },
+  "btc_pid": 56139,
+  "session": "20261109T175620Z",
+  "health": "running",
+  "unchanged": true
+}

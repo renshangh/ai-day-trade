@@ -7,24 +7,40 @@ Compare each open holding with its regular-session volume-weighted average price
 :Status: Active
 :Audience: Trading Desk users
 
-AI Power — Nuclear
-------------------
+AI Power — Neocloud
+-------------------
 
-The AI Power section is available on the Hot Sector Board at
-``/board?view=ai-power``. It is not displayed or loaded on the home page. It combines sourced company evidence with a
-completed-session recovery assessment, a staged swing-trading plan, and a
-whole-share risk calculator. Refresh reads market data and masked account
-positions. Entry levels remain a dated analyst plan until reviewed again.
+Open ``/board?view=ai-power`` for CORZ, GLXY, HUT and RIOT. The watchlist
+uses Q3 2026 positive GAAP diluted EPS reported through November 5, with
+company-source links and separate cash-quality notes. Positive EPS does not
+establish recurring profit or positive free cash flow. CIFR is excluded because
+its diluted EPS was negative despite positive net income and basic EPS.
 
-The recovery framework requires breadth, relative strength and producer
-leadership over two completed sessions. Today’s New York candle is excluded
-even after the close. Missing, stale or misaligned data prevents confirmation;
-short-history indicators remain unavailable. These rules are unbacktested
-research criteria, not probabilities or guaranteed bottom identification.
+The debt-resilience table shows September 30, 2026 cash, restricted funds,
+debt carrying value, cash/debt, nine-month operating cash flow and Q3 operating
+interest coverage. Coverage below 1 means the stated operating income does not
+cover gross interest expense. HUT also removes its disclosed digital-asset gain;
+GLXY coverage remains unavailable because full financing costs are not reconciled.
+Restricted construction funds are excluded from cash. GLXY's separate digital-asset
+financing and the limits of consolidated cash are stated beside the figures.
 
-The calculator requires a valid long entry/stop/target, cash and risk budgets,
-and at least 2R to the target. It does not submit orders. Daily evidence notes
-are saved through the main desk’s existing local revisioned research store.
+Choose a rate increase of 1, 2 or 3 percentage points to see additional annual
+gross interest on verified drawn floating debt, holding balances constant.
+Unknown exposure stays unavailable. Fixed-rate debt faces higher costs when
+refinanced. Repayment dates, project restrictions, October repayments and future
+construction funding needs appear beside each company. These are dated diagnostics,
+not bankruptcy probabilities or a safest-company ranking. Operating cash flow
+is before capex and can include Bitcoin sales; it is not recurring free cash flow.
+Refreshing market prices does not refresh financial filings.
+
+Select a ticker to open its stock chart. Completed-session breadth and relative
+strength compare the four stocks with SPY and QQQ. Today's New York candle is
+excluded; missing, stale or misaligned observations block confirmation. These
+are discretionary research criteria, not validated trading signals.
+
+The old nuclear watchlist and standing allocation plan are removed from this
+view. Historical observations remain saved. The section does not refresh broker
+accounts or submit orders.
 
 Overview
 --------
@@ -91,8 +107,43 @@ the page does not refresh prices. Past plans are marked historical after their
 New York session date. Future opening-range and VWAP values remain unknown;
 review levels are not approved broker stops and no orders are created.
 
+Daily Review opens with the current dated trading plan and separate, always-visible
+holdings tables for both Schwab accounts. An expired session shows a reconnect
+notice rather than historical positions. Use the archive link for prior daily
+summaries, or expand “Account tools & chart analysis” for
+broker tools, VWAP and the account-specific SOLT planner. Historical
+archive snapshots do not refresh or authorize orders.
 
-Daily review now prioritizes the verified SOLT addition as a separate day-trade
+
+Earnings exposure uses current linked Schwab holdings, including completed
+rotations. If the account read fails, exposure is reported unavailable rather
+than using old journal positions. Missing earnings dates remain unavailable.
+
+Daily Review has an account-specific SOLT recovery-exit planner for the
+Individual account. It combines the live Schwab quantity and average cost with
+the latest common completed SOLT/SOL session, observed short-window beta, SOLT
+ATR, and measured support. The advisory ladder reviews 25% at the average-cost
+recovery zone, 25% in a 0.5–1.0 ATR extension, and manages the remaining whole
+shares against a confirmed 30-minute higher low or session VWAP. The displayed
+SOL threshold is a single-session equivalent, not a multi-day forecast, because
+SOLT resets leverage daily. The planner never submits an order or stop. Generic
+ATR exit projections without measured resistance use the latest 63 sessions,
+not an all-history high from a potentially obsolete split or price regime.
+
+Daily Review begins with an October 14 read-only Schwab transaction ledger. It
+records the completed Individual-account sales of 50 CCJ at $82.90 and 100 AXTI
+at an improved $64.735 execution, plus purchases of 20 LITE at $925 and 7 LITE
+at $908. The purchases raise the closing holding to 47 shares at a $940.79 average cost. A dated
+full-position table excludes SNDL by owner instruction, keeps QNT visible as
+watch-only, and shows account weights against Schwab's liquidation value. The
+review distinguishes the owner's lack of deployable cash from broker-reported
+cash and margin buying power. It separately reconciles the working 20-share LITE
+sell at $995, the canceled 40-share $785 buy, and two replaced $932 buys. Inactive
+orders do not count as transactions or holdings. The closing review also shows
+broad-market performance, a clearly labeled estimate of the holdings-weighted
+daily move, closing concentration and confirmation-based levels for the next session.
+
+The historical October 9 daily review prioritizes the verified SOLT addition as a separate day-trade
 sleeve. Replaced orders are not fills. The trade entry, whole-position average,
 earlier holdings and other accounts remain distinct. Intraday references carry
 their own timestamps; delayed VWAP is not a live execution signal. The written
@@ -249,19 +300,12 @@ Journal stops are not applied to a symbol shared across accounts because the
 journal does not identify the account. Chart-derived valuations retain their
 market-data dates. Trading still requires selection of one account.
 
-AI Power — Nuclear
-==================
+AI Power sector scorecard
+=========================
 
-The Hot Sector Board has an **AI Power — Nuclear** view. It groups twelve
-stocks by role: power producers (CEG, VST, TLN), fuel and enrichment
-(CCJ, LEU, SOLS, STDN), equipment and services (BWXT, CW, MIR, FLS), and advanced
-reactors (XE). Select a ticker to open its chart, or open the nuclear
-scorecard to compare measured price strength, breadth and relative performance.
-
-The scorecard uses SPY as its default benchmark and the existing market-data
-feeds. Missing bars are reported as unavailable. The watchlist is research
-scope; it does not rank future profits or submit trades. Optical and crypto
-views remain available.
+The ``AI Power / Neocloud`` sector group uses CORZ, GLXY, HUT and RIOT with
+SPY as its default benchmark. The optical and broader datacenter-buildout
+groups remain separate. Unavailable market data is explicitly reported.
 
 The broker identifier ``46438R105`` is hidden by request from desk rows,
 alerts, paper-agent candidates and session VWAP. Its actual broker market
@@ -332,3 +376,181 @@ The crypto research panel below the chart provides separate CoinGecko and
 CoinMarketCap links for the selected token. Each opens its asset-specific page
 in a new tab. Switching tokens updates both links; they remain available when
 chart candles cannot be loaded. USD feed aliases resolve to the underlying token.
+
+Quantum watchlist
+-----------------
+
+Select Quantum in the sector view to follow IONQ, RGTI, QBTS, QUBT and QNT (Quantinuum).
+The theme uses the standard momentum, breadth and chart tools. Missing market
+data remains unavailable. Adding a research theme does not create trades.
+
+
+Economic release dates on v3
+----------------------------
+
+Open Economic Calendar on the v3 desk for selected upcoming BLS and BEA releases
+and dated Federal Reserve events. Dates and release times are shown in Eastern
+time, including daylight-saving changes. The running desk server checks daily even without an open browser tab;
+use Refresh schedule for a manual retry. No separate Codex automation is
+created. Crypto Live is available directly from the main navigation.
+
+Source failures are labeled partial coverage. Previously verified schedule
+entries retain their verification date and become stale on later days. CPI, payrolls, JOLTS and PPI can refresh through the St. Louis Fed FRED
+calendar when direct BLS access is unavailable; source details identify that
+fallback. FOMC meetings, minutes and press conferences refresh from the Fed
+calendar automatically. Published Central times are converted to Eastern. This calendar does
+not include every economic report, forecasts, or actual release results.
+
+
+Fast multi-account cash sizing
+------------------------------
+
+Open **Order Drafts** from v3 or visit ``/cash-ticket``. Refresh linked accounts,
+select the accounts explicitly, enter a symbol/limit price, then choose 25%,
+50%, 75% or 100%. Each percentage applies to each account's own net cash.
+Changing price or percentage recalculates whole shares locally. Changing the
+symbol or limit price also refreshes any required wash-sale check. All
+quantities round down.
+
+The page is read-only and never previews, places, replaces or cancels orders.
+Its copy button copies exact BUY/SELL draft legs for chat, not submitted orders
+or authorization to place them.
+The ticket runs a 3652 same-symbol wash-sale scan. Selected tax lots, final
+wash-sale clearance and broker validation remain separate execution requirements.
+
+Current balances are fetched together and order commitments in parallel.
+Missing cash-only availability stays unavailable. Cash balance is not proof of
+spendability, and margin buying power is never substituted. Where the API lacks
+a cash-only field, enter just-verified net cash without borrowing, after holds,
+commitments and applicable costs. Ordinary refresh retains amounts only as unconfirmed drafts. No costs
+are invented or estimated. Cash expires after 30 seconds; refresh sooner after
+any trade or other commitment. There is no promise of order execution speed.
+
+Project chats can use ``python3 scripts/schwab_cash.py snapshot``, followed by
+``python3 scripts/schwab_cash.py size --accounts 0071 3652 --price 57.50 --percentage 50``.
+The second command only calculates from a fresh sanitized private snapshot.
+
+
+Calculator feedback and refresh
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Selected accounts remain visible in step 2, with a Status / next step column
+explaining missing cash confirmation, missing price or expired balances. Enter
+a symbol and a positive limit price before selecting an allocation.
+
+If cash expires while preparing the ticket, finish the inputs and click
+**Refresh & calculate**. This action explicitly confirms that entered net-cash
+amounts were just rechecked in Schwab, obtains a fresh balance/order snapshot,
+and checks the amounts against the new cash ceilings. It does not extend the
+30-second freshness rule or send any orders. Ordinary refresh retains amounts
+as unconfirmed drafts only.
+
+Copy requires at least one eligible nonzero leg. The draft box and clipboard
+contain only complete eligible BUY/SELL lines, with no blocked/zero accounts,
+header or footer. Account blockers remain visible in the results table. When
+all accounts are blocked or zero, Copy is disabled. If clipboard access fails, a
+read-only text box appears for manual copying.
+
+
+BUY and SELL order drafts
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Choose BUY or SELL, DAY/GTC, symbol and limit price before selecting accounts
+and a percentage. **Copy order drafts to chat** includes side, whole shares,
+symbol, LIMIT price, duration, NORMAL session and masked account for each
+eligible leg. It never sends orders. Explicit placement authorization, fresh
+account checks, selected tax lots, wash-sale review and broker validation are
+separate requirements. User-entered limits are not current market quotes.
+
+BUY sizes from verified net cash. SELL sizes from freshly verified stock/ETF
+long holdings after open sell commitments, including contingent child orders.
+It does not require buy cash or permit short sales. Missing holdings or sell
+order coverage block drafts. SELL quantities round down; 50% of 125 available
+shares produces 62 shares, and 100% uses all available whole shares. Follow
+your approved core-holding plan when selecting a percentage; this calculator
+does not enforce it. Estimated sale proceeds exclude fees/taxes.
+
+BUY in any selected account checks sales in taxable account ``***3652`` during the
+preceding 30 calendar days. SELL checks wash-sale risk only for ``***3652``,
+including replacement purchases across linked accounts. Other accounts' sells
+need no wash-sale check. A potential conflict, unknown basis or unavailable
+check blocks affected draft lines from copying; it does not hide their sizes or
+block other accounts' eligible sells. Matching 3652 sales block buys until their
+realized loss status is resolved.
+
+Checks run automatically after accounts, symbol and limit price are entered.
+They expire after 30 seconds and are invalidated by changes to side, symbol or
+limit price. Use **Refresh & calculate** to retry unavailable or expired checks.
+A successful same-symbol scan is not tax clearance: average cost can differ
+from selected tax-lot basis, and substantially identical securities, open buy
+orders, reinvestments, outside accounts and future purchases still need review
+before execution. No order is authorized or sent by this check.
+
+Both cash and holdings expire after 30 seconds and must refresh after an order
+or other commitment changes. No historical position is carried forward. Chats
+can use ``scripts/schwab_cash.py size --side sell --symbol HUT --accounts 1638
+--price 60.00 --percentage 50`` after a fresh snapshot. This is a calculation
+example, not a trade instruction or recommended price.
+
+
+Current trading-plan evidence
+-----------------------------
+
+Every current plan refresh must obtain actual quotes with per-symbol trade
+timestamps, session and feed/delay labels. Previous closes remain historical
+benchmarks. Intraday confirmation uses completed candles; missing current
+history stays unavailable. Venue-only TradingView Cboe One volume must not be
+labeled consolidated SIP volume. Check current primary-source earnings and
+guidance, distinguishing GPU-cloud operators from data-center landlords and
+optical suppliers. Supersede old targets when a material gap changes the setup,
+preserve the owner-designated hold allocation, and never treat a plan update
+as order authorization or a new monitoring schedule.
+
+
+Sector recovery and holding framework
+--------------------------------------
+
+The November 11 Daily Review adds a sourced sector-bottoming study. It separates
+a broad initial thrust, a held higher-low retest and confirmed breadth/relative
+strength repair. Technical bottoming is distinct from improving company revenue,
+funded delivery and guidance. A core holding is not an indefinite commitment; a
+tactical allocation need not be liquidated on a fixed price target. Core reviews
+use daily/weekly context; tactical reviews use completed 15–30-minute structure.
+
+The study uses actual adjusted consolidated SIP daily observations and an
+explicit trading-session calendar. It preserves missing dates, pre-IPO absence
+and incomplete forward horizons. Its current-selected seven-name neocloud
+cohort has common history only from May 2025. Semiconductor/software ETF analogs
+and the separate optical basket are labeled distinctly. Calculated basket
+returns are not observed security prices or broker fills.
+
+The predefined rebound screen is a 3% group up-day after a 20% closing drawdown,
+with at least 70% advancing constituents, spacing events 21 sessions apart.
+Descriptive closing returns and drawdowns do not establish a profitable trading
+strategy, forecast probabilities, or a day-trading versus holding winner. Full
+protocol, observations and candidate outcomes remain in the private study
+archive. The research does not authorize orders or a new recurring monitor.
+
+November 17 late-morning breakdown update
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+COIN broke its prior $117.32 regular-session fixed-bottom reference. CRCL broke
+$54.87 and invalidated the former simple impulse because wave 3 became shortest.
+The current CRCL capture retains the orange labels as invalidated history and
+withdraws the old future paths. A later reclaim does not restore that count.
+New quotes, completed five-minute structure, venue-specific VWAP and delayed
+consolidated volume windows are dated separately; old captures remain available.
+
+The13:28 CRCL recount is a separate provisional larger1/A →2/B →3/C
+hypothesis. Internal subwaves remain unverified. Conditional46.20/43.34/40.84
+are extension illustrations, not support or mandatory lows. A future standard
+smalleriv must remain below63.56 and larger4 below71. Above68.90/77.59 ends
+or relabels the corresponding still-runningiii/3C; final low L is unknown.
+Native red/green paths use illustrative dates and preserve earlier captures.
+
+The16:00 COIN recount keeps the extended fifth as the simpler working count
+and separately tests a nested Oct2 larger3.117.32 failed the fixed bottom,
+not the impulse.105.25 and88.44 are conditional calculation examples.
+B future smalleriv must remain below135.46; future larger4 below184.29.
+Above153.33/200.3514 ends or relabels the corresponding still-runningiii/3.
+A local ending does not prove the whole October2025 correction finished.

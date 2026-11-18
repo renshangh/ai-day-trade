@@ -1,0 +1,71 @@
+{
+  "quote": {
+    "best_ask": "64100.9",
+    "best_bid": "64100.89",
+    "trades": [
+      {
+        "price": "64100.89",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.00000002",
+        "time": "2026-11-18T11:43:45.523696Z",
+        "trade_id": "1134801304"
+      },
+      {
+        "price": "64095.75",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.02354829",
+        "time": "2026-11-18T11:43:45.094370Z",
+        "trade_id": "1134801303"
+      },
+      {
+        "price": "64096.23",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.00015809",
+        "time": "2026-11-18T11:43:45.094370Z",
+        "trade_id": "1134801302"
+      }
+    ]
+  },
+  "candles": [
+    {
+      "close": "64100.98",
+      "high": "64809.77",
+      "low": "64025.23",
+      "open": "64809.77",
+      "start": "1794988800",
+      "volume": "686.52522708"
+    },
+    {
+      "close": "64809.77",
+      "high": "64889.54",
+      "low": "64233.86",
+      "open": "64374.87",
+      "start": "1794974400",
+      "volume": "721.83664751"
+    },
+    {
+      "close": "64374.87",
+      "high": "64933.39",
+      "low": "64033.57",
+      "open": "64873.18",
+      "start": "1794960000",
+      "volume": "972.02403538"
+    },
+    {
+      "close": "64873.18",
+      "high": "65199.37",
+      "low": "63583.92",
+      "open": "63675.22",
+      "start": "1794945600",
+      "volume": "2149.80933793"
+    }
+  ],
+  "review_at_utc": "2026-11-18T11:43:45.523696Z",
+  "review_at_ny": "2026-11-18T06:43:45.523696-05:00",
+  "request_end_utc": "2026-11-18T11:43:22Z",
+  "source": "Coinbase connector products_ticker and products_candles; BTC-USD; 4h",
+  "candles_truncated": false
+}

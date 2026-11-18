@@ -1,12 +1,72 @@
-# AI Power — Nuclear Trading Plan
+# AI Power — Neocloud Research and Historical Nuclear Plan
 
-A sourced market assessment and conditional swing-trading framework for nuclear equities.
+Current AI infrastructure watchlist conventions with the prior dated nuclear plan retained for history.
 
-**Last Updated:** 2026-10-09
-**Status:** Active research; proposed orders only
+**Last Updated:** 2026-11-11
+**Status:** Neocloud watchlist active; nuclear plan historical
 **Audience:** Trading Desk owner and contributors
 
 ## Overview
+
+The active AI Power section at `/board?view=ai-power` now covers CORZ, GLXY,
+HUT and RIOT. This supports the desk North Star of sourced, explicit decisions.
+The screen is positive Q3 2026 GAAP diluted EPS from releases through November 5;
+it is not a live earnings filter, profitability ranking or FCF screen. CIFR is
+excluded because diluted EPS was negative despite positive net income/basic EPS.
+Review future releases before updating membership; missing evidence remains unknown.
+
+`trading_desk/ai_power.js` contains the dated issuer evidence and current four-name
+universe; `trading_desk/universe.py` mirrors it as `AI Power / Neocloud` for the
+sector scorecard. SPY/QQQ are price benchmarks, not comparable business models.
+Completed-session checks retain missing/stale-data guards and use the actual
+universe size. No producer subgroup or nuclear ETF proxy applies.
+
+The active view removes the old standing allocation/entry plan and broker-account
+refresh. Private holdings and costs must never be copied into this public module.
+Preserve prior nuclear observations as historical records under their old theme;
+do not relabel them as neocloud evidence. This change does not submit trades.
+
+## Debt and interest-rate resilience
+
+The active table uses September 30, 2026 consolidated balances, Q3 operating
+income and gross interest expense, reviewed November 6. Amounts are USD millions.
+Source links point to issuer/SEC filings or, for Galaxy, the earnings release.
+Cash/debt is reported cash divided by debt carrying value; it is a liquidity
+cushion, not a survival probability or debt-service ratio. Exclude separately
+reported restricted funds and undrawn facilities from cash. GLXY cash availability
+is not fully reconciled and its cash-debt figure excludes borrowed digital assets
+and collateral payable, which must remain prominent in the notes.
+
+Coverage uses quarterly operating income / gross interest expense, never net
+interest. HUT subtracts its disclosed digital-asset operating gain as an explicit
+sensitivity; it is not a standardized adjusted earnings measure. CORZ also shows
+coverage including capitalized interest. GLXY remains unavailable because the
+release does not reconcile the full financing-cost scope. Nine-month operating
+cash flow is before capex, may include Bitcoin sales and working-capital timing,
+and must not be labeled recurring FCF or used to invent a cash runway.
+
+The +100/+200/+300 basis-point selector calculates annual gross incremental
+interest as verified drawn floating principal * basis points / 10,000. It holds
+balances constant, before offsets, hedges, fees and future draws. Unknown exposure
+stays unavailable, including HUT's capped September loan repaid in October.
+CORZ's undrawn floating revolver supports zero *drawn* exposure at the reporting
+date, not zero refinancing risk. A separately labeled per-$1B refinancing example
+is hypothetical. Fixed coupons do not reset just because market rates rise.
+
+Repayment notes distinguish principal schedules from current carrying balances,
+reflect HUT's October repayment, and preserve CORZ's contingent amortization
+assumption. Project non-recourse status does not protect project equity or
+collateral. Current-debt figures exclude future construction financing; completion
+obligations still matter even if discretionary expansion stops. No automated
+safety ranking, bankruptcy probability or arbitrary survival score is generated.
+Market refreshes do not update this dated financial snapshot. Review the next
+filings before changing figures; missing evidence stays null, not zero.
+
+## Historical nuclear plan — October 9, 2026
+
+The remainder records the original nuclear framework and is not the active view
+or a current allocation instruction.
+
 
 The objective is repeatable risk-adjusted returns with sourced decisions and
 explicit invalidation. Weekly leading indicators: rule adherence, recorded
@@ -124,3 +184,76 @@ Run `node --test trading_desk/tests/test_ai_power.cjs`. Tests cover actual sourc
 observations, incomplete-day exclusion, missing/stale/invalid data, insufficient
 history, risk limits and source validation. UI checks cover both surfaces,
 chart selection, calculator and narrow-width layout.
+
+
+## November 11 earnings-context refresh
+
+The four-name positive-GAAP-EPS screen remains a dated subset, not the complete
+neocloud universe or a current valuation ranking. The local AI Power / Neocloud
+observations now include CoreWeave's November 10 guidance/backlog update, IREN's
+November 5 revenue conversion and ARR timing/funding disclosures, and Nebius's
+November 12 premarket earnings catalyst. Their primary links and numeric facts
+are saved privately in `trading_records/2026-11-11_NEO_CLOUD_EARNINGS_REVIEW.json`;
+the public research journal has no account holdings. Price appreciation is
+consistent with selective repricing, not proof that every company is cheap.
+
+Before a current trading-plan update, fetch actual quotes and completed
+intraday structure and check fresh company releases. Label premarket/regular
+sessions, each last-trade time and feed/delay. Previous closes are benchmarks,
+not live prices. If Schwab history omits today's candles, report the gap rather
+than substituting yesterday; Cboe One chart volume is venue-only. Preserve
+owner allocations and prior plans while explicitly superseding stale targets.
+No new monitoring schedule or broker action follows from these records.
+
+
+## Sector recovery versus short-term profit targets (November 11)
+
+The owner requested a larger sector-bottom perspective rather than continuously
+raising fixed sell targets. Read the current fundamental cycle evidence and
+technical regime together. A tactical allocation is not an obligation to sell
+on the first up-day; core holding decisions use daily/weekly evidence, while
+tactical decisions use completed 15–30-minute structure, peer strength and
+opening-range/session-VWAP behavior. No approved stop or loss cap is inferred.
+
+The reproducible descriptive study is `scripts/study_sector_bottoms.py`. It reads
+real archived Alpaca adjusted SIP daily bars and the Alpaca session calendar.
+Missing dates split coverage runs; no prices or volumes are filled or joined
+across missing sessions. The neocloud context cohort is CRWV, NBIS, IREN, CORZ,
+GLXY, HUT and RIOT, with common coverage May 16, 2025–November 10, 2026. Cloud
+compute and infrastructure-owner subsets are separate. The existing 13-name
+optical universe is retained for aggregate AXTI context, including excluded
+individual-watch names only in aggregate calculations. SOXX and IGV are
+longer-history analogs, not substitute neocloud indices.
+
+The research definition, saved before outcome calculation, requires a prior
+close at least 20% below the preceding 63-session closing peak, a group up-day
+of at least 3%, and at least 70% advancing members. Space candidates 21 sessions
+apart. ETF analogs apply the price condition only. Group returns chain actual
+equal-weight daily member returns as a calculated metric, never fabricated
+observed OHLCV or a tradable security. Forward 5/10/21-session returns and
+closing drawdowns require complete actual observations; unfinished horizons
+remain null. A +10%-closing-gain / later-5%-pullback diagnostic describes paths,
+not assumed exit/reentry fills.
+
+Seven fully observed 21-session neocloud rebound candidates had four positive
+end returns, median +4.08%, range −31.73% to +14.56%. The November 3 all-member
+up-day illustrates a recent failed thrust; November 10 six-of-seven higher
+daily lows after the November 6–9 rebound are more constructive. At the latest
+completed November 10 close, only 1/7 was above its 20-day average and 0/7 above
+its 50-day. Optics had 4/13 above 20-day and 0/13 above 50-day. These are not
+completed-session trend confirmations, despite higher premarket prices.
+
+This is a small, current-selected cohort with survivorship/membership limitations.
+It is not an execution backtest or proof of superiority over day trading.
+Daily-close paths miss intraday drawdowns; no fees, taxes, slippage, borrowing or
+fill assumptions are included. Do not optimize thresholds after seeing results
+or describe rebound candidates as hindsight-confirmed bottoms. Published
+industry-momentum evidence concerns 6–12-month horizons, not validation of this
+short-term screen: https://www.aqr.com/Insights/Research/Journal-Article/Do-Industries-Explain-Momentum
+
+All candidates, source bars/calendar, protocol and outcomes are preserved under
+gitignored `trading_records/2026-11-11_SECTOR_BOTTOM_*`. Reproduce with
+`python3 scripts/study_sector_bottoms.py`; focused integrity checks are
+`python3 -m pytest trading_desk/tests/test_sector_bottom_research.py -q`.
+The decision-quality objective is to distinguish a tradable rebound from a
+confirmed recovery with auditable evidence, not maximize a fitted study return.

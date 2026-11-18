@@ -7,6 +7,15 @@ This fork keeps day-trading experiments separate from `ai-8888`.
 
 ## First Goal
 
+For the crypto swing/range paper pilot, see
+[Range Trading Pilot](../docs/RANGE_TRADING_PILOT.md). Run
+`python3 -m ai_day_trade.alpaca_range_paper` for the read-only screen or add
+`--execute-paper --cycles 2` for a bounded Alpaca paper test. The model uses
+completed real bars and can return no trade; it has no live execution mode.
+The default focus is NEAR and DOT over seven days. For a separate, read-only
+stock shortlist from Schwab history, run
+`python3 -m ai_day_trade.schwab_range_screen`.
+
 Replace the custom `ai-8888 daytrade` execution loop with a Lumibot strategy that can use the same rules for backtests and Alpaca paper execution.
 
 The first pilot is intentionally conservative:

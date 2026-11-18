@@ -185,11 +185,11 @@ def test_an_errored_build_is_not_cached():
         srv._cache["sector"] = {}
 
 
-def test_nuclear_group_with_unavailable_feed_keeps_all_symbols_missing():
+def test_neocloud_group_with_unavailable_feed_keeps_all_symbols_missing():
     with _with_fake_fetch({}):
-        out = srv.build_sector_scorecard("AI Power / Nuclear")
+        out = srv.build_sector_scorecard("AI Power / Neocloud")
     assert out["benchmark"] == "SPY"
-    assert set(out["constituents_missing"]) == set(universe.THEMES["AI Power / Nuclear"]["constituents"])
+    assert set(out["constituents_missing"]) == set(universe.THEMES["AI Power / Neocloud"]["constituents"])
     assert out["constituents_used"] == []
 
 

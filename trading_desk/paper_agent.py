@@ -15,6 +15,7 @@ EXIT_ATR_WIDTH = 0.35
 STOP_ATR_BUFFER = 0.50
 PRICE_DISCOVERY_TARGET_LOW_ATR = 0.50
 PRICE_DISCOVERY_TARGET_HIGH_ATR = 1.00
+RECENT_HIGH_LOOKBACK = 63
 
 
 def _finite(value) -> float | None:
@@ -72,12 +73,15 @@ def recommend(symbol: str, stock: dict, *, permitted_symbols=None) -> dict:
         # Price discovery has no observed resistance above the market. Anchor
         # the projection to a real traded high and label it explicitly; this is
         # a planning range, never a fabricated historical level.
-        observed_highs = [_finite(bar.get("h", bar.get("c"))) for bar in bars]
+        # An all-history high can be economically irrelevant after a reverse
+        # split or regime change (SOLT produced a ~$700 proposal near $62).
+        # Use the most recent quarter of sessions and label the projection.
+        observed_highs = [_finite(bar.get("h", bar.get("c"))) for bar in bars[-RECENT_HIGH_LOOKBACK:]]
         observed_high = max(value for value in observed_highs if value is not None)
         resistance = None
         exit_low = observed_high + PRICE_DISCOVERY_TARGET_LOW_ATR * atr
         exit_high = observed_high + PRICE_DISCOVERY_TARGET_HIGH_ATR * atr
-        exit_basis = "atr_projection_above_observed_high"
+        exit_basis = "atr_projection_above_recent_63_session_high"
     stop = max(0.01, support - STOP_ATR_BUFFER * atr)
 
     if last <= stop:
@@ -107,6 +111,7 @@ def recommend(symbol: str, stock: dict, *, permitted_symbols=None) -> dict:
             "exit_width_atr": EXIT_ATR_WIDTH,
             "stop_buffer_atr": STOP_ATR_BUFFER,
             "observed_high": round(observed_high, 2) if resistance is None else None,
+            "observed_high_lookback_sessions": RECENT_HIGH_LOOKBACK if resistance is None else None,
             "price_discovery_target_atr": (
                 [PRICE_DISCOVERY_TARGET_LOW_ATR, PRICE_DISCOVERY_TARGET_HIGH_ATR]
                 if resistance is None else None

@@ -1,3 +1,21 @@
+# AI Trading Desk
+
+BTC Live Paper, saved chart reviews, and independent trading research built on
+the LumiBot framework included below.
+
+**Start here:** [Trading Desk files and setup](docs/REPOSITORY_CONTENTS.md)
+· [BTC Live Paper source](trading_desk/btc_live.html)
+· [BTC Live operating guide](docs/BTC_LIVE_PAPER.md)
+· [Saved BTC scenario charts](reports/btc_elliott_wave_2026_11_16/README.md)
+· [BTC Live screenshots](reports/btc_live_captures/README.md)
+· [Frozen 0.2 download](https://github.com/renshangh/ai-day-trade/releases/tag/btc-research-v0.2)
+
+GitHub shows the source and saved captures. Run the dashboard locally to use
+`/btc-live`; it is a route, not a separate GitHub directory. Credentials and
+private account records stay on your machine.
+
+## Underlying LumiBot framework
+
 [![CI Status](https://github.com/Lumiwealth/lumibot/actions/workflows/cicd.yaml/badge.svg?branch=dev)](https://github.com/Lumiwealth/lumibot/actions/workflows/cicd.yaml)
 [![Coverage](https://raw.githubusercontent.com/Lumiwealth/lumibot/badge/coverage.svg)](https://github.com/Lumiwealth/lumibot/actions/workflows/cicd.yaml)
 [![PyPI](https://img.shields.io/pypi/v/lumibot)](https://pypi.org/project/lumibot/)

@@ -1,0 +1,11 @@
+﻿symbol,loss_id,winner_id,matched_exposure,pairing
+BTC/USD,47,48,True,nearest same-route same-period winner; prefer same exposure
+BTC/USD,42,41,True,nearest same-route same-period winner; prefer same exposure
+BTC/USD,20,21,True,nearest same-route same-period winner; prefer same exposure
+BTC/USD,22,16,True,nearest same-route same-period winner; prefer same exposure
+BTC/USD,65,68,True,nearest same-route same-period winner; prefer same exposure
+SOL/USD,28,29,True,nearest same-route same-period winner; prefer same exposure
+SOL/USD,5,4,True,nearest same-route same-period winner; prefer same exposure
+SOL/USD,9,6,True,nearest same-route same-period winner; prefer same exposure
+SOL/USD,14,15,True,nearest same-route same-period winner; prefer same exposure
+SOL/USD,8,6,True,nearest same-route same-period winner; prefer same exposure

@@ -10,6 +10,54 @@ A read-only thirty-day BTCUSD signal experiment and spreadsheet.
 Overview
 --------
 
+Separate parent-wave HL continuation comparison
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Open ``/btc-parent-hl`` to review the separate C detector. A complete confirmed
+hourly parent D and confirmed fifteen-minute HL precede an intrabar crossing
+of the previous complete fifteen-minute high. Initial protection retains the
+larger parent D and original 0.25 entry-ATR buffer. A nearer-HL break does not
+create a new exit. Original P1 A/B candidates have priority.
+
+The November 9 prefix test confirms an armed setup at 03:15 EST and a crossing
+reference at 03:17, $73,867.005, with initial stop $73,456.6322. The minute is
+observable no earlier than 03:18 plus delivery. An existing B entry has priority
+at the same minute, so the C record is a held candidate, not an extra fill.
+
+On the identical thirty-day source, P1+C nets -$8,575.17 / -$10,623.94 /
+-$8,891.40 across 143 / 181 / 147 trades for 0.1 / E1 / E2. P1 controls remain
+$3,965.02 / $4,608.23 / $4,643.71 across 36 trades. Results normalize to one
+initial BTC and original 2bps per side; they are not broker returns. Missing
+minutes stay absent. Gap groups, all trades, confirmation times, recorded
+exits and CSV exports are visible. C is not promoted or tuned after this test.
+
+P1, frozen 0.2 and Live Paper remain unchanged. Opening this page never starts
+a replay or sends an order. See ``docs/BTC_PARENT_HL_RESEARCH.md`` for the fixed
+definition, provenance, limitations and preservation checks.
+
+Separate P1 A-entry comparison
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Open ``/btc-p1`` to compare frozen 0.2 with a separate P1 full-sequence replay
+of the identical 30-day stream for 0.1, E1 and E2. P1 requires two complete
+post-D holds, a 1-ATR rebound and a completed close 0.5 ATR above D; ATR is fixed
+before the candidate-D candle. Only A scope eligibility changes. B1/B2, shared
+risk and inherited exits remain unchanged. Frozen files and Live Paper do not
+change, and opening the page does not start a replay.
+
+The page shows the full sequence, changed/removed/added entries, each exit leg,
+model P/L, observed 15-minute chronology, and separate gap-quality groups.
+Responsive charts mark real recorded entry/exit references, not planned target
+fills. All three P1 sequences have 36 trades, 18 winners and 18 losers, with
+nets 3,965.02 / 4,608.23 / 4,643.71 USD per initial BTC. They remove original
+A #23 and #26; all other trades match their own frozen model exactly, with no
+replacement buys. This small A sample does not establish a robust advantage.
+
+The authorized replay command is ``python3 scripts/retest_btc_p1_30d.py``.
+CSV and JSON exports are available on the page. The separate November 9
+03:17 early-breakout annotation is outside this study window and is not added
+to either the frozen or running live strategy.
+
 BTC/USD live comparison
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

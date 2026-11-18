@@ -1,0 +1,55 @@
+name: Trading Desk Public Snapshot
+
+on:
+  push:
+    branches: [main]
+    paths: ['trading_desk/**', 'ai_day_trade/**', 'scripts/**', 'reports/btc_*/**', 'docs/**', 'docsrc/**', 'README.md', '.github/workflows/trading-desk.yml']
+  pull_request:
+    branches: [main]
+    paths: ['trading_desk/**', 'ai_day_trade/**', 'scripts/**', 'reports/btc_*/**', 'docs/**', 'docsrc/**', 'README.md', '.github/workflows/trading-desk.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  public-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install offline test dependencies
+        run: python -m pip install pytest numpy
+      - name: Verify unchanged frozen BTC rule sources
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from trading_desk.btc_live import RULE_FILES
+          path=Path('docs/releases/BTC_STRUCTURE_0_2_MANIFEST.json')
+          assert hashlib.sha256(path.read_bytes()).hexdigest()=='a28150b9c60f3935a71bbee672dda0fd4d4f33b4a5ccc5e8cb19d2067e0e24a0'
+          manifest=json.loads(path.read_text())
+          for name in RULE_FILES:
+              assert hashlib.sha256(Path(name).read_bytes()).hexdigest()==manifest['files_sha256']['source/'+name],name
+          print('Frozen BTC rule sources unchanged:',len(RULE_FILES))
+          PY
+      - name: Run portable checks without private stores or credentials
+        run: |
+          python -m pytest -q \
+            trading_desk/tests/test_public_dashboard_snapshot.py \
+            trading_desk/tests/test_btc_e3_draft1.py \
+            trading_desk/tests/test_btc_e3_failure_controls.py \
+            trading_desk/tests/test_btc_e3_support_recovery.py \
+            trading_desk/tests/test_btc_bottom_review.py \
+            trading_desk/tests/test_btc_parent_five.py \
+            trading_desk/tests/test_btc_parent_memory.py \
+            trading_desk/tests/test_btc_login_service.py \
+            trading_desk/tests/test_btc_lab.py \
+            trading_desk/tests/test_schwab_cash.py \
+            trading_desk/tests/test_cash_wash.py
+          node --test trading_desk/tests/test_btc_bottom_review_render.cjs trading_desk/tests/test_ibit_hours_render.cjs

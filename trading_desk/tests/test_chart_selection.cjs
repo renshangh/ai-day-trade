@@ -4,6 +4,20 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8');
 
+test('expired Schwab authentication clears previously loaded holdings',async()=>{
+  const state={schwabPositions:{ok:true,positions:[{symbol:'OLD'}]}};
+  let rendered=false;
+  const context=vm.createContext({state,
+    fetch:async()=>({json:async()=>({ok:false,error:'OAuth expired'})}),
+    fetchSchwabPositions:async()=>{throw Error('must not read without authentication');},
+    renderSchwabStatus:()=>{rendered=true;}});
+  vm.runInContext(source.slice(source.indexOf('async function fetchSchwabStatus('),
+    source.indexOf('async function fetchSchwabPositions(')),context);
+  await context.fetchSchwabStatus();
+  assert.equal(state.schwabPositions,null);
+  assert.equal(rendered,true);
+});
+
 test('switching symbols clears candles, feed, tooltip and stock-only facts',()=>{
   const state={stock:{symbol:'COIN'},symbol:'COIN',hover:12};
   const elements=new Map();
@@ -73,4 +87,29 @@ test('switching crypto research replaces links and stock-only facts',()=>{
   assert.match($('c-links').innerHTML,/quant-network/);
   assert.match($('c-links').innerHTML,/currencies\/quant\//);
   for(const id of ['c-stats','c-facts','c-news'])assert.ok($(id).cleared,id);
+});
+
+test('discovery candles use their entire measured interval instead of a generic calendar slice',()=>{
+ const context=vm.createContext({});
+ vm.runInContext(source.slice(source.indexOf('function chartStartIndex('),source.indexOf('function visibleSlice(')),context);
+ assert.equal(context.chartStartIndex({discovery:{interval:'4h'},asset_type:'crypto',bars:[]},{key:'3M',bars:63}),0);
+});
+
+test('a slower stock snapshot response cannot overwrite a later selected crypto snapshot',async()=>{
+ const calls=[],pending=[];
+ const state={selectionSeq:0,stock:null};
+ const element={classList:{add(){},remove(){}},scrollIntoView(){},textContent:''};
+ const context=vm.createContext({state,URLSearchParams,$:()=>element,
+  clearSelectedChart:s=>{state.stock=null;state.symbol=s;},renderDetail:()=>calls.push(state.symbol),fetchDetail:()=>{},
+  fetch:url=>new Promise(resolve=>pending.push({url,resolve}))});
+ vm.runInContext(source.slice(source.indexOf('function rangeDiscoveryOptions('),source.indexOf('function selectOnchainSymbol(')),context);
+ const first=context.selectDiscoverySymbol({symbol:'SWKS',asset:'stock'},{scroll:false,scanStartedAt:'snapshot'});
+ const second=context.selectDiscoverySymbol({symbol:'NEAR',asset:'crypto'},{scroll:false,scanStartedAt:'snapshot'});
+ const observations=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'../../reports/range_trading/NEAR_DOT_REFRESH.json'),'utf8'));
+ const realBar=observations.products['NEAR-USD'].candles[0];
+ pending[1].resolve({ok:true,json:async()=>({symbol:'NEAR',asset_type:'crypto',bars:[realBar]})});await second;
+ const stockBar=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'../../reports/range_trading/TWO_YEAR_DAILY_SOURCE_2026_10_17.json'),'utf8')).products.SWKS[0];
+ pending[0].resolve({ok:true,json:async()=>({symbol:'SWKS',asset_type:'stock',bars:[stockBar]})});await first;
+ assert.equal(state.symbol,'NEAR');assert.equal(state.stock.symbol,'NEAR');assert.deepEqual(calls,['NEAR']);
+ assert.match(pending[1].url,/asset=crypto/);assert.match(pending[1].url,/scan=snapshot/);
 });

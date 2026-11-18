@@ -20,6 +20,7 @@ import csv
 import json
 import math
 import os
+import re
 import statistics
 import subprocess
 import sys
@@ -47,12 +48,36 @@ import paper_agent  # noqa: E402
 import sector_signals  # noqa: E402
 import universe  # noqa: E402
 import session_vwap  # noqa: E402
+import solt_exit  # noqa: E402
 import v3_store  # noqa: E402
 import onchain_crypto  # noqa: E402
 import rwa_market  # noqa: E402
+import range_discovery  # noqa: E402
 from trading_desk import btc_lab  # noqa: E402
 from trading_desk import btc_live  # noqa: E402
+from trading_desk import btc_p1_view  # noqa: E402
+from trading_desk import btc_parent_hl_view  # noqa: E402
+from trading_desk import btc_parent_five_view  # noqa: E402
+from trading_desk import btc_parent_memory_view  # noqa: E402
+from trading_desk import btc_parent_filter_view  # noqa: E402
+from trading_desk import pattern_discovery  # noqa: E402
+from trading_desk import pattern_backtest_view  # noqa: E402
+from trading_desk import crypto_transfer_view  # noqa: E402
+from trading_desk import sol_live  # noqa: E402
+from trading_desk import crypto_live_review  # noqa: E402
+from trading_desk import economic_calendar
+from scripts import schwab_cash
+from trading_desk import crypto_live_history  # noqa: E402
+from trading_desk import refined_entry_view  # noqa: E402
+from trading_desk import followthrough_view  # noqa: E402
+from trading_desk import adaptive_shock_view  # noqa: E402
+from trading_desk import entry_quality_view  # noqa: E402
+from trading_desk import entry_indicator_view  # noqa: E402
+from trading_desk import unfiltered_90_view  # noqa: E402
+from trading_desk import sol01_view  # noqa: E402
+from trading_desk import ibit_view  # noqa: E402
 from trading_desk import ibit_hours  # noqa: E402
+from trading_desk import btc_bottom_review  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -1451,7 +1476,11 @@ def build_earnings_calendar(horizon_days: int) -> dict:
         }
 
     today = datetime.now(timezone.utc).date()
-    held = open_positions()
+    broker = run_schwab_helper("positions", "--all-accounts")
+    if not broker.get("ok"):
+        return {"error": "Current earnings exposure unavailable: Schwab holdings could not be read.",
+                "rows": [], "held_without_dates": []}
+    held, _, _ = review_holdings(journal_open_rows(), broker)
     groups = universe.all_groups()
     group_of: dict[str, str] = {}
     for gname, cfg in groups.items():
@@ -1701,6 +1730,26 @@ def schwab_status() -> dict:
     return payload
 
 
+def schwab_cash_wash_get(side: str, symbol: str, price: str, accounts: str) -> tuple[int, dict]:
+    """Read-only cash-ticket scope; never create a broker preview."""
+    selected = accounts.split(",")
+    if (side not in {"BUY", "SELL"} or not selected or
+            any(not re.fullmatch(r"\d{4}", account) for account in selected) or
+            not re.fullmatch(r"[A-Z][A-Z0-9.-]{0,9}", symbol) or
+            not re.fullmatch(r"\d{1,12}\.\d{2}", price) or float(price) <= 0):
+        return 400, {"ok": False, "message": "Choose accounts, side, symbol and a positive limit price."}
+    if side == "SELL" and "3652" not in selected:
+        return 200, {"ok": True, "skipped": True, "read_only": True,
+                     "execution_ready": False, "message": "Wash-sale check not required for sells outside ***3652."}
+    result = run_schwab_helper("cash-ticket-wash-check", "--side", side,
+                              "--symbol", symbol, "--limit-price", price)
+    if not result.get("ok"):
+        # Helper failures must not leak broker account identifiers or old results.
+        return 503, {"ok": False, "possible": None, "read_only": True,
+                     "execution_ready": False, "message": "3652 wash-sale check unavailable. Refresh & calculate to retry."}
+    return 200, result
+
+
 def schwab_preview_post(data: dict) -> tuple[int, dict]:
     """Create a broker preview. This endpoint has no live-submit counterpart."""
     required = ("side", "symbol", "quantity", "order_type", "duration")
@@ -1818,16 +1867,81 @@ def build_paper_recommendations(force: bool = False) -> dict:
     }
 
 
+def build_solt_exit(account_last4: str, force: bool = False) -> dict:
+    """Build an advisory SOLT recovery plan for one explicitly selected account."""
+    if len(account_last4) != 4 or not account_last4.isdigit():
+        return {"ok": False, "error": "A four-digit account selector is required."}
+    broker = run_schwab_helper("positions", "--account-last4", account_last4)
+    if not broker.get("ok"):
+        return {"ok": False, "error": broker.get("message") or "Schwab positions unavailable."}
+    position = next((row for row in broker.get("positions") or [] if row.get("symbol") == "SOLT"), None)
+    if position is None:
+        return {"ok": False, "account": broker.get("account"), "error": "No SOLT position was returned for this account."}
+    plan = solt_exit.build(position, get_stock("SOLT", force=force), get_crypto("SOL"))
+    plan.update({
+        "ok": bool(plan.get("available")),
+        "account": broker.get("account"),
+        "account_as_of": broker.get("as_of"),
+        "broker_mark": round(position["market_value"] / position["quantity"], 4)
+        if position.get("market_value") is not None and position.get("quantity") else None,
+        "broker_open_profit_loss": position.get("open_profit_loss"),
+        "submission": False,
+    })
+    return plan
+
+
 # --------------------------------------------------------------------------
 # HTTP
 # --------------------------------------------------------------------------
 STATIC = {
+    "/cash-ticket": ("cash_ticket.html", "text/html; charset=utf-8"),
+    "/cash_ticket.js": ("cash_ticket.js", "application/javascript; charset=utf-8"),
+    "/cash_ticket.css": ("cash_ticket.css", "text/css; charset=utf-8"),
+    "/refined_entry_comparison.js": ("refined_entry_comparison.js", "application/javascript; charset=utf-8"),
+    "/unfiltered_90.js": ("unfiltered_90.js", "application/javascript; charset=utf-8"),
+    "/entry_indicators.js": ("entry_indicators.js", "application/javascript; charset=utf-8"),
+    "/entry_quality.js": ("entry_quality.js", "application/javascript; charset=utf-8"),
+    "/adaptive_shock.js": ("adaptive_shock.js", "application/javascript; charset=utf-8"),
+    "/followthrough_comparison.js": ("followthrough_comparison.js", "application/javascript; charset=utf-8"),
+    "/economic_calendar.js": ("economic_calendar.js", "application/javascript; charset=utf-8"),
+    "/crypto-live": ("crypto_live_stopped.html", "text/html; charset=utf-8"),
+    "/sol-live": ("sol_live.html", "text/html; charset=utf-8"),
+    "/sol_live.js": ("sol_live.js", "application/javascript; charset=utf-8"),
+    "/ibit-lab": ("ibit_lab.html", "text/html; charset=utf-8"),
+    "/ibit_lab.js": ("ibit_lab.js", "application/javascript; charset=utf-8"),
+    "/crypto-research": ("crypto_research.html", "text/html; charset=utf-8"),
+    "/crypto_live.js": ("crypto_live.js", "application/javascript; charset=utf-8"),
+    "/crypto_live.css": ("crypto_live.css", "text/css; charset=utf-8"),
+    "/crypto-transfer": ("crypto_transfer.html", "text/html; charset=utf-8"),
+    "/crypto_transfer.js": ("crypto_transfer.js", "application/javascript; charset=utf-8"),
+    "/pattern-backtest": ("pattern_backtest.html", "text/html; charset=utf-8"),
+    "/pattern_backtest.js": ("pattern_backtest.js", "application/javascript; charset=utf-8"),
+    "/pattern-discovery": ("pattern_discovery.html", "text/html; charset=utf-8"),
+    "/pattern_discovery.js": ("pattern_discovery.js", "application/javascript; charset=utf-8"),
+    "/pattern_discovery.css": ("pattern_discovery.css", "text/css; charset=utf-8"),
+    "/btc-p1": ("btc_p1.html", "text/html; charset=utf-8"),
+    "/btc-parent-hl": ("btc_parent_hl.html", "text/html; charset=utf-8"),
+    "/btc-parent-five": ("btc_parent_five.html", "text/html; charset=utf-8"),
+    "/btc_parent_five.js": ("btc_parent_five.js", "application/javascript; charset=utf-8"),
+    "/btc-parent-memory": ("btc_parent_memory.html", "text/html; charset=utf-8"),
+    "/btc_parent_memory.js": ("btc_parent_memory.js", "application/javascript; charset=utf-8"),
+    "/btc-parent-filter": ("btc_parent_filter.html", "text/html; charset=utf-8"),
+    "/btc_parent_filter.js": ("btc_parent_filter.js", "application/javascript; charset=utf-8"),
+    "/btc_parent_filter.css": ("btc_parent_filter.css", "text/css; charset=utf-8"),
+    "/btc_parent_hl.js": ("btc_parent_hl.js", "application/javascript; charset=utf-8"),
+    "/btc_parent_hl.css": ("btc_parent_hl.css", "text/css; charset=utf-8"),
+    "/btc_p1.js": ("btc_p1.js", "application/javascript; charset=utf-8"),
+    "/btc_p1.css": ("btc_p1.css", "text/css; charset=utf-8"),
     "/btc-live": ("btc_live.html", "text/html; charset=utf-8"),
     "/btc_live.js": ("btc_live.js", "application/javascript; charset=utf-8"),
+    "/btc_bottom_review.js": ("btc_bottom_review.js", "application/javascript; charset=utf-8"),
     "/btc_live.css": ("btc_live.css", "text/css; charset=utf-8"),
     "/btc-lab": ("btc_lab.html", "text/html; charset=utf-8"),
     "/btc_lab.js": ("btc_lab.js", "application/javascript; charset=utf-8"),
     "/btc_lab.css": ("btc_lab.css", "text/css; charset=utf-8"),
+    "/DAILY_REVIEW_ARCHIVE.html": ("DAILY_REVIEW_ARCHIVE.html", "text/html; charset=utf-8"),
+    "/range_discovery.js": ("range_discovery.js", "application/javascript; charset=utf-8"),
+    "/range_discovery.css": ("range_discovery.css", "text/css; charset=utf-8"),
     "/rwa_market.js": ("rwa_market.js", "application/javascript; charset=utf-8"),
     "/rwa_market.css": ("rwa_market.css", "text/css; charset=utf-8"),
     "/ai_power.js": ("ai_power.js", "application/javascript; charset=utf-8"),
@@ -1843,6 +1957,7 @@ STATIC = {
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
 }
+
 
 # Explicit public chart exports only; never expose private trading_records or arbitrary files.
 STATIC.update({
@@ -1932,6 +2047,21 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, fpath.read_bytes(), ctype)
             return
 
+        if path == "/api/schwab/cash-snapshot":
+            try:
+                self._json(schwab_cash.snapshot(force=qs.get("force", ["0"])[0] == "1"))
+            except (Exception, SystemExit):
+                # Do not expose a broker response containing private account IDs.
+                self._json({"ok": False, "error": "Cash refresh unavailable. Check Schwab OAuth and retry.",
+                            "execution_ready": False}, 503)
+            return
+
+        if path == "/api/schwab/cash-wash-check":
+            code, result = schwab_cash_wash_get(*(qs.get(name, [""])[0]
+                for name in ("side", "symbol", "price", "accounts")))
+            self._json(result, code)
+            return
+
         if path == "/api/board":
             try:
                 self._json(get_board(force=qs.get("force", ["0"])[0] == "1"))
@@ -1939,6 +2069,270 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": str(e)}, 502)
             return
 
+        if path == "/api/crypto-transfer":
+            try:self._json(crypto_transfer_view.CRYPTO_VIEW.snapshot((qs.get('symbol') or ['SOL/USD'])[0],
+                (qs.get('model') or ['0.1'])[0],(qs.get('trade_id') or [None])[0]))
+            except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Saved crypto transfer unavailable'},503)
+            return
+        if path == "/api/crypto-transfer/export":
+            try:
+                target=crypto_transfer_view.CRYPTO_VIEW.export((qs.get('symbol') or ['all'])[0],(qs.get('model') or ['0.1'])[0],(qs.get('file') or [''])[0]);payload=target.read_bytes()
+                self.send_response(200);self.send_header('Content-Type','application/json' if target.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{target.name}"');self.send_header('Content-Length',str(len(payload)))
+                self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Saved crypto export unavailable'},400)
+            except Exception:self._json({'error':'Saved crypto export unavailable'},503)
+            return
+        if path == "/api/pattern-backtest":
+            try:self._json(pattern_backtest_view.BACKTEST_VIEW.snapshot((qs.get('symbol') or [None])[0],(qs.get('trade_id') or [None])[0]))
+            except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Saved pattern backtest unavailable'},503)
+            return
+        if path == "/api/pattern-backtest/export":
+            try:
+                target=pattern_backtest_view.BACKTEST_VIEW.export((qs.get('symbol') or ['all'])[0],(qs.get('file') or [''])[0]);payload=target.read_bytes()
+                self.send_response(200);self.send_header('Content-Type','application/json' if target.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{target.name}"');self.send_header('Content-Length',str(len(payload)))
+                self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Saved backtest export unavailable'},400)
+            except Exception:self._json({'error':'Saved backtest export unavailable'},503)
+            return
+        if path == "/api/pattern-discovery":
+            try:self._json(pattern_discovery.snapshot())
+            except Exception:self._json({'error':'Saved pattern discovery unavailable'},503)
+            return
+        if path == "/api/pattern-discovery/library":
+            library=pattern_discovery.read(pattern_discovery.HOME/'LIBRARY.json')
+            self._json(library if library else {'error':'Reference library not initialized'},200 if library else 404)
+            return
+        if path == "/api/btc-parent-filter/export":
+            try:
+                target=btc_parent_filter_view.PARENT_FILTER_VIEW.export((qs.get('model') or ['0.1'])[0],
+                    (qs.get('sequence') or ['variant'])[0],(qs.get('file') or [''])[0])
+                payload=target.read_bytes()
+                self.send_response(200)
+                self.send_header('Content-Type','application/json' if target.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{target.name}"')
+                self.send_header('Content-Length',str(len(payload)))
+                self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Parent-filter research export unavailable'},400)
+            except Exception:self._json({'error':'Saved parent-filter research unavailable'},503)
+            return
+
+        if path == "/api/btc-parent-filter":
+            try:
+                self._json(btc_parent_filter_view.PARENT_FILTER_VIEW.snapshot((qs.get('model') or ['0.1'])[0],
+                    (qs.get('sequence') or ['variant'])[0],(qs.get('trade_id') or [None])[0]))
+            except (ValueError,TypeError):self._json({'error':'Choose a saved model, sequence and trade'},400)
+            except Exception:self._json({'error':'Saved parent-filter research unavailable; no substituted data or order'},503)
+            return
+
+        if path == "/api/btc-parent-memory/export":
+            try:
+                target=btc_parent_memory_view.PARENT_MEMORY_VIEW.export((qs.get('model') or ['0.1'])[0],
+                    (qs.get('sequence') or ['retained_combined'])[0],(qs.get('file') or [''])[0])
+                payload=target.read_bytes()
+                self.send_response(200)
+                self.send_header('Content-Type','application/json' if target.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{target.name}"')
+                self.send_header('Content-Length',str(len(payload)))
+                self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Choose a saved parent-memory export'},400)
+            except Exception:self._json({'error':'Saved parent-memory export unavailable'},503)
+            return
+
+        if path == "/api/btc-parent-memory":
+            try:
+                self._json(btc_parent_memory_view.PARENT_MEMORY_VIEW.snapshot((qs.get('model') or ['0.1'])[0],
+                    (qs.get('sequence') or ['retained_combined'])[0],(qs.get('trade_id') or [None])[0]))
+            except (ValueError,TypeError):self._json({'error':'Choose a saved parent-memory model, sequence and trade'},400)
+            except Exception:self._json({'error':'Saved parent-memory comparison unavailable; no replay or worker started'},503)
+            return
+
+        if path == "/api/btc-parent-five/export":
+            try:
+                target=btc_parent_five_view.PARENT_FIVE_VIEW.export((qs.get('model') or ['0.1'])[0],
+                    (qs.get('sequence') or ['combined'])[0],(qs.get('file') or [''])[0])
+                payload=target.read_bytes()
+                self.send_response(200)
+                self.send_header('Content-Type','application/json' if target.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{target.name}"')
+                self.send_header('Content-Length',str(len(payload)))
+                self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Choose a saved PH5 export'},400)
+            except Exception:self._json({'error':'Saved PH5 export unavailable'},503)
+            return
+
+        if path == "/api/btc-parent-five":
+            try:
+                self._json(btc_parent_five_view.PARENT_FIVE_VIEW.snapshot((qs.get('model') or ['0.1'])[0],
+                    (qs.get('sequence') or ['combined'])[0],(qs.get('trade_id') or [None])[0]))
+            except (ValueError,TypeError):self._json({'error':'Choose a saved PH5 model, sequence and trade'},400)
+            except Exception:self._json({'error':'Saved PH5 comparison unavailable; no replay or order started'},503)
+            return
+
+        if path == "/api/btc-parent-hl/export":
+            try:
+                target=btc_parent_hl_view.CONTINUATION_VIEW.export((qs.get('model') or ['0.1'])[0],
+                    (qs.get('sequence') or ['variant'])[0],(qs.get('file') or [''])[0])
+                payload=target.read_bytes()
+                self.send_response(200)
+                self.send_header('Content-Type','application/json' if target.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{target.name}"')
+                self.send_header('Content-Length',str(len(payload)))
+                self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Continuation research export unavailable'},400)
+            except Exception:self._json({'error':'Saved continuation research unavailable'},503)
+            return
+
+        if path == "/api/btc-parent-hl":
+            try:
+                self._json(btc_parent_hl_view.CONTINUATION_VIEW.snapshot((qs.get('model') or ['0.1'])[0],
+                    (qs.get('sequence') or ['variant'])[0],(qs.get('trade_id') or [None])[0]))
+            except (ValueError,TypeError):self._json({'error':'Choose a saved model, sequence and trade'},400)
+            except Exception:self._json({'error':'Saved continuation research unavailable; no substituted data or order'},503)
+            return
+
+        if path == "/api/btc-p1/export":
+            try:
+                target=btc_p1_view.P1_VIEW.export((qs.get('model') or ['0.1'])[0],
+                    (qs.get('sequence') or ['p1'])[0],(qs.get('file') or [''])[0])
+                payload=target.read_bytes()
+                self.send_response(200)
+                self.send_header('Content-Type','application/json' if target.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{target.name}"')
+                self.send_header('Content-Length',str(len(payload)))
+                self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'P1 research export unavailable'},400)
+            return
+
+        if path == "/api/btc-p1":
+            try:
+                self._json(btc_p1_view.P1_VIEW.snapshot((qs.get('model') or ['0.1'])[0],
+                    (qs.get('sequence') or ['p1'])[0],(qs.get('trade_id') or [None])[0]))
+            except (ValueError,TypeError):self._json({'error':'Choose a saved model, sequence and trade'},400)
+            except Exception:self._json({'error':'Saved P1 research unavailable; no substituted data or order'},503)
+            return
+
+        if path == "/api/unfiltered-90":
+            try:self._json(unfiltered_90_view.VIEW.snapshot((qs.get('symbol') or ['BTC/USD'])[0],(qs.get('model') or ['E1'])[0],(qs.get('period') or ['unfiltered90'])[0],(qs.get('group') or ['all'])[0],(qs.get('kind') or ['losses'])[0]))
+            except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Saved unfiltered 90-day comparison unavailable'},503)
+            return
+        if path == "/api/unfiltered-90/export":
+            try:
+                p=unfiltered_90_view.VIEW.export((qs.get('symbol') or ['all'])[0],(qs.get('model') or ['E1'])[0],(qs.get('period') or ['unfiltered90'])[0],(qs.get('file') or [''])[0]);payload=p.read_bytes()
+                self.send_response(200);self.send_header('Content-Type','application/gzip' if p.suffix=='.gz' else 'application/json' if p.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{p.name}"');self.send_header('Content-Length',str(len(payload)));self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Saved unfiltered export unavailable'},400)
+            except Exception:self._json({'error':'Saved unfiltered export unavailable'},503)
+            return
+        if path == "/api/entry-indicators":
+            try:self._json(entry_indicator_view.VIEW.snapshot((qs.get('symbol') or ['BTC/USD'])[0],(qs.get('model') or ['E1'])[0],(qs.get('arm') or ['plus_ma_vwap'])[0],(qs.get('phase') or ['test'])[0],(qs.get('group') or ['all'])[0]))
+            except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Saved indicator-ML comparison unavailable'},503)
+            return
+        if path == "/api/entry-indicators/export":
+            try:
+                p=entry_indicator_view.VIEW.export((qs.get('symbol') or ['all'])[0],(qs.get('model') or ['E1'])[0],(qs.get('arm') or ['plus_ma_vwap'])[0],(qs.get('file') or [''])[0]);payload=p.read_bytes()
+                self.send_response(200);self.send_header('Content-Type','application/json' if p.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{p.name}"');self.send_header('Content-Length',str(len(payload)));self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Saved indicator export unavailable'},400)
+            except Exception:self._json({'error':'Saved indicator export unavailable'},503)
+            return
+        if path == "/api/entry-quality":
+            try:self._json(entry_quality_view.VIEW.snapshot((qs.get('symbol') or ['BTC/USD'])[0],(qs.get('model') or ['E1'])[0],(qs.get('phase') or ['test'])[0],(qs.get('group') or ['all'])[0]))
+            except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Saved entry-quality comparison unavailable'},503)
+            return
+        if path == "/api/entry-quality/export":
+            try:
+                p=entry_quality_view.VIEW.export((qs.get('symbol') or ['all'])[0],(qs.get('model') or ['E1'])[0],(qs.get('sequence') or ['test_filtered'])[0],(qs.get('file') or [''])[0]);payload=p.read_bytes()
+                self.send_response(200);self.send_header('Content-Type','application/json' if p.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{p.name}"');self.send_header('Content-Length',str(len(payload)));self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Saved entry-quality export unavailable'},400)
+            except Exception:self._json({'error':'Saved entry-quality export unavailable'},503)
+            return
+        if path == "/api/adaptive-shock":
+            try:self._json(adaptive_shock_view.VIEW.snapshot((qs.get('symbol') or ['BTC/USD'])[0],(qs.get('model') or ['E1'])[0],(qs.get('phase') or ['test'])[0],(qs.get('group') or ['all'])[0]))
+            except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Saved adaptive-shock comparison unavailable'},503)
+            return
+        if path == "/api/adaptive-shock/export":
+            try:
+                p=adaptive_shock_view.VIEW.export((qs.get('symbol') or ['all'])[0],(qs.get('model') or ['E1'])[0],(qs.get('sequence') or ['test_selected'])[0],(qs.get('file') or [''])[0]);payload=p.read_bytes()
+                self.send_response(200);self.send_header('Content-Type','application/json' if p.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{p.name}"');self.send_header('Content-Length',str(len(payload)));self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Saved research export unavailable'},400)
+            except Exception:self._json({'error':'Saved research export unavailable'},503)
+            return
+        if path == "/api/followthrough":
+            try:self._json(followthrough_view.VIEW.snapshot((qs.get('symbol') or ['BTC/USD'])[0],(qs.get('model') or ['E1'])[0],(qs.get('policy') or ['F1'])[0],(qs.get('group') or ['all'])[0]))
+            except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Saved failed-follow-through study unavailable'},503)
+            return
+        if path == "/api/followthrough/export":
+            try:
+                p=followthrough_view.VIEW.export((qs.get('symbol') or ['all'])[0],(qs.get('model') or ['E1'])[0],(qs.get('file') or [''])[0],(qs.get('sequence') or ['steeper'])[0]);payload=p.read_bytes()
+                self.send_response(200);self.send_header('Content-Type','application/json' if p.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{p.name}"');self.send_header('Content-Length',str(len(payload)));self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Saved research export unavailable'},400)
+            except Exception:self._json({'error':'Saved research export unavailable'},503)
+            return
+        if path == "/api/refined-entry":
+            try:self._json(refined_entry_view.VIEW.snapshot((qs.get('symbol') or ['BTC/USD'])[0],(qs.get('model') or ['E1'])[0],(qs.get('group') or ['all'])[0]))
+            except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Saved refined-entry comparison unavailable'},503)
+            return
+        if path == "/api/refined-entry/export":
+            try:
+                p=refined_entry_view.VIEW.export((qs.get('symbol') or ['all'])[0],(qs.get('model') or ['E1'])[0],(qs.get('sequence') or ['refined'])[0],(qs.get('file') or [''])[0]);payload=p.read_bytes()
+                self.send_response(200);self.send_header('Content-Type','application/json' if p.suffix=='.json' else 'text/csv; charset=utf-8')
+                self.send_header('Content-Disposition',f'attachment; filename="{p.name}"');self.send_header('Content-Length',str(len(payload)));self.end_headers();self.wfile.write(payload)
+            except (ValueError,TypeError):self._json({'error':'Saved comparison export unavailable'},400)
+            except Exception:self._json({'error':'Saved comparison export unavailable'},503)
+            return
+        if path == "/api/ibit-lab":
+            try:self._json(ibit_view.VIEW.snapshot((qs.get('model') or ['E1'])[0],(qs.get('arm') or ['session_adapted'])[0],(qs.get('trade_id') or [None])[0]))
+            except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Saved IBIT backtest unavailable; no substituted result'},503)
+            return
+        if path == "/api/ibit-lab/export":
+            try:
+                p=ibit_view.VIEW.export((qs.get('arm') or ['session_adapted'])[0],(qs.get('model') or ['E1'])[0],(qs.get('file') or [''])[0]);body=p.read_bytes()
+                self.send_response(200);self.send_header('Content-Type','application/json' if p.suffix=='.json' else 'text/csv; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.send_header('Content-Disposition',f'attachment; filename="{p.name}"');self.end_headers();self.wfile.write(body)
+            except (ValueError,TypeError):self._json({'error':'Choose a saved IBIT export'},400)
+            except Exception:self._json({'error':'Saved IBIT export unavailable'},503)
+            return
+        if path == "/api/sol01":
+            try:self._json(sol01_view.VIEW.snapshot((qs.get('arm') or ['sol_01'])[0],(qs.get('phase') or ['full30'])[0],(qs.get('trade_id') or [None])[0]))
+            except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Saved SOL model unavailable; no substituted results'},503)
+            return
+        if path == "/api/sol01/export":
+            try:
+                p=sol01_view.VIEW.export((qs.get('phase') or ['full30'])[0],(qs.get('arm') or ['sol_01'])[0],(qs.get('file') or [''])[0]);body=p.read_bytes()
+                self.send_response(200);self.send_header('Content-Type','application/json' if p.suffix=='.json' else 'text/csv; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.send_header('Content-Disposition',f'attachment; filename="{p.name}"');self.end_headers();self.wfile.write(body)
+            except (ValueError,TypeError):self._json({'error':'Choose a saved SOL export'},400)
+            except Exception:self._json({'error':'Saved SOL export unavailable'},503)
+            return
+        if path == "/api/crypto-live":
+            try:
+                state=sol_live.snapshot();state['recent_trades']=crypto_live_history.recent(state);self._json(state)
+            except Exception:self._json({'error':'BTC/SOL comparison state unavailable; no order attempted'},503)
+            return
+        if path == "/api/sol-live":
+            try:self._json(sol_live.CONTROLLER.status(day=(qs.get('day') or [None])[0]))
+            except (ValueError,TypeError):self._json({'error':'Choose a valid New York date'},400)
+            except Exception:self._json({'error':'SOL comparison unavailable; no order attempted'},503)
+            return
+        if path == "/api/btc-bottom-review":
+            try:
+                self._json(btc_bottom_review.snapshot(btc_live.CONTROLLER.status()))
+            except Exception:
+                self._json({'error':'BTC review unavailable; no zero-trade or entry conclusion'},503)
+            return
         if path == "/api/btc-live":
             try:
                 state=btc_live.CONTROLLER.status((qs.get('model') or ['0.1'])[0],(qs.get('day') or [None])[0])
@@ -1982,6 +2376,26 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/rwa-market":
             self._json(rwa_market.get_market(force=qs.get("force", ["0"])[0] == "1"))
+            return
+
+        if path == "/api/range-discovery/chart":
+            sym = (qs.get('symbol') or [''])[0].upper().strip()
+            asset = (qs.get('asset') or [''])[0]
+            if (not re.fullmatch(r'[A-Z0-9.]{1,12}', sym) or asset not in ('stock', 'crypto')):
+                self._json({'error': 'A valid discovery symbol and asset are required'}, 400)
+                return
+            try:
+                data = range_discovery.DISCOVERY.chart(sym, asset, (qs.get('scan') or [None])[0])
+                data['indicators'] = indicators.compute_all(data['bars'])
+                self._json(data)
+            except ValueError as exc:
+                self._json({'error': str(exc)}, 409)
+            except (Exception, SystemExit):
+                self._json({'error': 'Snapshot chart history unavailable; no substituted candles'}, 502)
+            return
+
+        if path == "/api/range-discovery":
+            self._json(range_discovery.DISCOVERY.get())
             return
 
         if path == "/api/crypto":
@@ -2030,6 +2444,18 @@ class Handler(BaseHTTPRequestHandler):
                     force=qs.get("force", ["0"])[0] == "1"))
             except Exception:
                 self._json({"error": "Could not load session VWAP."}, 502)
+            return
+
+        if path == "/api/solt-exit":
+            account_last4 = (qs.get("account_last4") or [""])[0].strip()
+            try:
+                result = build_solt_exit(
+                    account_last4,
+                    force=qs.get("force", ["0"])[0] == "1",
+                )
+                self._json(result, 200 if result.get("ok") else 400)
+            except Exception:
+                self._json({"ok": False, "error": "Could not build the SOLT exit plan."}, 502)
             return
 
         if path == "/api/enterprise-ai-briefing":
@@ -2114,6 +2540,13 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        if path == "/api/economic-calendar":
+            try:
+                self._json(economic_calendar.snapshot(force=qs.get("force", ["0"])[0] == "1"))
+            except Exception:
+                self._json({"error": "Economic calendar unavailable; no schedule inferred."}, 502)
+            return
+
         if path == "/api/v3/state":
             try:
                 self._json(V3_STORE.read())
@@ -2133,7 +2566,7 @@ class Handler(BaseHTTPRequestHandler):
         # HTTP/1.1 keep-alive socket the unread bytes would be parsed as the
         # *next* request line, so the connection is closed instead: a 70 KB
         # POST followed by GET /api/health on the same socket came back 414.
-        if path not in ("/api/cycle", "/api/schwab/preview", "/api/v3/state", "/api/btc-lab", "/api/btc-live"):
+        if path not in ("/api/cycle", "/api/schwab/preview", "/api/v3/state", "/api/range-discovery", "/api/btc-lab", "/api/btc-live", "/api/sol-live", "/api/crypto-live/review", "/api/pattern-discovery"):
             self.close_connection = True
             self._send(404, b"not found", "text/plain")
             return
@@ -2151,6 +2584,53 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": f"request body must be at most {limit} bytes"}, 413)
             return
         body = self.rfile.read(length) if length else b""
+        if path == "/api/crypto-live/review":
+            if 'application/json' not in self.headers.get('Content-Type',''):
+                self._json({'error':'Content-Type must be application/json'},415);return
+            origin=self.headers.get('Origin')
+            if origin:
+                try:
+                    o=urllib.parse.urlparse(origin)
+                    allowed=o.scheme=='http' and o.hostname in {'127.0.0.1','localhost','::1'} and o.port==self.server.server_address[1]
+                except ValueError:allowed=False
+                if not allowed:self._json({'error':'Cross-origin paper reviews denied'},403);return
+            try:self._json(crypto_live_review.review(json.loads(body or b'{}')))
+            except (ValueError,UnicodeDecodeError) as exc:self._json({'error':str(exc)},400)
+            except Exception:self._json({'error':'Paper review unavailable; no order attempted'},503)
+            return
+        if path == "/api/pattern-discovery":
+            if 'application/json' not in self.headers.get('Content-Type',''):
+                self._json({'error':'Content-Type must be application/json'},415);return
+            origin=self.headers.get('Origin')
+            if origin:
+                try:
+                    o=urllib.parse.urlparse(origin)
+                    allowed=o.scheme=='http' and o.hostname in {'127.0.0.1','localhost','::1'} and o.port==self.server.server_address[1]
+                except ValueError:allowed=False
+                if not allowed:self._json({'error':'Cross-origin discovery controls denied'},403);return
+            try:
+                data=json.loads(body or b'{}')
+                if not isinstance(data,dict) or set(data)!={'watchlist','enabled'}:
+                    raise ValueError('Only watchlist and enabled are accepted; no order settings')
+                self._json(pattern_discovery.configure(data['watchlist'],data['enabled']))
+            except (ValueError,UnicodeDecodeError) as exc:self._json({'error':str(exc)},400)
+            return
+        if path == "/api/sol-live":
+            if 'application/json' not in self.headers.get('Content-Type',''):
+                self._json({'error':'Content-Type must be application/json'},415);return
+            origin=self.headers.get('Origin')
+            if origin:
+                try:
+                    o=urllib.parse.urlparse(origin)
+                    allowed=o.scheme=='http' and o.hostname in {'127.0.0.1','localhost','::1'} and o.port==self.server.server_address[1]
+                except ValueError:allowed=False
+                if not allowed:self._json({'error':'Cross-origin SOL controls denied'},403);return
+            try:
+                data=json.loads(body or b'{}')
+                if not isinstance(data,dict) or set(data)!={'operation'}:raise ValueError('Only start/pause; no orders or approval decisions')
+                self._json(sol_live.CONTROLLER.control(data['operation']))
+            except (ValueError,UnicodeDecodeError) as exc:self._json({'error':str(exc)},400)
+            return
         if path == "/api/btc-live":
             if "application/json" not in self.headers.get("Content-Type",""):
                 self._json({'error':'Content-Type must be application/json'},415)
@@ -2196,6 +2676,32 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(btc_lab.LAB.start(data.get('operation'), data.get('days', 30)), 202)
             except (ValueError, UnicodeDecodeError) as exc:
                 self._json({'error': str(exc)}, 400)
+            return
+        if path == "/api/range-discovery":
+            if "application/json" not in self.headers.get("Content-Type", ""):
+                self._json({"error": "Content-Type must be application/json"}, 415)
+                return
+            origin = self.headers.get("Origin")
+            if origin:
+                try:
+                    parsed_origin = urllib.parse.urlparse(origin)
+                    allowed = (parsed_origin.hostname in {"127.0.0.1", "localhost", "::1"}
+                               and parsed_origin.port == self.server.server_address[1]
+                               and parsed_origin.scheme == "http")
+                except ValueError:
+                    allowed = False
+                if not allowed:
+                    self._json({"error": "cross-origin discovery is not allowed"}, 403)
+                    return
+            try:
+                data = json.loads(body or b"{}")
+                if not isinstance(data, dict):
+                    raise ValueError('body must be an object')
+                self._json(range_discovery.DISCOVERY.start(data.get('market', 'both'),
+                                                         data.get('threshold', 15),
+                                                         data.get('stock_mode', '45_day')), 202)
+            except (ValueError, UnicodeDecodeError) as exc:
+                self._json({"error": str(exc)}, 400)
             return
         if path == "/api/v3/state":
             if "application/json" not in self.headers.get("Content-Type", ""):
@@ -2308,6 +2814,7 @@ def main() -> None:
         raise SystemExit(1) from e
     print(f"[info] trading desk on http://{args.host}:{port}  ({why})")
     print(f"[info] universe: {len(universe.all_symbols())} symbols")
+    economic_calendar.start_daily_refresh()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

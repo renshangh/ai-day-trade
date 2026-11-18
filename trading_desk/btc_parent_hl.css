@@ -1,0 +1,4 @@
+main{min-width:0}#chart{width:100%;max-width:100%;min-width:0;overflow:visible}#chart svg{display:block;width:100%;min-width:0;max-width:100%;height:auto}nav{display:flex;flex-wrap:wrap;gap:12px}.table-scroll{max-width:100%}select{max-width:100%}td small{display:block;color:var(--muted,#94a3b8)}#audit p{overflow-wrap:anywhere}#selected{overflow-wrap:anywhere}.review-button{white-space:nowrap}#chart text{font-family:system-ui,sans-serif}#chart .axis{fill:#9eafc2}#chart .grid{stroke:#263348;stroke-width:1}#chart .entry{fill:#60a5fa}#chart .exit{fill:#f87171}
+
+#source{overflow-wrap:anywhere}
+.table-scroll{max-height:32rem;overflow:auto}thead th{position:sticky;top:0;background:#111c2d;z-index:1}.loss-note{border-color:#b45353;color:#fecaca}

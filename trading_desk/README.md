@@ -62,6 +62,17 @@ rejected, not repaired. Unreconciled settlement/previous-close baselines do not
 produce a futures percentage return. Opening Daily Review remains read-only
 and does not start a recurring monitor or refresh these saved observations.
 
+## Multi-account order drafts
+
+Open `/cash-ticket` from v3 **Order Drafts**. BUY sizes whole shares from verified
+net cash; SELL sizes from fresh long holdings less open sell commitments. Choose
+explicit accounts, a limit price, DAY/GTC and 25/50/75/100%, then copy exact legs
+for review. This page does not preview or send orders. All account data expires
+after 30 seconds. BUY in any account checks sales in taxable ***3652; SELL
+checks only ***3652, including replacement buys across linked accounts. Other
+accounts' sells need no wash-sale check. Potential conflicts or unavailable
+checks block only affected draft lines. Final tax-lot review and explicit
+placement authorization remain separate. See [cash and holdings workflow](../docs/SCHWAB_API.md#fast-multi-account-cash-sizing).
 
 ## BTC Live Paper
 
@@ -104,21 +115,47 @@ model trade/exit-leg detail. These are in-sample estimates with no established
 profitability. Editable costs/RR recalculate screening only; structural changes
 and trade outcomes require a new research run.
 
+## Range Trade Discovery
+
+Open **Range Discovery** on the home page or `/board?view=range-discovery`.
+Select **Discover candidates** for fresh stock and crypto research from a
+reviewed pool. The default rule rounds the range ratio up (14-day crypto / 45-day stocks, with seven-day confirmation) and requires
+at least 15%; DOT at 14.56% →15% passes the width check only. Exact ratios, support/resistance,
+volume checks, swing counts and source dates remain visible. All candidates
+must pass repeated-swing and stability checks: at least two full back-and-forth
+swings, limited directional drift and the latest close inside the box. Dollar
+volume must be >=$1M/24h for crypto or >=$100M and 2M shares/session for stocks.
+One-way ASTS/MARA moves appear only under **Disqualified moves — not candidates**,
+with reasons. Opening the panel does not start a market scan, and
+discovery does not place orders or expand the NEAR/DOT paper focus. See
+[discovery rules](../docs/TRADING_DESK_RANGE_DISCOVERY.md).
+
 The **AI Trading Desk v3** is the default page at `/`. It provides the CIO Brief,
 AI Economy Score, Onchain Finance Buildout, Thesis Tracker, Opportunity Pipeline,
 Decision Log, and links into the existing market views. See [V3.md](V3.md) for
 its scoring and data rules. The Hot Sector Board documented below remains at
 `/board`.
 
-## AI Power — Nuclear
+## AI Power — Neocloud
 
-Open `/board?view=ai-power` for the nuclear research desk on the Hot Sector Board.
-It compares completed-session breadth and relative strength, maps company
-evidence to cash flows, and provides a staged swing plan and share-sizing tool.
-Today’s candle is excluded; unavailable data is not estimated. Market refreshes
-do not revise the dated discretionary entry plan. Read
-[AI Power trading plan](../docs/AI_POWER_TRADING_PLAN.md) for sources, risk rules,
-measurement definitions and limitations. No orders or timers are created.
+Open `/board?view=ai-power` for CORZ, GLXY, HUT and RIOT, the dated
+Q3 2026 positive-GAAP-diluted-EPS screen through November 5. Each ticker opens
+the shared stock chart. Source links distinguish recurring business results
+from warrant/investment gains, Bitcoin sales and future lease capacity.
+Positive EPS does not establish positive free cash flow. CIFR is excluded
+because diluted EPS was negative despite positive net income/basic EPS.
+Completed-session comparisons use SPY/QQQ; unavailable data is not estimated.
+The prior nuclear allocations, account refresh and trade plan are removed from
+this view. Historical records remain intact. See
+[AI Power research conventions](../docs/AI_POWER_TRADING_PLAN.md).
+
+The debt-resilience panel adds September 30 cash versus restricted funds, debt,
+cash/debt, nine-month operating cash flow, Q3 gross interest coverage and repayment
+notes. HUT's asset-gain exclusion and GLXY's unmatched financing scope are explicit.
+A +1/+2/+3 percentage-point selector stresses verified drawn floating principal;
+unknown inputs stay unavailable. Fixed-rate refinancing is discussed separately.
+These sourced diagnostics do not estimate survival probabilities or rank safety.
+Financial values are dated and are not changed by the market refresh button.
 
 ## Hot Sector Board
 
@@ -542,7 +579,48 @@ Writes `research/split_events.csv` (one row per event) and
 
 ### Daily review
 
-The October 9 review prioritizes SOLT's verified new Schwab fill as a separate
+The default display contains the dated current trading plan and always-visible
+Schwab holdings tables for both accounts, with separate quantities and costs.
+Expired authentication clears current holdings and shows a reconnect notice.
+Older daily
+summaries are preserved in `DAILY_REVIEW_ARCHIVE.html`, linked from the plan.
+Account tools, chart analysis, VWAP and the SOLT planner remain under the collapsed
+“Account tools & chart analysis” disclosure. Archive content is historical and
+loads no live modules. When replacing a plan, preserve the outgoing dated
+content in the archive; never present an old snapshot as today's data.
+
+
+The October 19 review records the filled COHR-to-SPCX rotation, with 129 SPCX
+shares and no COHR shares in the Individual account. Older snapshots are collapsed.
+Earnings held labels now use current linked Schwab holdings; a failed account read
+shows an error instead of stale journal exposure. Missing dates remain unavailable.
+
+Daily Review includes a read-only, account-specific SOLT recovery-exit planner
+for the Individual account. It uses the live Schwab quantity and average cost,
+the latest common completed SOLT/SOL session, observed short-window beta, SOLT
+ATR, and measured support. The proposal stages 25% at the average-cost recovery
+zone, another 25% in a 0.5–1.0 ATR extension, and leaves the remaining whole
+shares as a runner managed against a confirmed 30-minute higher low or session
+VWAP. The SOL price shown is only a single-session equivalent; SOLT's daily
+leverage reset prevents a reliable multi-day SOL-to-SOLT conversion. No order,
+stop, or automatic exit is created. When no resistance is measured, the generic
+paper agent now anchors ATR projections to the most recent 63 sessions instead
+of an all-history high that may belong to an obsolete split or price regime.
+
+The October 14 review starts with a read-only Schwab transaction ledger for both
+linked accounts. It records the completed Individual-account sales of 50 CCJ at
+$82.90 and 100 AXTI at an improved $64.735 execution, plus the purchase of 20
+LITE at $925 and 7 LITE at $908. The closing holding is 47 shares at a $940.79
+average cost. A dated full-position table excludes SNDL by owner instruction,
+keeps QNT visible as watch-only, and shows account weights against Schwab's
+liquidation value. The review distinguishes the owner's lack of deployable cash
+from broker-reported cash and margin buying power. It also reconciles the working
+20-share LITE sell at $995, the canceled 40-share $785 buy, and two replaced
+$932 buys without presenting inactive orders as fills. The closing analysis adds
+broad-market performance, an explicitly estimated holdings-weighted daily move,
+concentration risks and confirmation-based review levels for the next session.
+
+The historical October 9 review prioritizes SOLT's verified new Schwab fill as a separate
 100-share day-trade sleeve. It distinguishes replaced orders from fills,
 today's entry from the whole-position average cost, and current NBBO from
 delayed VWAP. Its before-close review is a written plan, not an automatic exit;
@@ -1293,11 +1371,15 @@ with the `dataviz` skill's `validate_palette.js` against both surfaces
 (dark `#12161c` passes all checks; light `#fcfcfb` passes with a contrast warning
 on two slots, which is why direct endpoint labels and a table view both ship).
 
-## AI Power — Nuclear
+## AI Power watchlist and sector scorecard
 
-The AI Power — Nuclear research desk is available on the Hot Sector Board at `/board?view=ai-power`. The home page has no dedicated AI Power section or navigation tab. Its 12-stock watchlist groups CEG, VST and TLN as power producers; CCJ, LEU, SOLS and STDN as fuel/enrichment; BWXT, CW, MIR and FLS as equipment/services; and XE as advanced reactors. Each ticker opens the sector board with that chart selected. The nuclear scorecard uses the `AI Power / Nuclear` theme and SPY as its default benchmark, with the existing real-bar metrics and explicit missing-data reporting. The optical and broader datacenter themes remain separate.
-
-The owner-requested hidden identifier `46438R105` is omitted from review rows, news, chart requests, paper-agent candidates, displayed broker holdings and session VWAP. Its real broker market value remains in the book-weight denominator; hiding a row does not dispose of a holding. ETHA remains visible under its ticker.
+The AI Power — Neocloud view at `/board?view=ai-power` and the
+`AI Power / Neocloud` sector scorecard both use CORZ, GLXY, HUT and RIOT.
+SPY is the default sector benchmark. The detailed view also compares QQQ.
+Today’s daily candle is excluded. Missing or stale observations block recovery
+confirmation. The watchlist is dated research scope, not an investment ranking
+or an order instruction. Historical nuclear research remains in dated records;
+the optical and broader datacenter-buildout themes remain separate.
 
 ## RWA & Tokenization
 
@@ -1312,13 +1394,87 @@ selection rules.
 Crypto research below the selected chart includes token-specific CoinGecko and
 CoinMarketCap links. Switching coins updates both links.
 
+Stock Range Discovery also separates one-swing prospects into **Needs review**.
+Recent stock swings and start-to-end movement affect ranking; unusually wide
+stock ranges receive advisories. Liquidity, 60% boundary stability, containment
+and a latest close inside the box remain mandatory. Crypto rules are unchanged.
 
-## BTC Research Release 0.2
+Range Discovery also offers **2 years · long-term boxes** in its Stock range
+selector: 332 reviewed stocks, daily adjusted SIP bars, three full swings with
+annual repeats, 60% boundary stability, 80% overall/50% quarterly containment,
+latest close inside, and both five/20-session liquidity gates. Qualified rows
+include actual price-history charts. See `docs/TRADING_DESK_RANGE_DISCOVERY.md`.
 
-Open /btc-lab for the frozen 0.1/E1/E2 full-sequence comparison. Current-only
-trade/stop/exit tables and the downloadable five-sheet workbook retain gap
-partitions and observed-minute coverage. The original 0.1 execution baseline
-is preserved; both alternatives are separate. The release ZIP verifies and
-reproduces all three sequences offline and can install results for a fresh desk.
-See [0.2 release and installation](../docs/releases/BTC_STRUCTURE_0_2.md) and
-[research rules](../docs/BTC_RESEARCH_DESK.md). No orders are enabled.
+Select a Range Discovery snapshot symbol or mini-chart caption to load the
+detailed chart below. It uses the saved discovery interval, measured support/
+resistance, volume, RSI and MACD; crypto selection stays on the desk. The first
+qualified symbol loads automatically. Failed or revised history clears the
+previous chart and remains explicitly unavailable.
+
+
+## BTC learning research desk (2026-11-08)
+
+Open <http://127.0.0.1:8799/btc-lab>. Alpaca minute archive and chronological
+15-minute L1/L2, entries, stop activation and exits are available by New York
+date or trade. Download/replay buttons start read-only research jobs; no paper
+or live orders are enabled. Negative results and missing data are shown.
+See [BTC research details](../docs/BTC_RESEARCH_DESK.md) for the mechanical draft,
+ETF-cost proxy, source quality, current run IDs and external-drive migration.
+
+
+### BTC A/B entry review
+
+`/btc-lab` now defaults to A/B entries with positive known net target reward;
+2R is an advisory label. All crossed signals, including rejected and occupied
+ones, remain visible with route and known-at-time references. Parent-stop and target formulas remain unchanged; approved midpoint/no-integer
+wick exits now run in the current A/B program. Old saved results retain their
+original exits; the separate two-case panel shows the new paths. See `docs/BTC_RESEARCH_DESK.md` and
+`docs/investigations/2026-11-08_BTC_AB_30_DAY_RETEST.md` for exact scope and results.
+
+
+## V3 economic release calendar (November 10, 2026)
+
+The v3 Economic Calendar shows today's and the next30 days' selected official
+BLS/BEA releases with explicit Eastern dates/times, publisher links and source
+freshness. `/api/economic-calendar` rechecks feeds on the first request each
+America/New_York day; visible tabs check every minute and on focus. Failed
+refreshes retry after an hour; Refresh schedule forces another attempt. The running desk server also checks every five minutes for the Eastern day
+to change, refreshing schedules even when no browser tab is open. No separate
+Codex automation is created; the desk server must be running.
+
+BLS/BEA ICS data is parsed without manufacturing dates or times. When direct
+BLS access fails, the St. Louis Fed FRED release calendar supplies current CPI,
+Employment Situation (payrolls), JOLTS and PPI dates and published times. FRED's
+Central times are explicitly converted to Eastern with DST. Source details label
+this fallback; its coverage is narrower than the full BLS feed. The Fed's official
+`/json/calendar.json` provides FOMC meetings, press conferences, minutes and
+Beige Book events, using published times only. Date-only events remain untimed.
+The system HTTP client is retried with curl when publisher CDNs reject urllib;
+there are no authentication cookies or third-party scraping proxies.
+
+Successful source snapshots persist privately under
+`trading_records/economic_calendar_latest.json` across desk restarts. A failed
+refresh uses the last verified source snapshot (or the original dated observation
+if no success exists), explicitly marked stale; it never claims revalidation.
+Malformed or past-only feeds are failures, not an empty current calendar.
+Retail sales, weekly claims and ISM are not currently covered. No actual/forecast
+release values are provided; elapsed times do not mean results were fetched.
+
+Crypto Live now has a main-navigation link to `/crypto-live`; model workers,
+orders and strategy configuration are unchanged.
+
+
+### Fast cash sizing (read only)
+
+`/cash-ticket` is linked from v3. One fresh Schwab balance snapshot plus parallel
+order reads feeds a local whole-share calculator (25/50/75/100%). Missing verified
+cash stays unavailable until the owner enters just-verified net cash; borrowing
+fields are never used. Freshness is capped at 30 seconds. No previews or orders
+are sent. See `docs/SCHWAB_API.md` for the cross-chat CLI and wash-sale guard.
+
+Cash ticket feedback (November 11): selected rows remain visible when incomplete
+or expired. Finish symbol/limit price/allocation, then use Refresh & calculate
+to refresh and explicitly reconfirm just-rechecked net cash. Ordinary refresh
+retains cash only as unconfirmed drafts. Partial reviews label blocked accounts
+UNAVAILABLE, never assign guessed quantities, and provide manual clipboard
+fallback. The 30-second rule and broker/wash-sale guards remain unchanged.

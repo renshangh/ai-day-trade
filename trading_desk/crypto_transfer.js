@@ -1,0 +1,31 @@
+'use strict';
+const $=id=>document.getElementById(id),esc=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cash=x=>typeof x==='number'&&Number.isFinite(x)?'$'+x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+const price=x=>typeof x==='number'&&Number.isFinite(x)?'$'+x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:6}):'—';
+const when=x=>x?new Date(x).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false,timeZoneName:'short'}):'—';
+const row=xs=>'<tr>'+xs.map(x=>'<td>'+x+'</td>').join('')+'</tr>',ep=t=>when(new Date(t*1000).toISOString());
+let latest=null,request=0;
+function link(symbol,model,file){return `<a href="/api/crypto-transfer/export?symbol=${encodeURIComponent(symbol)}&model=${encodeURIComponent(model)}&file=${encodeURIComponent(file)}">${esc(file)}</a>`;}
+function summary(d){const group=$('group').value||'all';
+ $('summary').innerHTML=d.summaries.map(x=>{const s=x.summary?.[group],q=x.coverage;
+  return row([`${esc(x.symbol)} · ${esc(x.model)}`,s?`${s.trades} · ${s.closed} / ${s.open} · ${s.wins}/${s.losses}`:'Unavailable',s?`${price(s.realized_net)} / ${price(s.unrealized_net)}`:'—',s?`${cash(s.normalized_10000_realized)} / ${cash(s.normalized_10000_unrealized)}`:'—',s?`${s.net_r.toFixed(2)} / ${x.summary.max_closed_trade_drawdown_r.toFixed(2)}`:'—',q.test_expected?`${q.test_observed.toLocaleString()} / ${q.test_expected.toLocaleString()}<small>${q.test_missing} absent minutes</small>`:esc(q.reason),`<button class="asset-review" data-symbol="${esc(x.symbol)}" data-model="${esc(x.model)}">Review</button>`]);}).join('');
+ for(const b of document.querySelectorAll('.asset-review'))b.addEventListener('click',()=>load(b.dataset.symbol,b.dataset.model));
+}
+function draw(d){if(!d.available){$('period').textContent='Saved crypto transfer study is not ready.';return;}latest=d;
+ $('error').textContent='';$('period').textContent=`${when(d.study.start)} → ${when(d.study.end)} (exclusive) · 30 days · same seven-day warmup from ${when(d.study.warmup_start)}`;
+ $('policy').textContent=JSON.stringify(d.study.policy,null,2);$('controls').textContent='BTC controls exactly reproduced: '+Object.entries(d.study.btc_controls_reproduced).map(([k,v])=>k+' '+(v?'verified':'unverified')).join(' · ');
+ summary(d);$('combined-downloads').innerHTML=['SUMMARY.csv','TRADES.csv','EXITS.csv','STUDY.json'].map(f=>link('all','all',f)).join(' · ');
+ $('symbol').value=d.symbol;$('model').value=d.model;
+ $('counts').textContent=d.unavailable_reason||`${d.symbol} · ${d.model}: ${d.trades.length} entries. Original signal diagnostics: ${JSON.stringify(d.signal_counts)}. All original A/B1/B2 rules and sequential exit behavior retained.`;
+ $('trades').innerHTML=d.trades.map(p=>row([`#${p.id} · ${esc(p.entry_rule)}${p.gap_exposed||p.context_partial?'<small class="bad">Flagged gap/context</small>':''}`,`${when(p.entry_time)}<small>${price(p.entry)}</small>`,`${price(p.initial_stop)}<small>${when(p.entry_time)}</small>`,price(p.t1),p.exit_time?when(p.exit_time):`OPEN · ${when(p.mark_time)}<small>mark ${price(p.mark_price)}</small>`,`${price(p.realized_leg_net)} / ${price(p.unrealized_net_reference)}`,`${cash(p.normalized_10000_realized_net)} / ${cash(p.normalized_10000_unrealized_net)}`,`<button class="trade-review" data-id="${p.id}">Review</button>`])).join('')||row(['No entries under unchanged rules','','','','','','','']);
+ $('downloads').innerHTML=d.unavailable_reason?'':['TRADES.csv','EXITS.csv','PROTECTION.csv','LEDGER.csv','SIGNALS.csv','result.json'].map(f=>link(d.symbol,d.model,f)).join(' · ');
+ const p=d.selected,s=d.entry_evidence;
+ $('selected').textContent=p?`${d.symbol} · ${d.model} #${p.id} · ${p.status} · entry ${when(p.entry_time)} ${price(p.entry)} · current/final hard stop ${price(p.stop)} · ${p.actual_missing_minutes_while_held} absent minutes while held`:'No selected trade.';
+ $('entry').innerHTML=p?`<p>L1 / D ${price(p.references.l1.price)} at ${when(p.references.l1.time)}; confirmed ${when(p.references.l1.known_at)}. ${p.references.l2?`L2 / HL ${price(p.references.l2.price)} at ${when(p.references.l2.time)}; known ${when(p.references.l2.known_at)}.`:'No L2 required for this entry route.'}</p><p>Previous complete candle starts ${when(s.previous_bar_time)}; trigger ${price(p.references.trigger)}. Entry reference ${when(p.entry_time)}; minute data available after ${when(s.interval_end)}. Initial stop ${price(p.initial_stop)}; planned first target ${price(p.t1)}.</p>`:'';
+ $('legs').innerHTML=p?p.legs.map(l=>row([when(l.time_utc),`${esc(l.reason)} · ${(l.fraction*100).toFixed(0)}%`,price(l.price),`${price(l.gross)} / ${price(l.cost)} / ${price(l.net)}`,cash(l.normalized_10000_net)])).join('')||row(['Still open; no exit legs','','','','']):'';
+ $('protection').textContent=p?JSON.stringify({initial_stop:{effective:p.entry_time,price:p.initial_stop},hard_stop_raises:p.stop_history,structure:p.structure_history,failed_rebounds:p.failed_rebound_history},null,2):'';
+ $('ledger').innerHTML=d.rows.map(b=>row([`${ep(b.t)} → ${when(b.end)}`,`${price(b.open)} / ${price(b.high)} / ${price(b.low)} / ${price(b.close)}`,`${b.observed_minutes}/15`,p&&b.position_id===p.id?`${price(b.stop)} / ${b.remaining*100}% remaining`:'No selected position',b.events.map(e=>`${esc(e.type)} ${when(e.time_utc)} ${price(e.price)}`).join('<br>')])).join('');
+ for(const b of document.querySelectorAll('.trade-review'))b.addEventListener('click',()=>load(d.symbol,d.model,b.dataset.id));
+}
+async function load(symbol='SOL/USD',model='0.1',trade){const id=++request;try{const qs=new URLSearchParams({symbol,model});if(trade)qs.set('trade_id',trade);const r=await fetch('/api/crypto-transfer?'+qs);const d=await r.json();if(id!==request)return;if(!r.ok)throw new Error(d.error||'Saved crypto comparison unavailable');draw(d);}catch(e){if(id===request)$('error').textContent=e.message;}}
+$('symbol').addEventListener('change',()=>load($('symbol').value,$('model').value));$('model').addEventListener('change',()=>load($('symbol').value,$('model').value));$('group').addEventListener('change',()=>{if(latest)summary(latest);});load();

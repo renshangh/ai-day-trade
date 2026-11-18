@@ -1,0 +1,142 @@
+{
+  "review_at_utc": "2026-11-17T23:41:30.397395Z",
+  "review_at_ny": "2026-11-17T18:41:30.397395-05:00",
+  "automation_id": "btc-two-scenario-review-every-12-hours",
+  "baseline_screenshot_at_ny": "2026-11-16T16:21:02-05:00",
+  "source": "Coinbase connector products_ticker and products_candles; BTC-USD; 4h; request end 2026-11-17T23:41:13Z, response observed approximately 23:41:30Z. Open-bar values are provisional.",
+  "quote": {
+    "best_ask": "64979.68",
+    "best_bid": "64979.67",
+    "trades": [
+      {
+        "price": "64979.67",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.00000002",
+        "time": "2026-11-17T23:41:30.397395Z",
+        "trade_id": "1134290728"
+      },
+      {
+        "price": "64979.67",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.00000002",
+        "time": "2026-11-17T23:41:30.042718Z",
+        "trade_id": "1134290727"
+      },
+      {
+        "price": "64979.67",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.00000002",
+        "time": "2026-11-17T23:41:29.270359Z",
+        "trade_id": "1134290726"
+      }
+    ]
+  },
+  "raw_candles": [
+    {
+      "close": "64979.67",
+      "high": "65199.37",
+      "low": "63583.92",
+      "open": "63675.22",
+      "start": "1794945600",
+      "volume": "2107.91495529"
+    },
+    {
+      "close": "63675.22",
+      "high": "64417.21",
+      "low": "63377.2",
+      "open": "64047.12",
+      "start": "1794931200",
+      "volume": "2632.29627352"
+    },
+    {
+      "close": "64047.12",
+      "high": "65383.29",
+      "low": "63256.75",
+      "open": "64927.86",
+      "start": "1794916800",
+      "volume": "3053.99727778"
+    },
+    {
+      "close": "64927.85",
+      "high": "64941.81",
+      "low": "64001.22",
+      "open": "64675.31",
+      "start": "1794902400",
+      "volume": "1325.74057441"
+    }
+  ],
+  "candles_truncated": false,
+  "levels": {
+    "local_support": 63833.47,
+    "confirmation_zone": [
+      66100,
+      66369
+    ],
+    "decision_zone": [
+      67918,
+      71612
+    ],
+    "green_bottom_invalidation_below": 61946.17,
+    "orange_wave4_invalidation_above": 82510.37,
+    "larger_hurdles": [
+      76095,
+      84856
+    ]
+  },
+  "scenarios": {
+    "green": {
+      "status": "weakened",
+      "invalidated": false,
+      "reason": "Local support 63833.47 was pierced in 07:00-11:00 EST, then a completed 11:00-15:00 4h candle closed below at 63675.22. Current 15:00-19:00 candle has reclaimed intrabar but is incomplete. Larger fixed bottom 61946.17 remains unbroken; recovery confirmation 66100-66369 remains absent."
+    },
+    "orange": {
+      "status": "possible_unconfirmed",
+      "invalidated": false,
+      "reason": "Price remains below 82510.37 invalidation; local support loss is compatible with bearish continuation but does not confirm the provisional wave labels or a fixed wave-5 target."
+    }
+  },
+  "latest_completed_4h": {
+    "start_utc": "2026-11-17T16:00:00Z",
+    "end_utc": "2026-11-17T20:00:00Z",
+    "start_ny": "2026-11-17T11:00:00-05:00",
+    "end_ny": "2026-11-17T15:00:00-05:00",
+    "open": 64047.12,
+    "high": 64417.21,
+    "low": 63377.2,
+    "close": 63675.22
+  },
+  "unfinished_4h": {
+    "start_ny": "2026-11-17T15:00:00-05:00",
+    "end_ny": "2026-11-17T19:00:00-05:00",
+    "observed_low": 63583.92,
+    "observed_close_reference": 64979.67,
+    "complete": false
+  },
+  "chart_update_required": true,
+  "last_successful_observation_utc": "2026-11-17T23:41:13Z",
+  "caveats": [
+    "The 03:00-07:00 EST bar overlaps the previous 06:43:35 cutoff and was reread to include its completed range.",
+    "Current 15:00-19:00 EST candle is incomplete; the observed reclaim is not a completed 4h confirmation.",
+    "A quote above support after a completed break does not erase the earlier break. Green fixed-bottom invalidation remains below 61946.17.",
+    "Requested end time and actual returned open-bar observation time differ; open-bar values are labeled provisional."
+  ],
+  "notification_baseline": {
+    "local_support": "broken_completed_4h_intrabar_reclaim_pending",
+    "confirmation": "not_reclaimed",
+    "decision_zone": "below",
+    "green": "weakened",
+    "orange": "possible_unconfirmed",
+    "data_health": "available"
+  },
+  "orders_enabled": false,
+  "previous_review_at_utc": "2026-11-17T11:44:00.943925Z",
+  "chart_update_scope": "Revise local 63833 support annotation from holding to broken on completed 4h close, now an unconfirmed intrabar reclaim. Preserve both provisional wave counts, fixed invalidation levels and original screenshots; no redraw or replacement count performed.",
+  "last_material_notification": {
+    "at": "2026-11-17T23:41:30.397395Z",
+    "type": "local_support_broken_4h_reclaim_pending",
+    "review": "2026-11-17_1841_ET_SCENARIO_REVIEW.md"
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "title": "BTC bottom confirmation \u00b7 November 15 review",
+  "assessed_at": "2026-11-15T14:45:27.557127Z",
+  "source": "Existing Alpaca BTC/USD observed minutes; 15m aggregates require 15 actual minutes",
+  "status": "Watch only \u00b7 yesterday\u2019s base invalidated; no discretionary entry confirmed",
+  "prior": {
+    "assessed_at": "2026-11-14T15:30:00-05:00",
+    "entry": 66160,
+    "conditional_hl": 65950,
+    "stop": 65880,
+    "first_target_low": 66830,
+    "first_target_high": 66920,
+    "parent_d": 64988.1045,
+    "parent_stop_example": 64880,
+    "status": "Invalidated; entry never triggered during the reviewed interval",
+    "invalidated_minute": "2026-11-14T20:54:00Z",
+    "known_no_earlier_than": "2026-11-14T20:55:00Z",
+    "reason": "The $64,988 base broke before a reclaim of $66,142. Do not reuse yesterday\u2019s near-HL stop or interpret the decline as a stopped-out trade: no entry was triggered."
+  },
+  "developments": [
+    {
+      "time": "2026-11-15T01:45:00Z",
+      "known_no_earlier_than": "2026-11-15T01:46:00Z",
+      "price": 61991.3285,
+      "label": "New larger D / low after yesterday\u2019s assessment"
+    },
+    {
+      "time": "2026-11-15T09:12:00Z",
+      "known_no_earlier_than": "2026-11-15T09:13:00Z",
+      "price": 66085.424,
+      "label": "Recovery peak; still below the old $66,142 rebound peak"
+    }
+  ],
+  "levels": [
+    {
+      "role": "Larger parent D",
+      "price": 61991.3285,
+      "time": "2026-11-15T01:45:00Z",
+      "bar": "Nov 14 20:45\u201321:00 EST"
+    },
+    {
+      "role": "Intermediate confirmed swing low",
+      "price": 63735.105,
+      "time": "2026-11-15T02:45:00-05:00",
+      "bar": "Nov 15 02:45\u201303:00 EST"
+    },
+    {
+      "role": "Latest reviewed completed pullback low; not a confirmed HL",
+      "price": 64804.9,
+      "time": "2026-11-15T14:15:00Z",
+      "bar": "2026-11-15T09:15:00-05:00 \u2192 2026-11-15T14:30:00Z; 15 actual minutes"
+    },
+    {
+      "role": "Nearer supply / recovery hurdle",
+      "price": 65773.715,
+      "time": "2026-11-15T08:15:00-05:00",
+      "bar": "Nov 15 08:15\u201308:30 EST"
+    },
+    {
+      "role": "Current rebound peak",
+      "price": 66085.424,
+      "time": "2026-11-15T09:12:00Z",
+      "bar": "Nov 15 04:00\u201304:15 EST"
+    },
+    {
+      "role": "Larger recovery hurdle from prior assessment",
+      "price": 66142.035,
+      "time": "2026-11-14T12:30:00-05:00",
+      "bar": "Nov 14 12:30\u201312:45 EST"
+    }
+  ],
+  "conditions": [
+    "Do not treat the old $64,988 base as intact. The observed larger D is now near $61,991.",
+    "For the stronger comparison setup, reclaim the $66,085\u2013$66,142 rebound zone, then wait for a separate meaningful 15m pullback to hold and a completed candle to establish the reference high.",
+    "Only then consider an intrabar break of the preceding completed 15m candle high. A touch of $66,160 alone is not sufficient. No future candle, HL or fill is assumed.",
+    "A near stop is permissible only if a new independent HL around $65,950 actually forms. Otherwise leave the example inactive; do not squeeze a parent-D stop to fit the reward.",
+    "The latest reviewed pullback low is not confirmed merely because its candle completed, and the quote has since traded lower. Require a new completed stabilization/recovery and hold. Recheck price, structure and spreads at IBIT\u2019s Sunday 20:00 EST reopening."
+  ],
+  "scenario": {
+    "label": "Future conditional example \u00b7 not active and not a model rule",
+    "entry": 66160,
+    "hl_reference": 65950,
+    "stop": 65880,
+    "target1_low": 66830,
+    "target1_high": 66920,
+    "target_reference": 66900,
+    "first_sale_fraction": 0.25,
+    "remaining_fraction": 0.75,
+    "parent_stop_alternative": 61900,
+    "near_stop_rationale": "Below a FUTURE independently confirmed HL, not below today\u2019s larger D. If that HL never forms, this stop has no structural basis.",
+    "exit_policy": "Illustrative first 25% near the first important resistance; remaining 75% by confirmed structural weakness. Full remaining position exits on its applicable stop. No fixed second target; no rule changes or model fills.",
+    "net_rr_at_target": 2.328
+  },
+  "news": {
+    "reviewed_at": "2026-11-15T14:39:20.390803Z",
+    "summary": "Latest published US spot BTC ETF flows remain Friday Nov 13: -$185.4m overall, including -$143.5m IBIT; seven consecutive outflow sessions. No new Saturday/Sunday ETF flow is assumed. Weekend reports describe further BTC weakness; actual levels here come from the local observed tape.",
+    "sources": [
+      {
+        "title": "Farside \u00b7 latest ETF flows",
+        "url": "https://farside.co.uk/btc/"
+      },
+      {
+        "title": "The Block \u00b7 seven-session outflow report, Nov 14",
+        "url": "https://www.theblock.co/news/markets/2026-11-14-bitcoin-etfs-lose-1-billion-for-the-second-week-in-a-row-as-crypto-funds-except-one-continue-bleeding-440337"
+      }
+    ]
+  },
+  "boundary": "Dated discretionary comparison only. Not an A/B signal, broker order, fill, or change to frozen 0.2. Review prices are BTC references, not IBIT prices."
+}

@@ -629,7 +629,8 @@ def _trade_time(raw: object) -> datetime | None:
         return None
 
 
-def recent_symbol_trades(symbol: str, *, now: datetime | None = None) -> list[dict]:
+def recent_symbol_trades(symbol: str, *, now: datetime | None = None,
+                         accounts: list[dict] | None = None, strict: bool = False) -> list[dict]:
     """Return sanitized executed same-symbol trades across every linked account."""
     current = now or datetime.now(timezone.utc)
     if current.tzinfo is None:
@@ -639,7 +640,7 @@ def recent_symbol_trades(symbol: str, *, now: datetime | None = None) -> list[di
     start = datetime.combine(start_date, datetime.min.time(), tzinfo=EASTERN).astimezone(timezone.utc)
     stamp = "%Y-%m-%dT%H:%M:%S.000Z"
     events = []
-    for account in account_numbers():
+    for account in account_numbers() if accounts is None else accounts:
         try:
             transactions = schwab_api.api(
                 f"/trader/v1/accounts/{account['hashValue']}/transactions",
@@ -658,14 +659,20 @@ def recent_symbol_trades(symbol: str, *, now: datetime | None = None) -> list[di
             raise TradeError("Schwab returned trade history in an unexpected format")
         for transaction in transactions:
             if not isinstance(transaction, dict):
+                if strict:
+                    raise TradeError("Incomplete trade-history coverage")
                 continue
             leg = schwab_api.security_leg(transaction)
             instrument = leg.get("instrument") or {}
+            if strict and not instrument.get("symbol"):
+                raise TradeError("Missing trade-history security")
             if str(instrument.get("symbol") or "").upper() != symbol:
                 continue
             when = _trade_time(transaction.get("time"))
             side = _trade_side(transaction)
             if when is None or side is None or when > current:
+                if strict:
+                    raise TradeError("Incomplete same-symbol trade history")
                 continue
             trade_date = when.astimezone(EASTERN).date()
             if trade_date < start_date or trade_date > current_eastern.date():
@@ -807,6 +814,53 @@ def wash_sale_check(order: OrderRequest, account_last4: str | None) -> dict:
     return evaluate_wash_sale(order, recent_symbol_trades(order.symbol), position)
 
 
+def cash_ticket_wash_check(side: str, symbol: str, limit_price: str) -> dict:
+    """Read-only 3652 protection, separate from the generic preview advisory.
+
+    A purchase anywhere can replace a taxable 3652 sale. Only sales in 3652
+    need this review, but their replacement purchases can be in any account.
+    Quantity and destination account do not change this same-symbol scan.
+    """
+    order = normalize_order(side=side, symbol=symbol, quantity="1", order_type="LIMIT",
+                            duration="DAY", limit_price=limit_price)
+    entries = account_numbers()
+    taxable = [entry for entry in entries if str(entry.get("accountNumber", "")).endswith("3652")]
+    if len(taxable) != 1:
+        raise TradeError("Taxable account 3652 coverage is unavailable")
+    position = None
+    if order.side == "SELL":
+        snapshot = _account_positions(taxable[0])
+        position = next((row for row in snapshot["positions"] if row["symbol"] == order.symbol), None)
+        if position is not None:
+            # Missing/invalid cost must remain unknown, never a zero-cost profit.
+            try:
+                basis = Decimal(str(position.get("average_price")))
+                valid_basis = basis.is_finite() and basis > 0
+            except (InvalidOperation, TypeError):
+                valid_basis = False
+            if not valid_basis:
+                position = {**position, "average_price": None}
+    events = recent_symbol_trades(order.symbol, accounts=taxable if order.side == "BUY" else entries,
+                                 strict=True)
+    result = evaluate_wash_sale(order, events, position)
+    # Do not reuse the advisory's generic scope/message or offer an override.
+    result.update({"protected_account": "3652", "side": order.side,
+                   "limit_price": order.limit_price,
+                   "scope": "3652 sales only" if order.side == "BUY" else "3652 sale; purchases across linked accounts",
+                   "as_of": datetime.now(timezone.utc).isoformat(), "read_only": True,
+                   "execution_ready": False})
+    if order.side == "BUY":
+        result["message"] = (f"Possible conflict with a {order.symbol} sale in ***3652 during the prior 30 calendar days. "
+                             "Realized tax-lot loss is unavailable; resolve before buying in any account."
+                             if result["possible"] else
+                             f"No same-symbol {order.symbol} sale found in ***3652 during the prior 30 calendar days.")
+    elif result["possible"] is not False:
+        result["message"] = "Potential wash-sale risk or missing basis for the ***3652 sale. Review selected tax lots, linked-account purchases and the 30-day period after a loss sale."
+    else:
+        result["message"] = "No loss indicated by ***3652 average cost at this limit. Selected tax-lot basis still needs review."
+    return result
+
+
 def all_positions() -> dict:
     """Read every linked account; never present a partial book as complete."""
     readiness = status()
@@ -862,6 +916,10 @@ def build_parser() -> argparse.ArgumentParser:
     wash.add_argument("--order-type", required=True, choices=("market", "limit", "MARKET", "LIMIT"))
     wash.add_argument("--limit-price")
     wash.add_argument("--duration", default="day", choices=("day", "gtc", "DAY", "GTC"))
+    cash_wash = sub.add_parser("cash-ticket-wash-check", help="read-only taxable 3652 protection scan")
+    cash_wash.add_argument("--side", required=True, choices=("BUY", "SELL"))
+    cash_wash.add_argument("--symbol", required=True)
+    cash_wash.add_argument("--limit-price", required=True)
     return parser
 
 
@@ -887,6 +945,8 @@ def main() -> None:
                 limit_price=args.limit_price,
             )
             emit(wash_sale_check(order, args.account_last4))
+        elif args.command == "cash-ticket-wash-check":
+            emit(cash_ticket_wash_check(args.side, args.symbol, args.limit_price))
         elif args.command == "preview":
             readiness = status()
             if not readiness.get("ok"):

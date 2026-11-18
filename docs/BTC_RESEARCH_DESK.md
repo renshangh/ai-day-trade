@@ -2,11 +2,73 @@
 
 Alpaca minute archive, causal signal replay and a chronological learning interface.
 
-Last Updated: 2026-11-09  
+Last Updated: 2026-11-15
+
 Status: Mechanical research draft; no paper or live orders  
 Audience: Trading Desk owner and maintainers
 
 ## Overview
+
+The separate E3 failed-breakout audit adds four loss controls selected by
+original loss size and clean-data flags, without rerunning their strategies.
+It compares the same observation checkpoints with the four recovery cases,
+separates parent-D wick breaches from completed closes, and preserves original
+hard stops and P/L. See `investigations/2026-11-15_BTC_E3_FAILURE_CONTROLS.md`
+and `reports/btc_e3_failure_controls_2026_11_15/AUDIT.html`. No rule is promoted.
+
+A separate four-case support/recovery audit distinguishes genuine local-HL
+failure from the original larger parent D remaining intact. It shows what was
+known at E3 confirmation, subsequent incomplete/failed reclaims and later
+recovery, without tuning E3, changing P/L or replaying the month. Exact live
+input receipts remain separate from candle completion and actual execution.
+See `investigations/2026-11-15_BTC_E3_SUPPORT_RECOVERY.md` and
+`reports/btc_e3_support_recovery_2026_11_15/AUDIT.html` for full bar evidence.
+
+E3 draft-1 is a separate ten-case fixed-entry review, not an active strategy.
+It locks a one-ATR ten-minute drop, original entry-HL failure and an entire
+following five-minute candle below that HL, plus direction/inside filters.
+The report shows three saved winners cut to losses and the open 01:44 case's
+marked comparison. No parameter search, month rerun or reentry was performed.
+See `investigations/2026-11-15_BTC_E3_DRAFT1_TEN_CASE_REVIEW.md` and
+`reports/btc_e3_draft1_2026_11_15/REPORT.html` for all ten cases and 888 rows.
+
+The independent `/btc-parent-memory` study retains intact PH5 parent background
+while separately consuming entry episodes. The nominated 03:20 candidate passes
+but is skipped while an earlier 01:44 reentry is held. Original A/B and cleared
+PH5 controls reproduce; retained combinations remain negative, with E1 worse.
+Dollar drawdown accompanies R drawdown because a deeper D changes risk inputs.
+See `investigations/2026-11-15_BTC_PARENT_MEMORY_COMPARISON.md`. Original PH5,
+P1, frozen 0.2 and the BTC live worker/session remain unchanged.
+
+The independent `/btc-parent-five` page tests a confirmed 15-minute parent
+HL with a separate completed five-minute holding bar and breakout. Original
+controls reproduce exactly; PH5-only and A/B+PH5 full sequences are negative
+across all three exit models. The nominated November 14/15 bounce is separate
+from the frozen month. No tuning or promotion followed the result. See
+`investigations/2026-11-15_BTC_PARENT_FIVE_COMPARISON.md` for the definition,
+confirmation times, sequence changes and preservation checks. P1, frozen 0.2
+and the original live worker remain unchanged.
+
+The independent `/btc-parent-filter` page compares reproduced P1+C controls
+with the locked parent-failure-only C filter in complete sequential replays.
+All three variants improve but remain negative. It preserves original exits,
+risk, costs, uncertainty and live/frozen selections. See
+[Parent-only sequential research](BTC_PARENT_FILTER_RESEARCH.md) for replacement
+entries, lost winners, closed-trade drawdown and gap partitions.
+
+The separate `/btc-parent-hl` page compares parent-wave HL continuation C
+against unchanged P1 controls on the same frozen data. All three monthly
+variants lose money and remain unpromoted. See
+[Parent-HL research](BTC_PARENT_HL_RESEARCH.md) for the 03:17 prefix test,
+larger-parent-D stop, full sequences and preservation guarantees.
+
+The separate `/btc-p1` comparison applies P1 only to A entries on the same frozen
+0.2 minute stream. It does not change the frozen review selection or the running
+Live Paper worker. See [P1 research operation](BTC_P1_RESEARCH.md). All three
+original sequences are reproduced before their P1 variants, and the page shows
+all trades, additions/removals, original and P1 exits, gap partitions, and
+chronological observed 15-minute structure. New opportunities are permitted;
+this run happens to remove the two A trades without introducing replacement buys.
 
 The separate [Live Paper operating page](BTC_LIVE_PAPER.md) is available at
 /btc-live. It runs newly received BTC/USD observations in three independent

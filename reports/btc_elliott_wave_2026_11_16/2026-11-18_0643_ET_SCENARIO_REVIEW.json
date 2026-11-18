@@ -1,0 +1,171 @@
+{
+  "review_at_utc": "2026-11-18T11:43:45.523696Z",
+  "review_at_ny": "2026-11-18T06:43:45.523696-05:00",
+  "automation_id": "btc-two-scenario-review-every-12-hours",
+  "baseline_screenshot_at_ny": "2026-11-16T16:21:02-05:00",
+  "source": "Coinbase connector products_ticker and products_candles; BTC-USD; 4h; request end 2026-11-18T11:43:22Z, response approximately 11:43:45Z; unfinished-bar values provisional.",
+  "quote": {
+    "best_ask": "64100.9",
+    "best_bid": "64100.89",
+    "trades": [
+      {
+        "price": "64100.89",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.00000002",
+        "time": "2026-11-18T11:43:45.523696Z",
+        "trade_id": "1134801304"
+      },
+      {
+        "price": "64095.75",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.02354829",
+        "time": "2026-11-18T11:43:45.094370Z",
+        "trade_id": "1134801303"
+      },
+      {
+        "price": "64096.23",
+        "product_id": "BTC-USD",
+        "side": "BUY",
+        "size": "0.00015809",
+        "time": "2026-11-18T11:43:45.094370Z",
+        "trade_id": "1134801302"
+      }
+    ]
+  },
+  "raw_candles": [
+    {
+      "close": "64100.98",
+      "high": "64809.77",
+      "low": "64025.23",
+      "open": "64809.77",
+      "start": "1794988800",
+      "volume": "686.52522708"
+    },
+    {
+      "close": "64809.77",
+      "high": "64889.54",
+      "low": "64233.86",
+      "open": "64374.87",
+      "start": "1794974400",
+      "volume": "721.83664751"
+    },
+    {
+      "close": "64374.87",
+      "high": "64933.39",
+      "low": "64033.57",
+      "open": "64873.18",
+      "start": "1794960000",
+      "volume": "972.02403538"
+    },
+    {
+      "close": "64873.18",
+      "high": "65199.37",
+      "low": "63583.92",
+      "open": "63675.22",
+      "start": "1794945600",
+      "volume": "2149.80933793"
+    }
+  ],
+  "candles_truncated": false,
+  "levels": {
+    "local_support": 63833.47,
+    "confirmation_zone": [
+      66100,
+      66369
+    ],
+    "decision_zone": [
+      67918,
+      71612
+    ],
+    "green_bottom_invalidation_below": 61946.17,
+    "orange_wave4_invalidation_above": 82510.37,
+    "larger_hurdles": [
+      76095,
+      84856
+    ]
+  },
+  "scenarios": {
+    "green": {
+      "status": "strengthened",
+      "invalidated": false,
+      "reason": "Locally strengthened relative to prior weakened review: Nov17 15:00-19:00 EST completed at 64873.18 above 63833.47, followed by two completed 4h bars whose lows and closes stayed above that support. Earlier support break remains recorded. The fixed 61946.17 bottom remains intact, but no 66100-66369 recovery confirmation or qualifying retest exists; entire Elliott count remains unconfirmed."
+    },
+    "orange": {
+      "status": "possible_unconfirmed",
+      "invalidated": false,
+      "reason": "The local reclaim does not invalidate a bearish rebound scenario; no breach above 82510.37, no validated internal wave subdivision or fixed wave-5 target."
+    }
+  },
+  "latest_completed_4h": {
+    "start_utc": "2026-11-18T04:00:00Z",
+    "end_utc": "2026-11-18T08:00:00Z",
+    "start_ny": "2026-11-17T23:00:00-05:00",
+    "end_ny": "2026-11-18T03:00:00-05:00",
+    "open": 64374.87,
+    "high": 64889.54,
+    "low": 64233.86,
+    "close": 64809.77
+  },
+  "unfinished_4h": {
+    "start_ny": "2026-11-18T03:00:00-05:00",
+    "end_ny": "2026-11-18T07:00:00-05:00",
+    "observed_low": 64025.23,
+    "observed_close_reference": 64100.98,
+    "complete": false
+  },
+  "chart_update_required": true,
+  "last_successful_observation_utc": "2026-11-18T11:43:22Z",
+  "caveats": [
+    "Re-read the Nov17 15:00-19:00 EST bar that overlapped the previous observation; its formerly unfinished reclaim is now complete.",
+    "The Nov18 03:00-07:00 EST candle remains unfinished; its close is not confirmed.",
+    "Following candles remained above support, but did not establish a verified touch/retest of that exact level.",
+    "The 66100-66369 larger recovery confirmation remains absent; local reclaim alone does not confirm a bottom or validate either Elliott count.",
+    "Raw open-bar snapshot may reflect response time later than the requested end; no prices are filled or interpolated."
+  ],
+  "notification_baseline": {
+    "local_support": "previously_broken_now_reclaimed_completed_4h_following_bars_above",
+    "confirmation": "not_reclaimed",
+    "decision_zone": "below",
+    "green": "strengthened_locally_full_count_unconfirmed",
+    "orange": "possible_unconfirmed",
+    "data_health": "available"
+  },
+  "orders_enabled": false,
+  "previous_review_at_utc": "2026-11-17T23:41:30.397395Z",
+  "chart_update_scope": "Update local 63833.47 annotation from broken with reclaim pending to previously broken, now reclaimed on completed 4h close and held above by two subsequent complete bars. Preserve original screenshots, both provisional wave paths and fixed invalidation levels. No new wave count or redraw performed.",
+  "last_material_notification": {
+    "at": "2026-11-18T11:43:45.523696Z",
+    "type": "local_support_completed_reclaim",
+    "review": "2026-11-18_0643_ET_SCENARIO_REVIEW.md"
+  },
+  "support_history": [
+    {
+      "candle_start_ny": "2026-11-17T11:00:00-05:00",
+      "candle_end_ny": "2026-11-17T15:00:00-05:00",
+      "event": "completed_4h_close_below_support",
+      "close": 63675.22
+    },
+    {
+      "candle_start_ny": "2026-11-17T15:00:00-05:00",
+      "candle_end_ny": "2026-11-17T19:00:00-05:00",
+      "event": "completed_4h_reclaim",
+      "close": 64873.18
+    },
+    {
+      "candle_start_ny": "2026-11-17T19:00:00-05:00",
+      "candle_end_ny": "2026-11-17T23:00:00-05:00",
+      "event": "complete_bar_above_support",
+      "low": 64033.57,
+      "close": 64374.87
+    },
+    {
+      "candle_start_ny": "2026-11-17T23:00:00-05:00",
+      "candle_end_ny": "2026-11-18T03:00:00-05:00",
+      "event": "complete_bar_above_support",
+      "low": 64233.86,
+      "close": 64809.77
+    }
+  ]
+}

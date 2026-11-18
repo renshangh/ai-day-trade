@@ -23,6 +23,17 @@ import server as srv
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent  # noqa: E402
 
 
+def test_daily_review_shows_current_plan_and_archives_history():
+    html = (REPO_ROOT / "trading_desk" / "index.html").read_text(encoding="utf-8")
+    assert re.search(r'data-plan-date="\d{4}-\d{2}-\d{2}"', html)
+    assert 'id="today-trading-plan"' in html
+    assert 'data-chart-review="compact"' in html
+    assert 'id="rev-live-holdings"' in html
+    app = (REPO_ROOT / "trading_desk" / "app.js").read_text(encoding="utf-8")
+    assert "else state.schwabPositions = null" in app
+
+
+
 # ----------------------------------------------------------------- fixtures
 def bars(closes: list[float]) -> list[dict]:
     """Daily bars with a plausible intraday range around each close."""

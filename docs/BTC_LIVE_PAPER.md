@@ -2,7 +2,7 @@
 
 Operate the frozen 0.2 strategies on newly received Alpaca BTC/USD observations.
 
-Last Updated: 2026-11-10
+Last Updated: 2026-11-15
 Status: Comparison only; no broker orders or broker paper fills  
 Audience: Trading Desk owner and maintainers
 
@@ -24,6 +24,15 @@ current session hours and per-entry/exit availability/freshness without
 changing or filtering any BTC model record. IBIT execution remains manual
 and unverified; owner-reported EXTO eligibility does not establish API access. See
 `docs/IBIT_HOURS_INDICATOR.md`.
+
+## Dated bottom comparison and twelve-hour audit
+
+`/btc-live#bottom-review` keeps the invalidated November 14 setup as history,
+shows the dated November 15 comparison and its conditional entry/stop/targets,
+and reads all model actions within an exact twelve-hour availability window.
+Earlier completed trades are separated as context. This dashboard-only GET
+view refreshes on load/request and changes no worker records or rules. See
+`docs/BTC_BOTTOM_COMPARISON.md`.
 
 ## Observation and timing contract
 
