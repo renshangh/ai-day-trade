@@ -69,6 +69,10 @@ or predicted dates. Source, session, timestamp and venue limitations accompany
 the observations. The existing daily after-close review maintains the studies;
 the stopped hourly/half-hour monitors remain stopped. No orders are submitted.
 
+An **Intraday update** can appear above the historical drawings. It shows
+completed candles with individual feed cutoffs, selected prior levels, and
+conditional recovery and extension tests.
+
 Original versus updated drawings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

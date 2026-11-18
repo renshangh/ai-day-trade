@@ -22,3 +22,28 @@
   border-radius: 7px;
 }
 .chart-review-asset { scroll-margin-top: 74px; }
+
+.wave-intraday {
+  margin: 16px 0 20px;
+  padding: 16px;
+  background: #101d2a;
+  border: 1px solid #385363;
+  border-radius: 10px;
+}
+.wave-intraday h4 { margin-top: 0; }
+.wave-candle-figure { margin: 12px 0; }
+.wave-candle-figure figcaption { color: #ffc978; font-size: 12px; }
+.wave-candle-chart { display: block; width: 100%; color: #b1c3d4; }
+.wave-candle-chart text { fill: currentColor; font-size: 12px; }
+.wave-grid-line { stroke: #314652; }
+.wave-threshold { stroke: #ffc978; stroke-dasharray: 5 4; }
+.wave-up { fill: #6ad0b0; stroke: #6ad0b0; }
+.wave-down { fill: #ef9d96; stroke: #ef9d96; }
+.wave-paths {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.wave-paths p { margin: 0 0 8px; border-left: 2px solid #638296; padding-left: 10px; }
+.wave-paths strong { display: block; }
+@media(max-width: 680px) { .wave-paths { grid-template-columns: 1fr; } }

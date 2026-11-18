@@ -134,3 +134,22 @@ test('direct gallery links scroll to the requested ticker after rendering the ma
   assert.deepEqual((await render(saved(), 'full', '#chart-CRCL')).scrolled, ['chart-CRCL']);
   assert.deepEqual((await render(saved(), 'full', '#chart-unavailable')).scrolled, []);
 });
+
+test('the intraday update charts real completed bars and keeps the baseline drawings dated', async () => {
+  const data = saved();
+  const update = data.intraday_update;
+  assert.equal(update.model, 'qwen3.5:35b');
+  assert.ok(update.date > data.date);
+  const {html} = await render(data, 'compact');
+  assert.equal((html.match(/class="wave-candle-chart"/g) || []).length, 5);
+  assert.equal((html.match(/<strong>Recovery path<\/strong>/g) || []).length, 5);
+  for (const [symbol,row] of Object.entries(update.assets)) {
+    const chart = html.slice(html.indexOf(`id="chart-${symbol}"`));
+    assert.match(chart, /observed intraday candles, Eastern time/);
+    const cutoff = Date.parse(row.as_of) / 1000;
+    assert.equal(row.bars.at(-1)[0] + row.interval_seconds, cutoff);
+    assert.ok(row.bars.every(([t,o,h,l,c]) => t + row.interval_seconds <= cutoff && h >= Math.max(o,c) && l <= Math.min(o,c)));
+  }
+  assert.match(html, /Baseline drawings 2026-11-17/);
+  assert.ok(html.includes(data.assets[0].comparison.original_url));
+});

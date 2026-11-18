@@ -13,6 +13,21 @@ confirmation test and precise invalidation. `/chart-review` and the embedded
 Daily Review render `trading_desk/chart_review.json`; opening the page reads the
 saved manifest only. It does not refresh quotes, accounts, orders or monitors.
 
+## Intraday updates
+
+The optional `intraday_update` in the saved manifest adds completed OHLC bars
+and separately dated scenario notes to each available asset. Candle positions
+follow provider timestamps, including gaps. Dashed lines mark selected levels
+from the saved studies. Recovery and extension paragraphs describe conditional
+tests. The original drawings and completed-session evidence remain available
+with their original timestamps.
+
+The November 18 update uses Yahoo Finance cash NDX and SPX, Coinbase Exchange
+BTC-USD, and delayed Alpaca consolidated SIP bars for COIN and CRCL. Cash and
+equity returns compare with the prior session close from the same intraday
+feed. BTC compares with midnight Eastern. The saved notes identify the local
+model used on the observations.
+
 ## Comparison records
 
 Use the **Elliott Wave scenarios** ticker links at the top of Daily Review to
