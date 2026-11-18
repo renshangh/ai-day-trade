@@ -250,6 +250,7 @@
 - **QNT is visible as a watch-only holding in Daily Review.** It is excluded from paper-agent recommendations and guarded trade preparation.
 
 ### Changed
+- **The ai-day-trade watchlist scanner defaults to local Qwen.** It uses Ollama on the Mac mini loopback interface and falls back to deterministic scores on model errors. Pass `--model` to select a model on the configured OpenAI-compatible endpoint.
 - Added sourced AI Power debt resilience: restricted-cash exclusions, cash/debt, operating interest coverage, repayments and floating-rate stress scenarios; unknown financing inputs remain unavailable.
 - AI Power now shows CORZ, GLXY, HUT and RIOT with dated positive diluted-EPS evidence, cash-quality notes and shared chart links. Replaces the nuclear watchlist and standing allocation plan; historical notes remain intact and market data is never substituted.
 - Daily Review displays the October 23 trading plan with account tools collapsed; dated summaries are preserved in a separate linked HTML archive.

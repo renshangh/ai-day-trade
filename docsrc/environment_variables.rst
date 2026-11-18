@@ -720,6 +720,7 @@ OPENAI_API_KEY
 - Purpose: Auth for OpenAI models (GPT-5.4 family and others).
 - Values: Obtain from https://platform.openai.com/api-keys.
 - Required when ``default_model`` looks like ``openai/gpt-5.4-mini`` or any other ``openai/...`` id.
+- The ai-day-trade watchlist scanner reads this key and the optional ``OPENAI_BASE_URL`` endpoint when you pass ``--model``. Its default local Qwen reranker uses ``http://127.0.0.1:11436/v1`` with a placeholder key.
 
 XAI_API_KEY or GROK_API_KEY
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
