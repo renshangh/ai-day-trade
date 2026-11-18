@@ -47,6 +47,7 @@ import sector_signals  # noqa: E402
 import universe  # noqa: E402
 import session_vwap  # noqa: E402
 import v3_store  # noqa: E402
+import watchlist  # noqa: E402
 
 ALPACA_DATA = "https://data.alpaca.markets"
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -55,6 +56,7 @@ COINBASE_PRODUCTS = {"ONDOUSD": "ONDO-USD", "NEARUSD": "NEAR-USD"}
 ALPACA_CRYPTO_SYMBOLS = {"HYPEUSD": "HYPE/USD"}
 CACHE_PATH = HERE / "cache.json"
 V3_STORE = v3_store.DeskStore(HERE / "v3_state.json")
+WATCHLIST_REPORTS = REPO_ROOT / "reports"
 ENTERPRISE_AI_BRIEFING_PATH = HERE / "enterprise_ai_briefing.json"
 SCHWAB_TRADE_HELPER = REPO_ROOT / "scripts" / "schwab_trade.py"
 
@@ -1860,6 +1862,10 @@ class Handler(BaseHTTPRequestHandler):
                     "level_proximity_atr": LEVEL_PROXIMITY_ATR,
                 }
             )
+            return
+
+        if path == "/api/v3/watchlist":
+            self._json(watchlist.compare_scans(WATCHLIST_REPORTS))
             return
 
         if path == "/api/v3/state":

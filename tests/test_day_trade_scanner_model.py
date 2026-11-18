@@ -52,3 +52,19 @@ def test_scanner_model_routing(mode, monkeypatch, tmp_path):
     else:
         openai_constructor.assert_not_called()
     assert actual["llm_result"] == (result if mode in {"default", "explicit"} else None)
+
+
+
+def test_default_scan_report_is_archived_with_provenance(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    for _ in range(2):
+        scanner._write_report(
+            scanner.DEFAULT_REPORT, candidates=[], top=3, llm_result={"top": []}, model=None, feed="iex",
+        )
+
+    snapshots = sorted(Path("reports").glob("day_trade_candidates_history_*.json"))
+    assert len(snapshots) == 2
+    assert snapshots[-1].read_bytes() == scanner.DEFAULT_REPORT.read_bytes()
+    latest = json.loads(scanner.DEFAULT_REPORT.read_text())
+    assert latest["reranker"] == {"model": "qwen3.5:35b", "route": "local"}
+    assert latest["feed"] == "iex"

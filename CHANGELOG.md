@@ -3,6 +3,7 @@
 ## 4.5.30 - Unreleased
 
 ### Added
+- **Trading Desk shows saved Qwen watchlist rankings.** The panel compares the two latest saved scans and shows changes in rank, score, and underlying Alpaca metrics. Default scans keep a dated snapshot for future comparisons.
 - **Trading Desk Daily Review now includes session VWAP for open holdings.** The panel excludes SNDL, includes IBIT, and compares timestamped prices with consolidated regular-session VWAP. It refreshes independently, labels the data delay, respects market holidays and early closes, and surfaces unavailable data without estimates.
 - **A guarded, chat-invoked Schwab trading agent is available for personal API apps.** The new `schwab-trader` Codex skill uses a separate command-line boundary for simple whole-share stock and ETF market/limit orders. Every live order requires a fresh Schwab preview, a later exact confirmation phrase, a still-linked account, and a single-use local preview record; sells are checked against the live long position both before preview and immediately before submission. Ambiguous submission failures are never retried automatically.
 - **Trading Desk now has a preview-only Schwab integration in Daily Review.** The page reads sanitized readiness and live-position data and can request a broker-side order preview without receiving credentials, tokens, account hashes, or full account numbers. It has no submit endpoint or Place button; live placement still requires the preview's exact phrase in a later chat turn.
