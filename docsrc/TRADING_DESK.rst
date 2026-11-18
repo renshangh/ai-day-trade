@@ -77,6 +77,8 @@ CRCL, NDX and SPX captures, with the preferred working count, what changed,
 evidence and the next confirmation/invalidation test. Desktop views display
 the pair side by side; narrow screens stack them. Click an image to inspect
 the original full-size file. Other dated captures remain expandable history.
+Use the **Elliott Wave scenarios** ticker links above the daily plan to jump to
+a study's alternate paths, confirmation and invalidation levels.
 
 A failed fixed bottom does not necessarily invalidate the impulse: COIN's
 extended fifth remains the simpler working count, while its nested-third
