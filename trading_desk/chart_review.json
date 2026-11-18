@@ -955,8 +955,8 @@
           "Old count stays invalid after a reclaim. $54.95 is completed Nov17 consolidated RTH VWAP, anchored09:30 ET; not a live moving level."
         ],
         [
-          "$57.08–$57.65 / $59.80–$60.56",
-          "First daily reclaim and next repair zones; require completed closes and held retests."
+          "$57.08–$57.66 / $59.80–$60.56",
+          "First daily reclaim and next repair zones. The November 17 consolidated opening-range and regular-session high was $57.66. Require completed closes and held retests."
         ],
         [
           "$63.56 / $63.83",
@@ -971,7 +971,7 @@
           "Future standard larger4 must stay below71.00. Above77.59 ends/relabels the still-running Nov4 larger3/C; it may already have completed."
         ]
       ],
-      "confirmation": "After a real low L forms, sustained higher lows and repair through57.08–57.65,59.80–60.56 and63.83 support recovery. A sustained move above71 rejects the specific future non-overlapping larger4 interpretation and strengthens the C-ended alternative;77.59 is the next larger swing test. Reclaim54.87 alone is insufficient. Green path can turn earlier than its illustrated low.",
+      "confirmation": "After a real low L forms, sustained higher lows and repair through $57.08–$57.66, $59.80–$60.56 and $63.83 support recovery. A sustained move above71 rejects the specific future non-overlapping larger4 interpretation and strengthens the C-ended alternative;77.59 is the next larger swing test. Reclaim54.87 alone is insufficient. Green path can turn earlier than its illustrated low.",
       "invalidation": "Old simple impulse is already INVALID below54.87 and cannot be restored. Above68.90 ends/relabels a still-running Nov11 smaller iii. After iii ends, standard smaller iv must stay below63.56. Above77.59 ends/relabels the still-running Nov4 larger3/C. After larger3 ends, standard larger4 must stay below71.00. A break below eventual L rejects only that selected fixed-bottom scenario; L is unknown. These are degree-specific limits, not universal bearish cutoffs.",
       "fundamentals": "Nov4 issuer results: total revenue and reserve income $865m includes $182m of ARC token presale revenue. Reserve income $658m fell 8% YoY; average USDC circulation rose 8%. Revenue growth and EBITDA strength must be separated from token-presale income and interest-rate sensitivity. Rechecked Nov17: these dated earnings figures are not proof of a price bottom or a verified catalyst for today’s decline.",
       "sources": [
@@ -994,7 +994,7 @@
           "url": "/chart-review-assets/2026-11-17_CRCL_DAILY_RECOUNT_LARGER_3_OR_C.png",
           "title": "CRCL daily recount: provisional larger3 or C, conditional extension and recovery alternatives",
           "captured": "2026-11-17 13:28 ET",
-          "state": "Latest saved native scenario drawing — screenshot time retained; Nov17 completed-session evidence supersedes its quote"
+          "state": "Saved November 17 recount. Its $57.65 recovery annotation predates the dashboard’s $57.66 threshold based on the completed session."
         },
         {
           "url": "/chart-review-assets/2026-11-17_CRCL_DAILY_COUNT_INVALIDATED_1102_ET.png",
@@ -1092,8 +1092,8 @@
         "verdict": "The updated larger wave 3/C hypothesis is preferable to the invalid original simple impulse; its internal count remains unproven.",
         "changes": "Original Nov10 63.56=3 and Nov11 68.90=4 became tentative smaller i/ii within a developing larger wave 3/C fromNov4 77.59. Original chart already warned of the54.87 failure boundary.",
         "reason": "Original wave 1 = 21.17 and wave 3 = 14.03. Below54.87, wave 5 from68.90 exceeds14.03, making3 shortest: the standard impulse labels are invalid. A recovery can still happen, but reclaim54.87 cannot restore those labels. The revised count removes that flaw without proving a crash target.",
-        "evidence": "Nov17 low53.305 and completed close54.63 breached the rule boundary. After-hours 56.48 at 18:35:39 ET is a bounce, still below57.08–57.65.",
-        "confirmation": "Daily reclaim57.08–57.65, then59.80–60.56 and63.83 with held retests improves recovery. Future standard smalleriv must stay below63.56; above68.90 ends/relabels still-running smaller iii.46.20/43.34/40.84 remain conditional math, not required lows.",
+        "evidence": "Nov17 low53.305 and completed close54.63 breached the rule boundary. After-hours 56.48 at 18:35:39 ET was still below the $57.08–$57.66 reclaim range.",
+        "confirmation": "Daily reclaim of $57.08–$57.66, then $59.80–$60.56 and $63.83 with held retests improves recovery. Future standard smalleriv must stay below63.56; above68.90 ends/relabels still-running smaller iii.46.20/43.34/40.84 remain conditional math, not required lows.",
         "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
       }
     }
@@ -1633,7 +1633,7 @@
         ],
         "review": {
           "observation": "CRCL fell to $52.78, below the prior $53.305 low, then recovered above $53.305 by the cutoff.",
-          "recovery": "Fresh recovery evidence requires reaching the $57.08–$57.65 range and executing a held retest.",
+          "recovery": "Reclaim the $57.08–$57.66 range and hold the retest. The upper bound is the November 17 regular-session high.",
           "extension": "A renewed loss of today's observed low favors extension within a provisional larger 3/C structure as the old simple impulse is already invalid."
         }
       }

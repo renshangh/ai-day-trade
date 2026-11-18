@@ -28,6 +28,11 @@ equity returns compare with the prior session close from the same intraday
 feed. BTC compares with midnight Eastern. The saved notes identify the local
 model used on the observations.
 
+CRCL uses $57.08–$57.66 for the first reclaim in the intraday update,
+next-session plan and confirmation table. The upper bound is the November 17
+consolidated SIP opening-range and regular-session high. The $57.65 annotation
+on the dated TradingView drawings records the earlier recovery test.
+
 ## Comparison records
 
 Use the **Elliott Wave scenarios** ticker links at the top of Daily Review to
