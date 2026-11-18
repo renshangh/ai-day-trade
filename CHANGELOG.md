@@ -9,6 +9,7 @@
 - **A human-in-the-loop trade agent now covers FN, AXTI, COHR, and LITE.** It proposes transparent entry, exit, and risk-reference bands from measured support, resistance, and ATR; missing inputs remain unavailable. Sizing is selectable at 25%, 50%, 75%, or 100% of Schwab's live held shares, with the local journal as a fallback. Buy Review/Sell Review actions populate the guarded Schwab LIMIT/DAY form, Review at Schwab validates without submitting, and **Copy confirmation** copies the phrase that triggers the guarded submission agent in a later chat turn.
 
 ### Changed
+- **The ai-day-trade watchlist scanner defaults to local Qwen.** It uses Ollama on the Mac mini loopback interface and falls back to deterministic scores on model errors. Pass `--model` to select a model on the configured OpenAI-compatible endpoint.
 - **Daily Review now covers every Individual-account holding except SNDL.** IBIT is included in the same risk, level, headline, and concentration review as the other current holdings.
 
 ### Fixed

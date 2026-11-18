@@ -46,10 +46,15 @@ python -m ai_day_trade.find_day_trade_candidates --top 3
 
 The candidate scanner is read-only. It pulls real Alpaca intraday bars, scores
 relative strength versus QQQ, VWAP state, high-of-day proximity, gap, and volume
-participation, then optionally asks an OpenAI model to rerank and explain the
-watchlist. If `OPENAI_API_KEY` is unavailable or the model call fails, the
-scanner falls back to deterministic scoring. It writes the full report to
-`reports/day_trade_candidates_latest.json`.
+participation, then asks local Qwen (`qwen3.5:35b`) at
+`http://127.0.0.1:11436/v1` to rerank and explain the watchlist. The local path
+uses the installed Ollama model and needs no OpenAI account or key. If the local
+call fails, the scanner uses its deterministic ranking. It writes the full
+report to `reports/day_trade_candidates_latest.json`.
+
+Use `--no-llm` for deterministic scoring only. To opt into a different model,
+pass `--model <id>` and configure the OpenAI SDK with `OPENAI_API_KEY` and, for a
+custom endpoint, `OPENAI_BASE_URL`.
 
 ## Top AI Coins — Crypto Trade Watchlist
 

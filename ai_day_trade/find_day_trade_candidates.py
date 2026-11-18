@@ -33,6 +33,8 @@ DEFAULT_SYMBOLS = (
     "SMCI",
 )
 INDEX_SYMBOL = "QQQ"
+LOCAL_MODEL = "qwen3.5:35b"
+LOCAL_MODEL_BASE_URL = "http://127.0.0.1:11436/v1"
 
 
 @dataclass(frozen=True)
@@ -276,7 +278,9 @@ def rank_candidates(symbols: list[str], *, feed: DataFeed) -> list[Candidate]:
     return ranked
 
 
-def _llm_rerank(candidates: list[Candidate], *, top: int, model: str) -> dict[str, Any] | None:
+def _llm_rerank(
+    candidates: list[Candidate], *, top: int, model: str | None = None
+) -> dict[str, Any] | None:
     if not candidates:
         return None
     try:
@@ -310,7 +314,16 @@ def _llm_rerank(candidates: list[Candidate], *, top: int, model: str) -> dict[st
         "candidates": payload,
     }
     try:
-        client = OpenAI()
+        if model is None:
+            client = OpenAI(
+                base_url=LOCAL_MODEL_BASE_URL,
+                api_key="ollama",
+                timeout=180.0,
+                max_retries=0,
+            )
+            model = LOCAL_MODEL
+        else:
+            client = OpenAI()
         response = client.chat.completions.create(
             model=model,
             messages=[
@@ -392,7 +405,10 @@ def main() -> None:
     parser.add_argument("--top", type=int, default=3, help="Number of candidates to print")
     parser.add_argument("--feed", choices=["iex", "sip", "delayed_sip"], default="iex", help="Alpaca market data feed")
     parser.add_argument("--no-llm", action="store_true", help="Use deterministic scores only")
-    parser.add_argument("--model", default="gpt-5.4-mini", help="OpenAI model for optional JSON rerank")
+    parser.add_argument(
+        "--model",
+        help=f"Override local {LOCAL_MODEL} with a model on the configured OpenAI-compatible endpoint",
+    )
     parser.add_argument(
         "--report",
         default="reports/day_trade_candidates_latest.json",
