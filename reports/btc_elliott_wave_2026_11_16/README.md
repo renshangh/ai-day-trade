@@ -26,6 +26,7 @@ observed future bars, confirmed forecasts or fixed price targets.
 - [November 17 morning](2026-11-17_0644_ET_SCENARIO_REVIEW.md): both paths possible, neither confirmed.
 - [November 17 evening](2026-11-17_1841_ET_SCENARIO_REVIEW.md): local support broke on a completed four-hour close; reclaim was unfinished.
 - [November 18 morning](2026-11-18_0643_ET_SCENARIO_REVIEW.md): local reclaim completed, with subsequent bars above support; larger recovery remains unconfirmed.
+- [November 18 afternoon new-low review](2026-11-18_1630_ET_NEW_LOW_REVIEW.md) estimates four-hour downside odds for the intraday low and the larger scenario low.
 
 These are dated observations, not a current-price feed. The fixed bottom-held
 case fails below $61,946.17; the specific orange non-overlapping wave-4 count
