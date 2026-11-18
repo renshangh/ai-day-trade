@@ -1,0 +1,1245 @@
+{
+  "date": "2026-11-17",
+  "published_at": "2026-11-17T23:37:55.822011+00:00",
+  "market_observed_at": "2026-11-17T21:28:21.858406+00:00",
+  "owner_decision": "Watch only today. No new buy/sell orders requested. Observe POWL around the initial $149–$156 range; reassess after Powell’s 11:00 ET call and NVIDIA earnings.",
+  "market": "Completed Nov17: SPY732.44 (-1.01%),QQQ656.95 (-0.73%),cashNDX27,001.79 (-0.72%),SPX7,340.53 (-1.03%). COIN115.02 (-4.02%),CRCL54.63 (-5.24%),POWL150.86 (-0.22%). Opticsday+1.79% but0%SMA50 breadth;no broad recovery. Fresh NVIDIA primary release115.8bn revenue and130bn Q4guide supports shipped demand, with guided margins71–72% and extra-week caveat;17ETcall not yet reviewed.",
+  "events": [
+    [
+      "Powell release / call",
+      "Nov16 release rechecked;Nov17 11ETcall time passed,full primary call content unavailable",
+      "https://powellindustriesinc.gcs-web.com/news-releases/news-release-details/powell-industries-announces-fourth-quarter-and-full-year-1"
+    ],
+    [
+      "NVIDIA Q3 actual release / call",
+      "Nov17 release primary-verified;17ETcall pending at this snapshot",
+      "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-third-quarter-fiscal-2027"
+    ]
+  ],
+  "data_note": "After-close Nov17 refresh. Equities: adjusted consolidated SIP daily and completeRTH5m,16-minute access delay,retrieved16:28ET;individual current quotes are separately timestamped IEX last trades and may differ from SIP closes. CashNDX/SPX Yahoo timestamps/latency unverified,points not futures;SMA50/200 unavailable in current one-month response. BTC Coinbase spot observed16:28:34ET;completed UTC1h/4h separated from unfinished candles. Original native chart screenshots remain historical drawings. Schwab OAuth restored and all5accounts refreshed17:31ET;account-specific risk checklist is separately dated and remains private to the desk. No new market refresh is implied by authentication recovery. Evening comparison refresh: actual cash low points updated in new native NDX/SPX captures; December /NQZ26 and /ESZ26 are separately labeled. The completed-session metrics remain the16:28 observation; individual later quotes retain their own source timestamps. POWL and earlier issuer-check times remain unchanged.",
+  "daily_checklist": [
+    "Refresh each quote with source, last-trade time, session and delay.",
+    "Compare the next completed session with this dated baseline; preserve prior rows and captures.",
+    "Check higher highs/lows, regular-session VWAP for equities, stated volume baseline and benchmark relative strength.",
+    "Record which exact count/level confirmed, failed or remains untested; unfinished candles cannot confirm.",
+    "Check primary issuer news and event outcomes. Leave unchecked items unavailable.",
+    "Keep watch-only decisions separate from holdings, approved stops and broker orders.",
+    "Review cash NDX before SPX: keep index points separate from NQ futures, verify the exact Elliott overlap/invalidation rule, and reassess after NVIDIA; no fixed future endpoint is a forecast.",
+    "Compare the original with the latest drawing: distinguish failed pivot, failed fixed-bottom hypothesis and a genuinely broken wave rule; keep cash-index and futures points separate."
+  ],
+  "assets": [
+    {
+      "symbol": "NDX",
+      "unit": "points",
+      "quote": {
+        "price": 27001.785,
+        "time": "2026-11-17T21:28:20+00:00",
+        "source": "Yahoo Finance cash index",
+        "session": "Post-close snapshot of completed Nov17 cash session",
+        "delay": "Provider latency unverified; native chart captures retain their separate10/15-minute delays"
+      },
+      "previous_close": 27197.150390625,
+      "change_pct": -0.7183297940005606,
+      "status": "TWO LARGER HYPOTHESES · wave5 / final low unconfirmed",
+      "benchmark_note": "Completed Nov17 cash index: close27,001.79, range26,580.86–27,258.84points;5session-2.66%,21session-8.56%. SMA2028,347.28; freshSMA50/200 unavailable from this one-month response. Index displayed volume is not directly tradable consolidated volume. Cash drawings retain their own timestamps; separate December futures evidence below never substitutes for cash points.",
+      "fundamentals": "NVIDIA reports Nov17 after the close, with the issuer scheduling results around16:20 ET and its call17:00 ET. The event can gap either direction; wave labels do not predict its outcome.",
+      "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-17_NDX_DAILY_CLOSE_REVIEW.jpg",
+          "title": "NDX daily close review: observed fifth low updated; larger alternatives remain provisional",
+          "captured": "2026-11-17 18:34 ET",
+          "state": "Updated native close review; Nov17 low is observed, not a confirmed final wave ending"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_NDX_DAILY_TWO_LARGER_SCENARIOS.png",
+          "title": "NDX daily: final larger C versus larger A / 1, recovery and count-specific invalidation",
+          "captured": "2026-11-17 10:50 ET",
+          "state": "Latest saved count illustration — older screenshot quote; fresh Nov17 completed-session evidence above"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_NDX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
+          "title": "NDX cash daily Elliott scenarios, recovery gates and conditional extension",
+          "captured": "2026-11-17 10:20 ET",
+          "state": "Historical original: local fifth count retained; forming quote/endpoint superseded."
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_NQZ2026_15M_EVENING.jpg",
+          "title": "/NQZ26 native15m evening futures evidence; separate from cash count",
+          "captured": "2026-11-17 18:35 ET",
+          "state": "CME futures ·10-minute delayed screenshot; current quote above has its own source timestamp"
+        }
+      ],
+      "chart_note": "Native TradingView NASDAQ_DLY:NDX daily export captured10:50 ET; feed15minutes delayed. Its displayed quote26,952.55 is older than the separately timestamped Yahoo10:50:31 quote26,717.09 (Yahoo latency unverified). The local solid5 endpoint remains the old forming27,063.42 reference, explicitly undercut and unconfirmed. Green and red paths branch after an UNKNOWN future L; plotting L near26,305 and the future date spacing does not predict its value/date. No synthetic OHLCV or consolidated index-volume confirmation is implied. New evening native capture updates the solid final observed-low point to 26,580.86. This is a provisional wave reference, not a confirmed completed fifth/C. Dashed future vertices remain schematic older scenarios, not newly forecast dates or market data. The separately displayed December futures panel is not spliced into cash-index bars or levels.",
+      "sources": [
+        [
+          "Nasdaq official index overview",
+          "https://indexes.nasdaq.com/index/Overview/NDX"
+        ],
+        [
+          "Daily index history",
+          "https://finance.yahoo.com/quote/%5ENDX/history/"
+        ],
+        [
+          "NVIDIA issuer schedule",
+          "https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Sets-Conference-Call-for-Third-Quarter-Financial-Results/"
+        ],
+        [
+          "CME /NQZ26 product",
+          "https://www.cmegroup.com/markets/equities/nasdaq/e-mini-nasdaq-100.html"
+        ],
+        [
+          "Elliott impulse / extension rules",
+          "https://www.elliottwave.com/waveopedia/extension/"
+        ]
+      ],
+      "summary": "Nov17 low26,580.86 undercut Nov5 26,606.43, then cash close27,001.79 recovered above that pivot but remained below27,149–27,259 first reclaim. Local fifth endpoint L remains unknown; no confirmed bottom. Saved larger-C-ending versus larger-A/1-ending alternatives remain provisional. Above28,593.52 ends only still-running Nov11 fifth;31,361.37 invalidates specified Oct6 larger1→2, not every corrective bear interpretation.",
+      "levels": [
+        [
+          "27,149–27,259",
+          "First stabilization reclaim. Then hold a higher low; this alone is only a bounce."
+        ],
+        [
+          "27,609–27,650",
+          "Recovery reclaim, completed close and successful retest."
+        ],
+        [
+          "27,940–28,078",
+          "Daily repair zone; higher lows improve the recovery case."
+        ],
+        [
+          "28,593.52",
+          "Above here ends / relabels the still-running Nov11 fifth. A larger B / 2 rebound can exceed this."
+        ],
+        [
+          "29,073.29–29,928.31",
+          "Stronger repair through Oct16 / Oct21 pivots; NOT a universal bearish invalidation."
+        ],
+        [
+          "L — eventual wave5 low, UNKNOWN",
+          "Once established, a break below L rejects THAT fixed-bottom hypothesis. The plotted L near26,305 is illustrative only."
+        ],
+        [
+          "31,361.37",
+          "Above the Oct6 origin invalidates the SPECIFIC larger wave1→2 count. A larger expanded-flat A–B–C could survive; no universal bearish cutoff is claimed."
+        ],
+        [
+          "26,606.43 / 26,305.44",
+          "Prior low / local equal-wave1 projection review references. Neither guarantees support or a bottom."
+        ],
+        [
+          "24,891.41",
+          "Earlier local fifth-wave extension calculation; the new larger C / 3 path uses an illustrative ending, not a validated C / 3 target."
+        ]
+      ],
+      "confirmation": "Establish L, rally to H, pull back while holding above L, then exceed H. Seek completed daily repair through27,609–27,650 and27,940–28,078; above28,593.52 means the Nov11 fifth is no longer still running. Continued higher highs/lows through29,073–29,928 improve the sustained-recovery case but cannot alone prove the entire larger correction ended.",
+      "invalidation": "Below eventual L invalidates only the selected fixed-bottom case. Above31,361.37 invalidates the October6 larger1→2 bearish count, not all corrective alternatives. The29,073.29 overlap rule applies only to a standard larger wave4 relabeling of the exact local impulse; B / 2 is allowed to exceed29,073. New lows before a confirmed L can simply extend wave5.",
+      "daily": null,
+      "comparison": {
+        "original_url": "/chart-review-assets/2026-11-17_NDX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
+        "updated_url": "/chart-review-assets/2026-11-17_NDX_DAILY_CLOSE_REVIEW.jpg",
+        "original_label": "Original drawing · dated history",
+        "updated_label": "Updated cash drawing · Nov17 completed-session evidence",
+        "verdict": "Keep the original local 1–2–3–4–5 as the working structure; the update adds larger-degree alternatives, not a forced larger-third recount.",
+        "changes": "The solid final observed point is now Nov17 low26,580.86, replacing the old forming27,063.42. Updated green/red scenarios ask whether local wave 5 ends larger C or only larger A/1. Final Elliott low L remains unknown.",
+        "reason": "The old chart explicitly allowed a fifth-wave extension. Undercutting Nov5 26,606.43 is consistent with that path. The same local five-wave decline can sit inside either larger scenario; a new low alone cannot choose them.",
+        "evidence": "Completed cash close27,001.79 recovered above Nov5 low26,606.43 but stayed below27,149–27,259. Separate /NQ evidence below held its own Nov5 low and rebounded after18:00; that cannot be used to rewrite cash points or confirm tomorrow's cash session.",
+        "confirmation": "First cash reclaim27,149–27,259, then27,609–27,650 and27,940–28,078 with a higher low. Above28,593.52 ends/relabels only the still-running Nov11 fifth. Use /NQ's own points below for overnight review; never copy a futures number onto NDX.",
+        "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
+      },
+      "futures": {
+        "symbol": "/NQZ26",
+        "quote": {
+          "price": 27469.25,
+          "time": "2026-11-17T23:35:47.883000+00:00",
+          "source": "Schwab market data · XCME December2026 contract",
+          "session": "Globex electronic session reopened Nov17 at18:00ET for the next trading session",
+          "delay": "API realtime flag true; native TradingView chart below is separately10minutes delayed"
+        },
+        "summary": "Overnight rebound is a possible local fifth-ending attempt, not a confirmed larger bottom. /NQ held Nov5 26,570 while cash NDX undercut its own Nov5 low. The18:00 Globex reopen gapped above Nov17 RTH high27,351. Watch whether the new-session base holds and whether the session high breaks with a held retest. A truncated futures fifth is only a hypothesis; it needs lower-timeframe completion and follow-through.",
+        "points": [
+          [
+            "31,616.50 / 29,268.75 / 30,113.00",
+            "Yahoo NQ=F Oct6 high / Oct16 low / Oct21 high; corresponding futures-series pivots, not cash points."
+          ],
+          [
+            "26,570.00 / 26,658.50",
+            "Nov5 futures low / Nov17 observed RTH low. The latter held above the former; differs from cash NDX's undercut."
+          ],
+          [
+            "28,697.00",
+            "Nov11 futures high. Above ends/relabels the corresponding still-running futures fifth; not a universal bear invalidation."
+          ],
+          [
+            "27,382.00 / 27,609.75",
+            "Current Globex low/high from fresh Schwab quote. Low is an observed gap-base review reference; a completed15m loss and failed reclaim weakens the opening rebound."
+          ],
+          [
+            "27,351.00",
+            "Nov17 09:30–16:00ET futures high; potential breakout/retest reference after evening gap, not NDX resistance."
+          ],
+          [
+            "27,560.75",
+            "Completed18:00–18:15ET futures candle close; O/H/L 27,382.00/27,605.25/27,382.00, volume10,924 contracts. Later unfinished/delayed bars excluded from confirmation."
+          ]
+        ],
+        "baseline": "No futures percentage return is shown: Schwab close/settlement references differ from Yahoo previous-close baselines and have not been reconciled.",
+        "source_note": "History: Yahoo Finance front-contract NQ=F / ES=F15m, delayed approximately10minutes; source timestamps retained. Null17:00–18:00 maintenance rows and non-aligned ticker pseudo-bars excluded, never filled. Historical daily pivots are a front-contract series, not a validated continuous December-contract Elliott subdivision. Current Yahoo futures daily row rejected: inconsistent OHLC after18:00 rollover.",
+        "chart_url": "/chart-review-assets/2026-11-17_NQZ2026_15M_EVENING.jpg",
+        "chart_note": "Native TradingView CME_MINI_DL December 2026 15m chart captured18:35ET,10-minute delay. Reconnected after Basic connection-limit notice; saved capture verified without the interruption overlay. Screenshot quotes are dated/delayed, separate from the Schwab quote. No cash/futures level conversion, synthetic candles, RTH daily-bottom confirmation or new timed forecast.",
+        "completed_15m": [
+          {
+            "start": 1794956400,
+            "time": "2026-11-17T18:00:00-05:00",
+            "open": 27382.0,
+            "high": 27605.25,
+            "low": 27382.0,
+            "close": 27560.75,
+            "volume": 10924
+          }
+        ],
+        "rth_15m_coverage": 26,
+        "rth_low": 26658.5,
+        "rth_high": 27351.0,
+        "history_cutoff": "2026-11-17T23:25:46+00:00"
+      }
+    },
+    {
+      "symbol": "SPX",
+      "unit": "points",
+      "quote": {
+        "price": 7340.53,
+        "time": "2026-11-17T21:20:01+00:00",
+        "source": "Yahoo Finance cash index",
+        "session": "Post-close snapshot of completed Nov17 cash session",
+        "delay": "Provider latency unverified; native chart captures retain their separate10/15-minute delays"
+      },
+      "previous_close": 7416.58984375,
+      "change_pct": -1.0255395026037006,
+      "status": "SUPPORT FAILED · localC provisional",
+      "benchmark_note": "Completed Nov17 cash index: close7,340.53, range7,288.34–7,415.37points;5session-2.40%,21session-4.55%. SMA207,580.95; freshSMA50/200 unavailable from this one-month response. Index displayed volume is not directly tradable consolidated volume. Cash drawings retain their own timestamps; separate December futures evidence below never substitutes for cash points.",
+      "fundamentals": "NVIDIA reports Nov17 after the close, with the issuer scheduling results around16:20 ET and its call17:00 ET. The event can gap either direction; wave labels do not predict its outcome.",
+      "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-17_SPX_DAILY_CLOSE_REVIEW.jpg",
+          "title": "SPX daily close review: observed C low updated; same tentative ABC",
+          "captured": "2026-11-17 18:31 ET",
+          "state": "Updated native close review; Nov17 low is observed, not a confirmed final wave ending"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_SPX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
+          "title": "SPX cash daily Elliott scenarios, recovery gates and conditional extension",
+          "captured": "2026-11-17 10:29 ET",
+          "state": "Historical original: tentative ABC retained; forming quote/endpoint superseded."
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_ESZ2026_15M_EVENING.jpg",
+          "title": "/ESZ26 native15m evening futures evidence; separate from cash count",
+          "captured": "2026-11-17 18:35 ET",
+          "state": "CME futures ·10-minute delayed screenshot; current quote above has its own source timestamp"
+        }
+      ],
+      "chart_note": "Native TradingView SP_DLY:SPX (10-minute delay) export. Native count endpoint is an observed forming Nov17 reference at the earlier10:15 fetch, not a fixed wave ending. Later quotes may be below it. Dashed future prices/dates are illustrations only, not synthetic market bars or timed forecasts. Historical solid pivots come from real daily bars. New evening native capture updates the solid final observed-low point to 7,288.34. This is a provisional wave reference, not a confirmed completed fifth/C. Dashed future vertices remain schematic older scenarios, not newly forecast dates or market data. The separately displayed December futures panel is not spliced into cash-index bars or levels.",
+      "sources": [
+        [
+          "Daily index history",
+          "https://finance.yahoo.com/quote/%5EGSPC/history/"
+        ],
+        [
+          "NVIDIA issuer schedule",
+          "https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Sets-Conference-Call-for-Third-Quarter-Financial-Results/"
+        ],
+        [
+          "CME /ESZ26 product",
+          "https://www.cmegroup.com/markets/equities/sp/e-mini-sandp500.html"
+        ],
+        [
+          "Elliott impulse / extension rules",
+          "https://www.elliottwave.com/waveopedia/extension/"
+        ]
+      ],
+      "summary": "Nov17 close7,340.53 below Nov5 7,350.35, with intraday low7,288.34: prior support failed on a completed session. Tentative localC from Nov12 continues; internal subdivisions unverified.7,232.71 equal-A remains conditional arithmetic, not established support. Reclaim7,400–7,417 then7,499–7,516;7,652.76 ends/relabels only still-running Nov12 C. The analogous Oct6 simple impulse remains invalid because of overlap.",
+      "levels": [
+        [
+          "7,400–7,417",
+          "First reclaim of yesterday’s low/close zone; require held retest."
+        ],
+        [
+          "7,499–7,516",
+          "Next daily repair zone."
+        ],
+        [
+          "7,550–7,577",
+          "Further overhead repair before the November rebound high."
+        ],
+        [
+          "7,652.76",
+          "Above here, a still-running C from Nov12 must have ended or be relabeled."
+        ],
+        [
+          "7,770.40 / 7,844.52",
+          "Local Oct21 origin / broader Oct6 high; keep the two degrees distinct."
+        ],
+        [
+          "7,350.35",
+          "Nov5 support; loss favors a continuing decline."
+        ],
+        [
+          "7,232.71 / 6,973.12",
+          "Conditional C=A / C=1.618A examples from Nov12 B; no timing or probability implied."
+        ]
+      ],
+      "confirmation": "Reclaim7,400–7,417, build a higher low and recover7,499–7,516 on completed daily bars;7,550–7,577 is the next test. Above7,652.76 ends the still-running Nov12 C hypothesis. Broader recovery still needs higher highs/lows.",
+      "invalidation": "Loss of7,350.35 strengthens the extension case. The7,232.71 and6,973.12 calculations assume the tentative local A/B pivots are correct. Above7,770.40 invalidates an entire still-unfinished local decline from Oct21; the broader Oct6 high is7,844.52.",
+      "daily": null,
+      "comparison": {
+        "original_url": "/chart-review-assets/2026-11-17_SPX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
+        "updated_url": "/chart-review-assets/2026-11-17_SPX_DAILY_CLOSE_REVIEW.jpg",
+        "original_label": "Original drawing · dated history",
+        "updated_label": "Updated cash drawing · Nov17 completed-session evidence",
+        "verdict": "The original tentative ABC remains the useful structure; the update changes the observed endpoint and evidence, not the count.",
+        "changes": "Updated solid C? reference to Nov17 observed low7,288.34 from old forming7,381.94 and added completed close7,340.53. It is not a declaration that C finished. An evening /ES panel now accompanies the cash view.",
+        "reason": "The analogous Oct6 standard impulse was already unsuitable because the proposed wave4 overlapped wave1. Keeping the local Oct21 A–B–C avoids forcing SPX into NDX's different pattern. A daily support break extends C; it does not automatically prove a larger wave 3.",
+        "evidence": "Cash closed7,340.53 below Nov5 7,350.35 after reaching7,288.34. The separate /ES evening rebound is encouraging tactically, but no new cash daily close has confirmed a reversal.",
+        "confirmation": "Cash reclaim7,400–7,417, then7,499–7,516 with a held higher low. Above7,652.76 ends/relabels a still-running Nov12 C. /ES's corresponding references are contract-specific and listed separately below.",
+        "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
+      },
+      "futures": {
+        "symbol": "/ESZ26",
+        "quote": {
+          "price": 7414.75,
+          "time": "2026-11-17T23:35:48.016000+00:00",
+          "source": "Schwab market data · XCME December2026 contract",
+          "session": "Globex electronic session reopened Nov17 at18:00ET for the next trading session",
+          "delay": "API realtime flag true; native TradingView chart below is separately10minutes delayed"
+        },
+        "summary": "Tentative localC remains the working structure, with a possible ending/rebound attempt after the Nov17 7,308 low. The18:00 Globex gap improved the short-term picture, but /ES was still below the Nov17 RTH high7,437 at the quote snapshot. A failed gap-base retest would favor a corrective bounce rather than a confirmed reversal.",
+        "points": [
+          [
+            "7,812.25 → 7,346.00 → 7,674.75",
+            "Yahoo ES=F Oct21 high → Nov5 low → Nov12 high: tentative futures A/B reference pivots, separate from cash7,770.40/7,350.35/7,652.76."
+          ],
+          [
+            "7,308.00",
+            "Nov17 observed RTH futures low; broke the Nov5 futures low7,346. A later new low would reject a fixed Nov17-bottom hypothesis."
+          ],
+          [
+            "7,674.75",
+            "Nov12 futures high. Above ends/relabels the corresponding still-running futures C; not a cash-index level."
+          ],
+          [
+            "7,406.00 / 7,434.75",
+            "Current Globex low/high from fresh Schwab quote. Hold/retest of the base and a completed breakout through the high improve tactical recovery."
+          ],
+          [
+            "7,437.00",
+            "Nov17 RTH futures high. The evening bounce had not reclaimed this at the quote snapshot."
+          ],
+          [
+            "7,389.75",
+            "Nov17 16:30 bar high in futures; a return below it after the gap, with failed reclaim, weakens the rebound."
+          ],
+          [
+            "7,430.50",
+            "Completed18:00–18:15ET futures candle close; O/H/L 7,407.25/7,434.75/7,406.00, volume8,882 contracts. Later unfinished/delayed bars excluded from confirmation."
+          ]
+        ],
+        "baseline": "No futures percentage return is shown: Schwab close/settlement references differ from Yahoo previous-close baselines and have not been reconciled.",
+        "source_note": "History: Yahoo Finance front-contract NQ=F / ES=F15m, delayed approximately10minutes; source timestamps retained. Null17:00–18:00 maintenance rows and non-aligned ticker pseudo-bars excluded, never filled. Historical daily pivots are a front-contract series, not a validated continuous December-contract Elliott subdivision. Current Yahoo futures daily row rejected: inconsistent OHLC after18:00 rollover.",
+        "chart_url": "/chart-review-assets/2026-11-17_ESZ2026_15M_EVENING.jpg",
+        "chart_note": "Native TradingView CME_MINI_DL December 2026 15m chart captured18:35ET,10-minute delay. Reconnected after Basic connection-limit notice; saved capture verified without the interruption overlay. Screenshot quotes are dated/delayed, separate from the Schwab quote. No cash/futures level conversion, synthetic candles, RTH daily-bottom confirmation or new timed forecast.",
+        "completed_15m": [
+          {
+            "start": 1794956400,
+            "time": "2026-11-17T18:00:00-05:00",
+            "open": 7407.25,
+            "high": 7434.75,
+            "low": 7406.0,
+            "close": 7430.5,
+            "volume": 8882
+          }
+        ],
+        "rth_15m_coverage": 26,
+        "rth_low": 7308.0,
+        "rth_high": 7437.0,
+        "history_cutoff": "2026-11-17T23:25:45+00:00"
+      }
+    },
+    {
+      "symbol": "POWL",
+      "quote": {
+        "price": 150.845,
+        "time": "2026-11-17T20:59:55.521974889Z",
+        "source": "Alpaca IEX last trade; single venue",
+        "session": "Last observed regular-session trade; retrieved after close",
+        "delay": "No intentional IEX delay; separate completed daily metrics use consolidated SIP"
+      },
+      "previous_close": 151.2,
+      "change_pct": -0.23478835978835155,
+      "daily": {
+        "date": "2026-11-17",
+        "close": 150.86,
+        "high": 156,
+        "low": 144.06,
+        "volume": 1347170,
+        "volume_ratio": 1.6487793015332874,
+        "sma20": 150.705,
+        "sma50": 170.4032,
+        "sma200": 213.28535,
+        "five_session_pct": 9.152738586209397,
+        "twentyone_session_pct": -8.988899613899603
+      },
+      "status": "WATCH ONLY · initial range floor failed intraday",
+      "summary": "Watch-only owner decision preserved. The first15-minute149–156 observation is historical: actual Nov17 full-session range144.06–156.00,close150.86 (-0.22%).149failed intraday, then price recovered above it;156was touched without a sustained confirmed breakout. The daily high/low exceeded/held above yesterday’s by a small amount, but the session did not confirm a larger Elliott bottom. Primary Nov16 earnings release rechecked; scheduled11ETcall content not fully primary-verified.",
+      "levels": [
+        [
+          "$149–$156",
+          "Initial owner-observed range; wait for a break, completed close and successful retest."
+        ],
+        [
+          "$151.20 / $149",
+          "Prior close / opening-range floor review; below $149 with failed reclaim weakens the rebound."
+        ],
+        [
+          "$155.94–$156 / $159",
+          "Prior regular-session high and opening top / observed Nov16 after-hours high."
+        ],
+        [
+          "$166–$175 / $170.46",
+          "Broader recovery band / saved October29 pivot; not a forecast for today."
+        ],
+        [
+          "$138.50 / $121.13",
+          "Nov16 daily low / Nov5 low. A new low defeats the fixed Nov5 bottom case."
+        ],
+        [
+          "$207.52",
+          "A move above the October6 origin invalidates the specific bearish C1/C2 interpretation."
+        ]
+      ],
+      "confirmation": "After the 11:00 ET call, review completed 15-minute closes above $156 with a held retest, regular-session VWAP and higher lows; a wick alone is not confirmation. Larger recovery needs completed daily repair through $166–$175.",
+      "invalidation": "Loss of $149 and failed reclaim is a tactical warning. A move below $121.13 defeats the fixed Nov5-low bottom case; it is not a prediction that $62 must trade.",
+      "fundamentals": "Nov16 issuer release: revenue $396.7m, EPS $2.23, orders $710m, backlog $2.7bn. FY2027 commentary supports the 31.3% FY2026 margin profile, not explicitly the 34.9% Q4 peak. Ask about capacity, backlog conversion and margin durability. No full-year EPS forecast inferred.",
+      "sources": [
+        [
+          "Powell Nov16 results",
+          "https://powellindustriesinc.gcs-web.com/news-releases/news-release-details/powell-industries-announces-fourth-quarter-and-full-year-1"
+        ],
+        [
+          "Powell 11:00 ET call",
+          "https://powellindustriesinc.gcs-web.com/events/event-details/4th-quarter-2026-earnings-conference-call"
+        ]
+      ],
+      "chart_note": "Saved Elliott paths are provisional price examples, not future candles or a forecast of the C-wave ending date. The displayed historical subdivisions are preserved for review, not newly validated. Earlier $62 drawings are conditional scenarios, not fair-value targets. After-close Nov17 review: saved screenshot remains a dated count illustration; fresh completed-session evidence above supersedes its price/volume and forming-bar statements. No new future bars or confirmed ending inferred.",
+      "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-17_POWL_DAILY_RECOVERY_EXTENSION_DETAIL.png",
+          "title": "2026-11-17 POWL DAILY RECOVERY EXTENSION DETAIL",
+          "captured": "2026-11-17",
+          "state": "Latest saved native scenario drawing — screenshot time retained; Nov17 completed-session evidence supersedes its quote"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_POWL_DAILY_JUNE_NOVEMBER_WAVE_SCENARIOS.png",
+          "title": "2026-11-17 POWL DAILY JUNE NOVEMBER WAVE SCENARIOS",
+          "captured": "2026-11-17",
+          "state": "Preserved earlier capture — superseded where inconsistent"
+        }
+      ],
+      "intraday": {
+        "coverage": 78,
+        "expected": 78,
+        "missing": [],
+        "RTH_vwap": 149.1052333627101,
+        "last_completed_close": 150.93,
+        "opening15_low": 148.9,
+        "opening15_high": 156,
+        "last3": [
+          {
+            "c": 149.46,
+            "h": 149.505,
+            "l": 148.59,
+            "n": 625,
+            "o": 149.26,
+            "t": "2026-11-17T20:45:00Z",
+            "v": 20098,
+            "vw": 149.035294
+          },
+          {
+            "c": 148.945,
+            "h": 149.45,
+            "l": 148.23,
+            "n": 1073,
+            "o": 148.96,
+            "t": "2026-11-17T20:50:00Z",
+            "v": 41970,
+            "vw": 148.781976
+          },
+          {
+            "c": 150.93,
+            "h": 150.99,
+            "l": 148.94,
+            "n": 2400,
+            "o": 149.25,
+            "t": "2026-11-17T20:55:00Z",
+            "v": 82924,
+            "vw": 150.510013
+          }
+        ],
+        "trend": "mixed",
+        "last_close_vs_vwap": "above",
+        "opening_low_lost": true,
+        "opening_high_broken": false
+      },
+      "benchmark_note": "Completed Nov17 consolidated SIP close $150.86 (-0.22%), range$144.06–$156.00; volume1.65× prior20 complete sessions. 5/21-session excess SPY +11.48/-4.55pp; QQQ +11.79/-0.44pp. 78/78 complete RTH5m; final close above09:30EST SIP VWAP$149.11; last3 structure mixed. Latest IEX quote and consolidated close differ by venue."
+    },
+    {
+      "symbol": "BTC",
+      "quote": {
+        "price": 64863.06,
+        "time": "2026-11-17T23:35:47.654730Z",
+        "source": "Coinbase connected spot BTC-USD ticker",
+        "session": "Continuous crypto market",
+        "delay": "No advertised delay; exchange-specific trades and volume"
+      },
+      "status": "RECLAIM ATTEMPT · 4h recovery unconfirmed",
+      "summary": "BTC spot 64,863.06 at 18:35:47 ET. Saturday61,946.17 remains intact. Nov17 low63,256.75 broke the original X/support63,833.47; the latest completed UTC4h11:00–15:00ET closed63,675.22 below it. The15:00–19:00ET candle is still unfinished in this snapshot, so its reclaim cannot confirm recovery. The local fifth-ending hypothesis survives, but the original exact W-X-Y pivots need relabeling. Recovery still requires66,100–66,369 and a held4h retest.",
+      "levels": [
+        [
+          "$63,833.47",
+          "Local recovery support; losing it weakens recovery without alone invalidating the larger bottom case."
+        ],
+        [
+          "$61,946.17",
+          "Saturday fixed-bottom case invalid below this low."
+        ],
+        [
+          "$66,100–$66,369",
+          "Completed four-hour close through the zone plus a subsequent held retest."
+        ],
+        [
+          "$67,918–$71,612",
+          "Decision zone that both green and orange paths can reach."
+        ],
+        [
+          "$82,510.37",
+          "Specific September non-overlapping wave-4 count invalid above. $80,315 was the October A pivot, not this invalidation."
+        ]
+      ],
+      "confirmation": "A completed four-hour breakout above $66,369 plus a held retest increases recovery confidence; a brief wick does not. The UTC hourly data here uses different boundaries from the saved TradingView four-hour bars.",
+      "invalidation": "Below $61,946.17 defeats the fixed Saturday-bottom case. Above $82,510.37 defeats only the specified orange wave-4 count. Do not replace either threshold with $80,315.",
+      "fundamentals": "This entry assesses exchange-specific price/volume structure, not ownership or fundamental fair value. Volume is Coinbase-specific, not consolidated crypto volume.",
+      "sources": [
+        [
+          "Coinbase BTC-USD ticker",
+          "https://api.exchange.coinbase.com/products/BTC-USD/ticker"
+        ],
+        [
+          "Elliott impulse / extension rules",
+          "https://www.elliottwave.com/waveopedia/extension/"
+        ]
+      ],
+      "chart_note": "Nov16 original and larger-count captures are dated references, compared side by side. Original X63,833.47 was undercut Nov17; keep the possible local fifth ending at61,946.17 separate from that failed X pivot. Updated larger scenarios add wave degree and do not independently prove a larger third. UTC4h source boundaries differ from native TradingView. No projected dates are forecasts.",
+      "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-16_BTC_4H_SUPPORT_CONFIRMATION_DECISION_ZONES.jpg",
+          "title": "2026-11-16 BTC 4H SUPPORT CONFIRMATION DECISION ZONES",
+          "captured": "2026-11-16",
+          "state": "Current reference"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-16_1522_ET_BTC_4H_WAVE5_RECOVERY.jpg",
+          "title": "2026-11-16 1522 ET BTC 4H WAVE5 RECOVERY",
+          "captured": "2026-11-16",
+          "state": "Preserved earlier capture — superseded where inconsistent"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-16_1532_ET_BTC_4H_CORRECTED.jpg",
+          "title": "2026-11-16 1532 ET BTC 4H CORRECTED",
+          "captured": "2026-11-16",
+          "state": "Historical original: local fifth-ending hypothesis survives; old X pivot later failed."
+        },
+        {
+          "url": "/chart-review-assets/2026-11-16_BTC_4H_ELLIOTT_COUNT.jpg",
+          "title": "2026-11-16 BTC 4H ELLIOTT COUNT",
+          "captured": "2026-11-16",
+          "state": "Preserved earlier capture — superseded where inconsistent"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-16_BTC_4H_ORIGIN_CORRECTED.jpg",
+          "title": "2026-11-16 BTC 4H ORIGIN CORRECTED",
+          "captured": "2026-11-16",
+          "state": "Preserved earlier capture — superseded where inconsistent"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-16_BTC_4H_SCENARIO_CHART.jpg",
+          "title": "2026-11-16 BTC 4H SCENARIO CHART",
+          "captured": "2026-11-16",
+          "state": "Preserved earlier capture — superseded where inconsistent"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-16_BTC_4H_SEPT_OCT_SCENARIOS.jpg",
+          "title": "2026-11-16 BTC 4H SEPT OCT SCENARIOS",
+          "captured": "2026-11-16",
+          "state": "Preserved earlier capture — superseded where inconsistent"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-16_BTC_TWO_SCENARIOS_CLARIFIED.jpg",
+          "title": "2026-11-16 BTC TWO SCENARIOS CLARIFIED",
+          "captured": "2026-11-16",
+          "state": "Preserved earlier capture — superseded where inconsistent"
+        }
+      ],
+      "benchmark_note": "Coinbase spot candles are UTC-aligned and include nights/weekends. They are separate from saved native TradingView4h boundaries. No equity session,VWAP or stock previous-close crypto baseline invented. Volume is Coinbase-only; unfinished current hour/4h excluded from confirmation.",
+      "intraday": {
+        "hourly_label": "range/mixed",
+        "last6_completed_hourly": [
+          {
+            "close": "64047.12",
+            "high": "65103.88",
+            "low": "63256.75",
+            "open": "64948.45",
+            "start": "1794927600",
+            "volume": "1852.96758514"
+          },
+          {
+            "close": "63669.45",
+            "high": "64417.21",
+            "low": "63377.2",
+            "open": "64047.12",
+            "start": "1794931200",
+            "volume": "1068.66907408"
+          },
+          {
+            "close": "63756.61",
+            "high": "64051.69",
+            "low": "63432.96",
+            "open": "63669.46",
+            "start": "1794934800",
+            "volume": "760.69256802"
+          },
+          {
+            "close": "63695.49",
+            "high": "64027.38",
+            "low": "63583.2",
+            "open": "63756.6",
+            "start": "1794938400",
+            "volume": "393.13748669"
+          },
+          {
+            "close": "63675.22",
+            "high": "63863.25",
+            "low": "63544.16",
+            "open": "63695.49",
+            "start": "1794942000",
+            "volume": "409.79714473"
+          },
+          {
+            "close": "63915",
+            "high": "64022.26",
+            "low": "63583.92",
+            "open": "63675.22",
+            "start": "1794945600",
+            "volume": "495.59622736"
+          }
+        ],
+        "last_completed_hour_volume_vs20": 1.0304801437563926,
+        "last6_completed_fourhour": [
+          {
+            "close": "64816.79",
+            "high": "65476.38",
+            "low": "64723.89",
+            "open": "65000.94",
+            "start": "1794859200",
+            "volume": "2270.70239487"
+          },
+          {
+            "close": "64995.88",
+            "high": "65150",
+            "low": "64315.14",
+            "open": "64816.79",
+            "start": "1794873600",
+            "volume": "1517.06467634"
+          },
+          {
+            "close": "64675.32",
+            "high": "65036.96",
+            "low": "64228.41",
+            "open": "64995.87",
+            "start": "1794888000",
+            "volume": "1089.64504979"
+          },
+          {
+            "close": "64927.85",
+            "high": "64941.81",
+            "low": "64001.22",
+            "open": "64675.31",
+            "start": "1794902400",
+            "volume": "1325.74057441"
+          },
+          {
+            "close": "64047.12",
+            "high": "65383.29",
+            "low": "63256.75",
+            "open": "64927.86",
+            "start": "1794916800",
+            "volume": "3053.99727778"
+          },
+          {
+            "close": "63675.22",
+            "high": "64417.21",
+            "low": "63377.2",
+            "open": "64047.12",
+            "start": "1794931200",
+            "volume": "2632.29627352"
+          }
+        ],
+        "source": "Coinbase connector;no truncation flag returned",
+        "fourhour_observed_at": "2026-11-17T23:35:48.187Z",
+        "hourly_note": "Existing hourly fields retain their earlier16:28 snapshot; hourly history was not re-fetched for this comparison."
+      },
+      "comparison": {
+        "original_url": "/chart-review-assets/2026-11-16_1532_ET_BTC_4H_CORRECTED.jpg",
+        "updated_url": "/chart-review-assets/2026-11-16_BTC_4H_SUPPORT_CONFIRMATION_DECISION_ZONES.jpg",
+        "original_label": "Original drawing · dated history",
+        "updated_label": "Updated drawing · dated history",
+        "verdict": "Original local fifth-ending hypothesis remains useful; updated larger scenarios provide risk context. Exact original W-X-Y path needs revision.",
+        "changes": "The original November decline ends a possible local wave 5 at Saturday61,946.17, followed by W-X-Y recovery. The update zooms out to OctoberABC-ending versus September larger wave 3→4→5, and clarifies82,510.37 as the specific orange wave4 invalidation.",
+        "reason": "These counts describe different wave degrees and can coexist. A completed local wave 5 can end a larger C or only a smaller part of larger wave 3. No break of61,946.17 has forced rejection of the Saturday low.",
+        "evidence": "Fresh Coinbase spot 64,863.06 at 18:35:47 ET remains above61,946.17. But63,833.47 X/support failed at today's63,256.75 low; latest completed UTC4h close63,675.22 was below it. The subsequent reclaim is in an unfinished bar.",
+        "confirmation": "Require completed 4h repair through66,100–66,369 and a held retest. Both larger scenarios can rally into67,918–71,612. Below61,946.17 rejects the fixed Saturday bottom; above82,510.37 rejects only the specified September standard-wave4 interpretation.",
+        "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
+      }
+    },
+    {
+      "symbol": "COIN",
+      "quote": {
+        "price": 118.3344,
+        "time": "2026-11-17T23:35:41.609000+00:00",
+        "source": "Schwab market data; NBBO quote response, last reported equity trade",
+        "session": "After-hours, separate from completed Nov17 regular session",
+        "delay": "API realtime flag true; late reports remain possible; not a completed daily or RTH4h candle"
+      },
+      "previous_close": 119.84,
+      "change_pct": -1.2563417890520734,
+      "daily": {
+        "date": "2026-11-17",
+        "close": 115.02,
+        "high": 121.605,
+        "low": 114.11,
+        "volume": 9100503,
+        "volume_ratio": 1.0729739854386142,
+        "sma20": 145.08975,
+        "sma50": 167.8113,
+        "sma200": 173.314025,
+        "five_session_pct": -12.949368046620757,
+        "twentyone_session_pct": -31.71861086375779
+      },
+      "status": "FAILED REBOUND · extended5 versus tentative nested3",
+      "summary": "Nov17 completed-session review:117.32 fixed-bottom case remains failed. Prior extended-fifth and tentative nested Oct2 larger-third alternatives remain separate; no count is validated just by a lower low. Consolidated close115.02 and low114.11, with late lower highs/lows and a close below RTH VWAP, leave recovery unconfirmed. Conditional105.25/88.44 remain illustrations, not support or required lows. A future B smalleriv must stay below135.46;153.33 ends/relabels still-running A5 or Biii. See saved recount for larger184.29/200.3514/208.33 degree-specific limits. After-hours last 118.3344 at 18:35:41 ET is a separate rebound observation; it does not revise the regular-session close or confirm the next RTH wave ending.",
+      "levels": [
+        [
+          "$114.11",
+          "Completed Nov17 consolidated session low, not a confirmed Elliott final bottom; loss requires a fresh review."
+        ],
+        [
+          "$105.25",
+          "A extended-fifth illustration:153.33−2×(208.33−184.29), about8.5% below115.06. Not a required low or support."
+        ],
+        [
+          "$88.44",
+          "B smalleriii=i illustration:153.33−(200.3514−135.46), about23.1% below115.06. Conditional on unverified subdivisions; not a floor or forecast."
+        ],
+        [
+          "$116.79 / $117.32",
+          "Completed Nov17 consolidated RTH VWAP / broken Nov16 low. After-hours reclaim alone does not confirm a regular-session held retest."
+        ],
+        [
+          "$122.99–$125.38 / $130.60",
+          "Next repair zone and completed RTH4h close plus held retest."
+        ],
+        [
+          "$135.46 / $139.36",
+          "B future standard smalleriv must stay below135.46.139.36 is the separate historical broader-wave4 overlap boundary, not universal bear invalidation."
+        ],
+        [
+          "$153.33",
+          "Above ends/relabels A still-running Nov4 fifth OR B still-running smalleriii. Neither ends every larger bearish count."
+        ],
+        [
+          "$184.29 / $200.3514 / $208.33",
+          "B future standard larger4 must stay below184.29. Above200.3514 ends/relabels a still-running Oct2 larger3; above208.33 invalidates the specified Sep21-origin bearish impulse."
+        ]
+      ],
+      "confirmation": "First reclaim116.79–117.32, build a higher low and recover122.99–125.38, then130.60 on completed RTH4h bars and a held retest. In B, after iii ends a standard smalleriv must remain below135.46; above135.46 rejects that particular iv interpretation and favors a more advanced local ending/recount. Above153.33 requires A fifth or B smalleriii to have ended/relabeling. Even a local five-wave ending can be only a smaller wave within the broader October2025 decline.",
+      "invalidation": "117.32 fixed-bottom hypothesis ALREADY FAILED; local five-wave impulse is not invalid solely because5 extends. Above153.33 ends/relabels A still-running5 and B still-running smalleriii. B future standard smalleriv cannot overlap135.46; future larger4 cannot overlap184.29. Above200.3514 ends/relabels B still-running Oct2 larger3; above208.33 invalidates the specified Sep21-origin bearish impulse. Eventual L is unknown; breaking a subsequently fixed L rejects only that particular bottom. Larger October2025 hypotheses are separate and provisional.",
+      "fundamentals": "Oct29 issuer results: adjusted EBITDA $333m and adjusted net income $78m versus GAAP net income $719m. Investment/crypto gains affect GAAP earnings; the results do not prove a chart bottom. Rechecked Nov17: these dated earnings figures are not proof of a price bottom or a verified catalyst for today’s decline.",
+      "sources": [
+        [
+          "Coinbase Q3 results",
+          "https://investor.coinbase.com/news/news-details/2026/Coinbase-Q3-2026-Earnings-Show-All-time-high-Coinbase-One-Subscribers-and-Prediction-Markets-Surpassing-200-Million-in-Annualized-Revenue/default.aspx"
+        ],
+        [
+          "Elliott impulse / extension rules",
+          "https://www.elliottwave.com/waveopedia/extension/"
+        ]
+      ],
+      "chart_note": "Native TradingView Cboe One RTH4h export16:00 ET, not consolidated SIP. Header115.06/225.2K describes the last4h candle, not full-day volume or official closing auction. Solid blue observed-pivot guide; green A allows local5 to end followed by recovery, red B allows smalleriii →iv below135.46 →v. Illustrative lows near105/88 and laterred endpoint near80 do not predict timing or establish support; later v endpoint and final L are UNKNOWN. Screenshot114.11 FORMING note refers to the earlier15:38 delayed-SIP daily cutoff, not a newly verified final consolidated session low. Earlier native charts retained as dated history; new count does not prove the whole October2025 correction ended. After-close Nov17 review: saved screenshot remains a dated count illustration; fresh completed-session evidence above supersedes its price/volume and forming-bar statements. No new future bars or confirmed ending inferred.",
+      "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-17_COIN_4H_RECOUNT_FIFTH_OR_NESTED_THIRD.png",
+          "title": "COIN4h: extended fifth versus tentative nested third, conditional downside and count-specific limits",
+          "captured": "2026-11-17 16:00 ET",
+          "state": "Latest saved native scenario drawing — screenshot time retained; Nov17 completed-session evidence supersedes its quote"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_COIN_4H_BREAKDOWN_UPDATE_1057_ET.png",
+          "title": "COIN four-hour failed rebound: $117.32 bottom failed, updated reclaim tests",
+          "captured": "2026-11-17 10:57 ET",
+          "state": "Superseded late-morning breakdown view —117.32 failure remains valid; preserved history"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_COIN_4H_RECLAIM_CONFIRMATION_RECOVERY_ZONES.png",
+          "title": "2026-11-17 COIN 4H RECLAIM CONFIRMATION RECOVERY ZONES",
+          "captured": "2026-11-17",
+          "state": "Superseded before the late-morning breakdown — preserved dated history"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_COIN_4H_ELLIOTT_RECOVERY_AND_EXTENSION.png",
+          "title": "2026-11-17 COIN 4H ELLIOTT RECOVERY AND EXTENSION",
+          "captured": "2026-11-17",
+          "state": "Historical original: local fifth count retained; fixed117.32 bottom later failed."
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_COIN_DAILY_OCT2025_LARGER_SCENARIOS.png",
+          "title": "2026-11-17 COIN DAILY OCT2025 LARGER SCENARIOS",
+          "captured": "2026-11-17",
+          "state": "Superseded before the late-morning breakdown — preserved dated history"
+        }
+      ],
+      "intraday": {
+        "coverage": 78,
+        "expected": 78,
+        "missing": [],
+        "RTH_vwap": 116.79336743609225,
+        "last_completed_close": 115.02,
+        "opening15_low": 117.7201,
+        "opening15_high": 121.0699,
+        "last3": [
+          {
+            "c": 116,
+            "h": 116.135,
+            "l": 115.53,
+            "n": 2551,
+            "o": 116.135,
+            "t": "2026-11-17T20:45:00Z",
+            "v": 122859,
+            "vw": 115.850379
+          },
+          {
+            "c": 115.705,
+            "h": 115.99,
+            "l": 115.51,
+            "n": 3729,
+            "o": 115.99,
+            "t": "2026-11-17T20:50:00Z",
+            "v": 201705,
+            "vw": 115.705566
+          },
+          {
+            "c": 115.02,
+            "h": 115.705,
+            "l": 115.01,
+            "n": 10176,
+            "o": 115.705,
+            "t": "2026-11-17T20:55:00Z",
+            "v": 641524,
+            "vw": 115.236491
+          }
+        ],
+        "trend": "lower highs/lows",
+        "last_close_vs_vwap": "below",
+        "opening_low_lost": true,
+        "opening_high_broken": false
+      },
+      "benchmark_note": "Completed Nov17 consolidated SIP close $115.02 (-4.02%), range$114.11–$121.61; volume1.07× prior20 complete sessions. 5/21-session excess SPY -10.62/-27.28pp; QQQ -10.31/-23.17pp. 78/78 complete RTH5m; final close below09:30EST SIP VWAP$116.79; last3 structure lower highs/lows. After-hours Schwab last trade is separate from this completed consolidated session.",
+      "news_refresh": "Primary October29 earnings release rechecked Nov17: adjusted net income78m and adjusted EBITDA333m versus GAAP net income719m. These dated figures do not prove a bottom. No new company-specific catalyst is established by this technical recount; a complete no-news assertion is unavailable.",
+      "recount": {
+        "origin": [
+          "2026-09-21",
+          208.33
+        ],
+        "wave1": [
+          "2026-09-30",
+          184.29
+        ],
+        "wave2": [
+          "2026-10-02",
+          200.3514
+        ],
+        "A": {
+          "wave3": [
+            "2026-11-02",
+            135.46
+          ],
+          "wave4": [
+            "2026-11-04",
+            153.33
+          ],
+          "wave5": "developing"
+        },
+        "B": {
+          "larger3": "developing sinceOct2",
+          "smaller_i": [
+            "2026-11-02",
+            135.46
+          ],
+          "smaller_ii": [
+            "2026-11-04",
+            153.33
+          ],
+          "smaller_iii": "developing; unverified substructure"
+        },
+        "conditional_A_5": 105.25,
+        "conditional_B_iii_equal_i": 88.4386,
+        "fixed_bottom": null
+      },
+      "comparison": {
+        "original_url": "/chart-review-assets/2026-11-17_COIN_4H_ELLIOTT_RECOVERY_AND_EXTENSION.png",
+        "updated_url": "/chart-review-assets/2026-11-17_COIN_4H_RECOUNT_FIFTH_OR_NESTED_THIRD.png",
+        "original_label": "Original drawing · dated history",
+        "updated_label": "Updated drawing · dated history",
+        "verdict": "Original extended fifth is the simpler working count; nested larger third remains an unverified alternative.",
+        "changes": "The original labels Nov2 135.46 as3 and Nov4 153.33 as4. The update retains this as A, and adds B: those same pivots become smaller i/ii inside a larger third fromOct2.",
+        "reason": "Breaking117.32 disproved a fixed Nov16 bottom, not the impulse. Wave 3 length 64.8914 exceeds wave 1 length 24.04, so a lower fifth does not create the shortest-third violation seen in CRCL. The original already included a lower-low red path; a new low alone does not validate nested wave 3.",
+        "evidence": "Completed Nov17 close115.02, low114.11, volume1.07× prior20 sessions, below consolidated RTH VWAP116.79. After-hours 118.3344 at 18:35:41 ET reclaimed117.32, but is not completed RTH confirmation.",
+        "confirmation": "Hold a higher low, repair122.99–125.38, then130.60 on completed RTH4h bars. Above153.33 ends/relabels A still-running5 or B smaller iii. B's future standard smaller iv must stay below135.46.105.25/88.44 are optional projection examples, not support or necessary destinations.",
+        "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
+      }
+    },
+    {
+      "symbol": "CRCL",
+      "quote": {
+        "price": 56.48,
+        "time": "2026-11-17T23:35:39.222000+00:00",
+        "source": "Schwab market data; NBBO quote response, last reported equity trade",
+        "session": "After-hours, separate from completed Nov17 regular session",
+        "delay": "API realtime flag true; late reports remain possible; not a completed daily or RTH4h candle"
+      },
+      "previous_close": 57.65,
+      "change_pct": -2.029488291413706,
+      "daily": {
+        "date": "2026-11-17",
+        "close": 54.63,
+        "high": 57.66,
+        "low": 53.305,
+        "volume": 10466285,
+        "volume_ratio": 1.0454527733565555,
+        "sma20": 72.832,
+        "sma50": 80.9592,
+        "sma200": 85.8204,
+        "five_session_pct": -15.927977839335183,
+        "twentyone_session_pct": -32.8622342386629
+      },
+      "status": "FAILED RECLAIM · larger3/C provisional",
+      "summary": "Nov17 completed close54.63,low53.305: the old simple impulse is ALREADY INVALID below54.87, and the close again lies below that reference. Separate tentative larger1/A Oct30 71.00,2/B Nov4 77.59,3/C developing remains unverified internally. Conditional46.20/43.34/40.84 are not mandatory lows. Today does not establish a final bottom. Earlier13:28 quote55.325 is superseded by fresh evidence; future smalleriv below63.56/larger4 below71 and still-runningiii/3C limits68.90/77.59 apply only to those specified counts. After-hours last 56.48 at 18:35:39 ET is a separate rebound observation; it does not revise the regular-session close or confirm the next RTH wave ending.",
+      "levels": [
+        [
+          "$53.305",
+          "Completed Nov17 consolidated session low. A future loss favors renewed extension; no final Elliott bottom is established."
+        ],
+        [
+          "$46.20 / $43.34 / $40.84",
+          "Conditional Fibonacci illustrations: inner iii 1.618×, larger 3/C 1.618×, deeper inner iii 2×. Not proven support, mandatory lows or a probability estimate."
+        ],
+        [
+          "$54.87 / $54.95",
+          "Old count stays invalid after a reclaim. $54.95 is completed Nov17 consolidated RTH VWAP, anchored09:30 ET; not a live moving level."
+        ],
+        [
+          "$57.08–$57.65 / $59.80–$60.56",
+          "First daily reclaim and next repair zones; require completed closes and held retests."
+        ],
+        [
+          "$63.56 / $63.83",
+          "A future standard smaller iv must stay below63.56;63.83 is the separate stronger daily recovery test."
+        ],
+        [
+          "$68.90",
+          "Above ends/relabels the still-running smaller iii from Nov11; does not rule out every bearish interpretation."
+        ],
+        [
+          "$71.00 / $77.59",
+          "Future standard larger4 must stay below71.00. Above77.59 ends/relabels the still-running Nov4 larger3/C; it may already have completed."
+        ]
+      ],
+      "confirmation": "After a real low L forms, sustained higher lows and repair through57.08–57.65,59.80–60.56 and63.83 support recovery. A sustained move above71 rejects the specific future non-overlapping larger4 interpretation and strengthens the C-ended alternative;77.59 is the next larger swing test. Reclaim54.87 alone is insufficient. Green path can turn earlier than its illustrated low.",
+      "invalidation": "Old simple impulse is already INVALID below54.87 and cannot be restored. Above68.90 ends/relabels a still-running Nov11 smaller iii. After iii ends, standard smaller iv must stay below63.56. Above77.59 ends/relabels the still-running Nov4 larger3/C. After larger3 ends, standard larger4 must stay below71.00. A break below eventual L rejects only that selected fixed-bottom scenario; L is unknown. These are degree-specific limits, not universal bearish cutoffs.",
+      "fundamentals": "Nov4 issuer results: total revenue and reserve income $865m includes $182m of ARC token presale revenue. Reserve income $658m fell 8% YoY; average USDC circulation rose 8%. Revenue growth and EBITDA strength must be separated from token-presale income and interest-rate sensitivity. Rechecked Nov17: these dated earnings figures are not proof of a price bottom or a verified catalyst for today’s decline.",
+      "sources": [
+        [
+          "Circle Q3 release filed with SEC",
+          "https://www.sec.gov/Archives/edgar/data/1876042/000187604226000309/finalq3epr-110326.htm"
+        ],
+        [
+          "Circle primary Q3 release, rechecked",
+          "https://s206.q4cdn.com/265218871/files/doc_earnings/2026/q3/earnings-result/3Q26-Earnings-Release.pdf"
+        ],
+        [
+          "Elliott impulse / extension rules",
+          "https://www.elliottwave.com/waveopedia/extension/"
+        ]
+      ],
+      "chart_note": "Native TradingView Cboe One daily export13:28 ET; daily candle unfinished, not consolidated SIP. Blue line connects observed pivots, tentative internal subdivisions remain unverified. Red dashed path: developing larger3 →4 below71 →later5. Green dashed path: C ends →sustained recovery. Future dates and vertices are illustrative, not market bars or confirmed targets; later5 endpoint is unknown. Projection math:46.19946=68.90−1.618×(77.59−63.56);43.33694=77.59−1.618×(92.17−71);40.84=68.90−2×(77.59−63.56). The illustration may turn before any projected level. Original invalidated count and earlier screenshots remain dated history. After-close Nov17 review: saved screenshot remains a dated count illustration; fresh completed-session evidence above supersedes its price/volume and forming-bar statements. No new future bars or confirmed ending inferred.",
+      "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-17_CRCL_DAILY_RECOUNT_LARGER_3_OR_C.png",
+          "title": "CRCL daily recount: provisional larger3 or C, conditional extension and recovery alternatives",
+          "captured": "2026-11-17 13:28 ET",
+          "state": "Latest saved native scenario drawing — screenshot time retained; Nov17 completed-session evidence supersedes its quote"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_CRCL_DAILY_COUNT_INVALIDATED_1102_ET.png",
+          "title": "CRCL daily: former simple count invalidated below $54.87; updated reclaim tests",
+          "captured": "2026-11-17 11:02 ET",
+          "state": "Superseded invalidation-only view — old count failure remains valid; preserved history"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_CRCL_DAILY_RECLAIM_REPAIR_CONFIRMATION_ZONES.png",
+          "title": "CRCL daily: $57.08–$57.65 reclaim, $59.80–$60.56 repair and $63.83 recovery confirmation",
+          "captured": "2026-11-17 10:14 ET",
+          "state": "Superseded before the late-morning breakdown — preserved dated history"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-17_CRCL_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
+          "title": "CRCL daily Elliott wave count, conditional A-B-C recovery and extended-decline alternative",
+          "captured": "2026-11-17 09:59 ET",
+          "state": "Invalidated original simple impulse below54.87; preserved history, not a current count."
+        }
+      ],
+      "benchmark_note": "Completed Nov17 consolidated SIP close $54.63 (-5.24%), range$53.30–$57.66; volume1.05× prior20 complete sessions. 5/21-session excess SPY -13.60/-28.42pp; QQQ -13.29/-24.31pp. 78/78 complete RTH5m; final close below09:30EST SIP VWAP$54.95; last3 structure mixed. After-hours Schwab last trade is separate from this completed consolidated session.",
+      "intraday": {
+        "coverage": 78,
+        "expected": 78,
+        "missing": [],
+        "RTH_vwap": 54.94569555888243,
+        "last_completed_close": 54.62,
+        "opening15_low": 56.94,
+        "opening15_high": 57.66,
+        "last3": [
+          {
+            "c": 54.77,
+            "h": 54.86,
+            "l": 54.6,
+            "n": 2200,
+            "o": 54.84,
+            "t": "2026-11-17T20:45:00Z",
+            "v": 143976,
+            "vw": 54.732776
+          },
+          {
+            "c": 54.7372,
+            "h": 54.83,
+            "l": 54.62,
+            "n": 3036,
+            "o": 54.77,
+            "t": "2026-11-17T20:50:00Z",
+            "v": 207297,
+            "vw": 54.723767
+          },
+          {
+            "c": 54.62,
+            "h": 54.78,
+            "l": 54.53,
+            "n": 9076,
+            "o": 54.74,
+            "t": "2026-11-17T20:55:00Z",
+            "v": 720088,
+            "vw": 54.63595
+          }
+        ],
+        "trend": "mixed",
+        "last_close_vs_vwap": "below",
+        "opening_low_lost": true,
+        "opening_high_broken": false
+      },
+      "news_refresh": "Primary issuer earnings releases rechecked; no fresh company-specific catalyst has been established as the cause of this intraday move. The primary IR news-list pages did not expose their dynamic news lists to the reader, so a complete no-news assertion is unavailable. A secondary regulatory headline lacked a reliable current event date / primary verification and is not treated as today’s catalyst.",
+      "recount": {
+        "observed_at": "2026-11-17T18:28:55.532139+00:00",
+        "origin": [
+          "2026-10-21",
+          92.17
+        ],
+        "wave1_or_A": [
+          "2026-10-30",
+          71.0
+        ],
+        "wave2_or_B": [
+          "2026-11-04",
+          77.59
+        ],
+        "wave3_or_C": "developing; internal subdivisions tentative",
+        "conditional_levels": [
+          46.19946,
+          43.33694,
+          40.84
+        ],
+        "fixed_bottom": null
+      },
+      "comparison": {
+        "original_url": "/chart-review-assets/2026-11-17_CRCL_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
+        "updated_url": "/chart-review-assets/2026-11-17_CRCL_DAILY_RECOUNT_LARGER_3_OR_C.png",
+        "original_label": "Original drawing · dated history",
+        "updated_label": "Updated drawing · dated history",
+        "verdict": "The updated larger wave 3/C hypothesis is preferable to the invalid original simple impulse; its internal count remains unproven.",
+        "changes": "Original Nov10 63.56=3 and Nov11 68.90=4 became tentative smaller i/ii within a developing larger wave 3/C fromNov4 77.59. Original chart already warned of the54.87 failure boundary.",
+        "reason": "Original wave 1 = 21.17 and wave 3 = 14.03. Below54.87, wave 5 from68.90 exceeds14.03, making3 shortest: the standard impulse labels are invalid. A recovery can still happen, but reclaim54.87 cannot restore those labels. The revised count removes that flaw without proving a crash target.",
+        "evidence": "Nov17 low53.305 and completed close54.63 breached the rule boundary. After-hours 56.48 at 18:35:39 ET is a bounce, still below57.08–57.65.",
+        "confirmation": "Daily reclaim57.08–57.65, then59.80–60.56 and63.83 with held retests improves recovery. Future standard smalleriv must stay below63.56; above68.90 ends/relabels still-running smaller iii.46.20/43.34/40.84 remain conditional math, not required lows.",
+        "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
+      }
+    }
+  ],
+  "archives": [],
+  "quote_refresh_at": "2026-11-17T15:04:04.901920+00:00",
+  "afterclose_sources": [
+    {
+      "date": "2026-11-17",
+      "checked": "2026-11-17T21:35:14.083610+00:00",
+      "title": "NVIDIA Q3 FY2027 actual release",
+      "url": "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-third-quarter-fiscal-2027",
+      "evidence": "Revenue115.8bn,DataCenter107.6bn,nonGAAP EPS2.68;Q4 guide130bn±3% includes an extra week,no China DC compute assumed;gross-margin outlook71–72% versus current74.9%. Actual shipped compute demand,not end-customer ROI or complete hyperscaler capex audit. Call17:00ET not yet reviewed."
+    },
+    {
+      "date": "2026-11-16",
+      "checked": "2026-11-17T21:35:14.083610+00:00",
+      "title": "Powell fiscalQ4 release rechecked",
+      "url": "https://powellindustriesinc.gcs-web.com/news-releases/news-release-details/powell-industries-announces-fourth-quarter-and-full-year-1",
+      "evidence": "Revenue396.7m,EPS2.23,orders710m,backlog2.7bn,+13%QoQ;85mdata-center order plus250mLNG. Orders below934mQ3;not all backlog AI. FY2026 margin31.3% described as sustainable,not Q4peak34.9%. Nov17call scheduled11ET; full primary call content unverified."
+    },
+    {
+      "date": "2026-11-03",
+      "checked": "2026-11-17T21:35:14.083610+00:00",
+      "title": "Eaton Q3 release rechecked",
+      "url": "https://www.eaton.com/us/en-us/company/news-insights/news-releases/2026/eaton-reports-record-third-quarter-2026-results.html",
+      "evidence": "Electrical backlog+46%YoY;rolling ElectricalAmericas/Global organic orders+39/+51%;electrical book-to-bill1.2. Electrical demand positive; fresh check of dated release."
+    },
+    {
+      "date": "2026-11-16",
+      "checked": "2026-11-17T21:35:14.083610+00:00",
+      "title": "Lambda production photonics deployment",
+      "url": "https://blogs.nvidia.com/blog/lambda-photonics/",
+      "evidence": "Issuer/vendor reports Lambda CPO deployment across>10,000GPU cluster;144ports800Gbps,4x fewer lasers than conventional pluggables. Specific production deployment,not1.6Tinventory clearance or a supplier-order attribution."
+    },
+    {
+      "date": "2026-11-16",
+      "checked": "2026-11-17T21:35:14.083610+00:00",
+      "title": "Nemotron science agents",
+      "url": "https://nvidianews.nvidia.com/news/nvidia-introduces-nemotron-for-science-to-accelerate-discoveries-with-agents",
+      "evidence": "Named labs and life-science users;specialized benchmarks and integrations,not independently measured economy-wide adoption or monetization."
+    },
+    {
+      "date": "2026-11-17",
+      "checked": "2026-11-17T21:35:14.083610+00:00",
+      "title": "NVIDIA export-control oversight committee",
+      "url": "https://nvidianews.nvidia.com/news/nvidia-board-of-directors-establishes-national-security-and-export-control-oversight-committee",
+      "evidence": "New board committee and independent experts. Governance/export-policy evidence,not proof of broad customer-demand cancellations."
+    }
+  ],
+  "comparison_review_at": "2026-11-17T23:37:55.822011+00:00",
+  "comparison_note": "Prefer still-valid simpler local counts for BTC, COIN and NDX; use larger-degree alternatives as risk context. CRCL required a rule-based recount. SPX retains tentativeABC with an updated observed low. A failed fixed bottom is not automatically a failed impulse. Fresh after-hours equity/BTC and Globex quotes carry individual timestamps; they do not revise the completed cash session. No orders or new monitor.",
+  "next_session_plan": {
+    "date": "2026-11-18",
+    "title": "Wednesday, November 18 · COIN, CRCL and IBIT",
+    "stance": "Recovery attempt, not a confirmed reversal. Hold confirmed higher lows; review trims at failed resistance tests.",
+    "observed_at": "2026-11-17T23:55:59.747397+00:00",
+    "evidence_note": "Plan carried from the Nov17 ~6:56 p.m. ET research snapshot. Publishing or opening this page does not refresh prices. Refresh before the next session; any material overnight gap requires new levels. The November17 watch-only decision and all chart comparisons remain dated history below.",
+    "holdings": [
+      {
+        "symbol": "COIN",
+        "quote": {
+          "price": 117.64,
+          "time": "2026-11-17T23:55:46.990000+00:00",
+          "source": "Schwab market data · last reported trade",
+          "session": "Nov17 after-hours",
+          "delay": "Provider realtime flag true; saved evidence, not a live quote"
+        },
+        "hold": "$116.79–$117.32, followed by a higher low and a held regular-session VWAP / retest.",
+        "sell_first": "$119.00–$121.61 on rejection or a failed breakout.",
+        "sell_next": "$122.99–$125.38; $130.60 is a stronger-recovery test, not an expected next-day target.",
+        "warning": "Below $116.79 with a failed reclaim; $115.02 is the prior regular close.",
+        "invalidation": "$114.11 invalidates the fixed Nov17-bottom hypothesis.",
+        "count_note": "The original extended fifth remains the simpler working count; a nested third is unverified. The former $117.32 fixed bottom already failed; reclaiming it is a repair test."
+      },
+      {
+        "symbol": "CRCL",
+        "quote": {
+          "price": 56.32,
+          "time": "2026-11-17T23:55:57.460000+00:00",
+          "source": "Schwab market data · last reported trade",
+          "session": "Nov17 after-hours",
+          "delay": "Provider realtime flag true; saved evidence, not a live quote"
+        },
+        "hold": "$54.63–$54.95 support; recovery still needs $57.08–$57.66 reclaimed and held.",
+        "sell_first": "$57.08–$57.66 on rejection or a failed breakout.",
+        "sell_next": "$59.80–$60.56; $63.83 is a stronger-recovery test.",
+        "warning": "Loss of $54.63 followed by a failed reclaim.",
+        "invalidation": "$53.305 invalidates the fixed Nov17-bottom hypothesis.",
+        "count_note": "The old simple impulse is already invalid below $54.87. Larger 3/C remains provisional; a reclaim cannot restore the broken labels."
+      },
+      {
+        "symbol": "IBIT",
+        "quote": {
+          "price": 36.7,
+          "time": "2026-11-17T23:55:41.999000+00:00",
+          "source": "Schwab market data · last reported trade",
+          "session": "Nov17 after-hours",
+          "delay": "Provider realtime flag true; saved evidence, not a live quote"
+        },
+        "hold": "$36.23–$36.30, with BTC holding its own support and a new regular-session higher low / VWAP retest.",
+        "sell_first": "$36.90–$37.14 on rejection: observed after-hours high, Nov17 high $37.01 and Nov16 high $37.14.",
+        "sell_next": "$38.49–$38.94 is prior Nov13 resistance and a stretch zone, not a predicted next-day destination.",
+        "warning": "Below $36.23 with a failed reclaim; $36.14 is the prior regular close.",
+        "invalidation": "$35.78 invalidates the fixed Nov17-bottom hypothesis.",
+        "count_note": "Use BTC as confirmation context. There is no fixed BTC-to-IBIT price conversion; overnight BTC trades while IBIT is closed."
+      }
+    ],
+    "confirmation": [
+      {
+        "symbol": "/NQZ26 · December Nasdaq futures",
+        "snapshot": "27,404.00 points · Schwab last reported trade Nov17 6:56:00 p.m. ET · realtime flag true, saved snapshot.",
+        "support": "27,382 initial evening gap base.",
+        "upside": "Reclaim 27,560.75–27,609.75, then hold a completed 15-minute retest.",
+        "failure": "A completed 15-minute close below 27,382 plus a failed reclaim weakens the gap recovery.",
+        "note": "Separate from cash NDX. Delayed Yahoo history (~10 minutes) last completed 6:30–6:45 p.m. ET candle closed 27,495.50; the forming 6:45 candle was excluded. Last price alone does not confirm failure. Settlement baselines are unreconciled; no percentage comparison."
+      },
+      {
+        "symbol": "/ESZ26 · December S&P futures",
+        "snapshot": "7,405.75 points · Schwab last reported trade Nov17 6:55:59 p.m. ET · realtime flag true, saved snapshot.",
+        "support": "7,406 initial evening gap base.",
+        "upside": "Reclaim 7,434.75–7,437.00, then hold a completed 15-minute retest.",
+        "failure": "A completed 15-minute close below 7,406 plus a failed reclaim weakens the gap recovery.",
+        "note": "The quote briefly under the base is not completed-candle confirmation. Delayed Yahoo history (~10 minutes) last completed 6:30–6:45 p.m. ET candle closed 7,415.50. Separate from cash SPX; no assumed constant futures basis."
+      },
+      {
+        "symbol": "BTC/USD · Coinbase spot",
+        "snapshot": "$64,853.47 · Coinbase BTC-USD trade Nov17 6:55:59 p.m. ET · exchange spot feed, saved snapshot; no intentional delay, latency unverified.",
+        "support": "$63,833.47 tactical support.",
+        "upside": "A completed 4-hour close above $66,100–$66,369.12, followed by a successful held retest.",
+        "failure": "Loss of $63,833.47 weakens recovery; below $61,946.17 invalidates the fixed Saturday-bottom hypothesis.",
+        "note": "Last three completed hourly candles improved, but the broader six-hour structure remains mixed. Last completed 5–6 p.m. ET volume was 0.78× the prior 20-hour mean; Coinbase volume only. The forming hour cannot confirm a turn. BTC trades continuously; no equity session or stock-return baseline is assumed."
+      }
+    ],
+    "execution": [
+      "After 9:45 a.m. ET, use the first completed 9:30–9:45 range and a new 9:30-anchored regular-session VWAP. Tomorrow’s opening range and VWAP are unknown now.",
+      "Hold tactical exposure after a confirmed higher low and held VWAP / retest. The sell zones are review areas for rejection or failed breakouts, not automatic sales at first touch. A breakout held as support can be managed against its new higher low.",
+      "If an opening gap loses its opening-range low and VWAP with a failed reclaim, review reducing tactical exposure without waiting for the upper sell zones.",
+      "A gap below an invalidation does not guarantee execution at that level. Reassess actual available prices. Stretch resistance may not trade; rebase after a material overnight move.",
+      "Review exposure before the 2:00 p.m. ET FOMC minutes. No orders are authorized or submitted by this plan."
+    ],
+    "event": {
+      "title": "FOMC minutes · review exposure before 2:00 p.m. ET",
+      "time": "2026-11-18T14:00:00-05:00",
+      "source": "https://www.federalreserve.gov/newsevents/2026-november.htm"
+    },
+    "limits": "Proposed review levels only, not owner-approved stops or verified broker protection. Completed Nov17 equity structure came from consolidated SIP 5-minute bars with 16-minute access delay; after-hours completed coverage ended 6:35 p.m. ET. Quotes above are later, separately timestamped observations. Issuer evidence was checked in the saved research, but complete fresh-news clearance is unavailable. Refresh news, quotes and completed candles before acting. No new orders or recurring monitor."
+  }
+}

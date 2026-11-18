@@ -1844,6 +1844,44 @@ STATIC = {
     "/style.css": ("style.css", "text/css; charset=utf-8"),
 }
 
+# Explicit public chart exports only; never expose private trading_records or arbitrary files.
+STATIC.update({
+    "/chart-review-assets/2026-11-17_NDX_DAILY_CLOSE_REVIEW.jpg": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_NDX_DAILY_CLOSE_REVIEW.jpg", "image/jpeg"),
+    "/chart-review-assets/2026-11-17_NDX_DAILY_CLOSE_REVIEW.png": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_NDX_DAILY_CLOSE_REVIEW.jpg", "image/jpeg"),
+    "/chart-review-assets/2026-11-17_SPX_DAILY_CLOSE_REVIEW.jpg": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_SPX_DAILY_CLOSE_REVIEW.jpg", "image/jpeg"),
+    "/chart-review-assets/2026-11-17_SPX_DAILY_CLOSE_REVIEW.png": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_SPX_DAILY_CLOSE_REVIEW.jpg", "image/jpeg"),
+    "/chart-review-assets/2026-11-17_NQZ2026_15M_EVENING.jpg": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_NQZ2026_15M_EVENING.jpg", "image/jpeg"),
+    "/chart-review-assets/2026-11-17_NQZ2026_15M_EVENING.png": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_NQZ2026_15M_EVENING.jpg", "image/jpeg"),
+    "/chart-review-assets/2026-11-17_ESZ2026_15M_EVENING.jpg": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_ESZ2026_15M_EVENING.jpg", "image/jpeg"),
+    "/chart-review-assets/2026-11-17_ESZ2026_15M_EVENING.png": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_ESZ2026_15M_EVENING.jpg", "image/jpeg"),
+    "/chart-review-assets/2026-11-17_COIN_4H_RECOUNT_FIFTH_OR_NESTED_THIRD.png": ("../reports/coin_elliott_wave_2026_11_17/2026-11-17_COIN_4H_RECOUNT_FIFTH_OR_NESTED_THIRD.png", "image/png"),
+    "/chart-review-assets/2026-11-17_CRCL_DAILY_RECOUNT_LARGER_3_OR_C.png": ("../reports/crcl_elliott_wave_2026_11_17/2026-11-17_CRCL_DAILY_RECOUNT_LARGER_3_OR_C.png", "image/png"),
+    "/chart-review-assets/2026-11-17_COIN_4H_BREAKDOWN_UPDATE_1057_ET.png": ("../reports/coin_elliott_wave_2026_11_17/2026-11-17_COIN_4H_BREAKDOWN_UPDATE_1057_ET.png", "image/png"),
+    "/chart-review-assets/2026-11-17_CRCL_DAILY_COUNT_INVALIDATED_1102_ET.png": ("../reports/crcl_elliott_wave_2026_11_17/2026-11-17_CRCL_DAILY_COUNT_INVALIDATED_1102_ET.png", "image/png"),
+    "/chart-review-assets/2026-11-17_NDX_DAILY_TWO_LARGER_SCENARIOS.png": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_NDX_DAILY_TWO_LARGER_SCENARIOS.png", "image/png"),
+    "/chart-review-assets/2026-11-17_NDX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_NDX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png", "image/png"),
+    "/chart-review-assets/2026-11-17_SPX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png": ("../reports/index_elliott_wave_2026_11_17/2026-11-17_SPX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png", "image/png"),
+    "/chart-review-assets/2026-11-17_CRCL_DAILY_RECLAIM_REPAIR_CONFIRMATION_ZONES.png": ("../reports/crcl_elliott_wave_2026_11_17/2026-11-17_CRCL_DAILY_RECLAIM_REPAIR_CONFIRMATION_ZONES.png", "image/png"),
+    "/chart-review-assets/2026-11-17_CRCL_DAILY_ELLIOTT_RECOVERY_EXTENSION.png": ("../reports/crcl_elliott_wave_2026_11_17/2026-11-17_CRCL_DAILY_ELLIOTT_RECOVERY_EXTENSION.png", "image/png"),
+    "/chart-review": ("chart_review.html", "text/html; charset=utf-8"),
+    "/chart_review.js": ("chart_review.js", "application/javascript; charset=utf-8"),
+    "/chart_review.css": ("chart_review.css", "text/css; charset=utf-8"),
+    "/chart_review.json": ("chart_review.json", "application/json; charset=utf-8"),
+    '/chart-review-assets/2026-11-17_POWL_DAILY_JUNE_NOVEMBER_WAVE_SCENARIOS.png': ('../reports/powl_elliott_wave_2026_11_17/2026-11-17_POWL_DAILY_JUNE_NOVEMBER_WAVE_SCENARIOS.png', 'image/png'),
+    '/chart-review-assets/2026-11-17_POWL_DAILY_RECOVERY_EXTENSION_DETAIL.png': ('../reports/powl_elliott_wave_2026_11_17/2026-11-17_POWL_DAILY_RECOVERY_EXTENSION_DETAIL.png', 'image/png'),
+    '/chart-review-assets/2026-11-16_1522_ET_BTC_4H_WAVE5_RECOVERY.jpg': ('../reports/btc_elliott_wave_2026_11_16/2026-11-16_1522_ET_BTC_4H_WAVE5_RECOVERY.jpg', 'image/jpeg'),
+    '/chart-review-assets/2026-11-16_1532_ET_BTC_4H_CORRECTED.jpg': ('../reports/btc_elliott_wave_2026_11_16/2026-11-16_1532_ET_BTC_4H_CORRECTED.jpg', 'image/jpeg'),
+    '/chart-review-assets/2026-11-16_BTC_4H_ELLIOTT_COUNT.jpg': ('../reports/btc_elliott_wave_2026_11_16/2026-11-16_BTC_4H_ELLIOTT_COUNT.jpg', 'image/jpeg'),
+    '/chart-review-assets/2026-11-16_BTC_4H_ORIGIN_CORRECTED.jpg': ('../reports/btc_elliott_wave_2026_11_16/2026-11-16_BTC_4H_ORIGIN_CORRECTED.jpg', 'image/jpeg'),
+    '/chart-review-assets/2026-11-16_BTC_4H_SCENARIO_CHART.jpg': ('../reports/btc_elliott_wave_2026_11_16/2026-11-16_BTC_4H_SCENARIO_CHART.jpg', 'image/jpeg'),
+    '/chart-review-assets/2026-11-16_BTC_4H_SEPT_OCT_SCENARIOS.jpg': ('../reports/btc_elliott_wave_2026_11_16/2026-11-16_BTC_4H_SEPT_OCT_SCENARIOS.jpg', 'image/jpeg'),
+    '/chart-review-assets/2026-11-16_BTC_4H_SUPPORT_CONFIRMATION_DECISION_ZONES.jpg': ('../reports/btc_elliott_wave_2026_11_16/2026-11-16_BTC_4H_SUPPORT_CONFIRMATION_DECISION_ZONES.jpg', 'image/jpeg'),
+    '/chart-review-assets/2026-11-16_BTC_TWO_SCENARIOS_CLARIFIED.jpg': ('../reports/btc_elliott_wave_2026_11_16/2026-11-16_BTC_TWO_SCENARIOS_CLARIFIED.jpg', 'image/jpeg'),
+    '/chart-review-assets/2026-11-17_COIN_4H_ELLIOTT_RECOVERY_AND_EXTENSION.png': ('../reports/coin_elliott_wave_2026_11_17/2026-11-17_COIN_4H_ELLIOTT_RECOVERY_AND_EXTENSION.png', 'image/png'),
+    '/chart-review-assets/2026-11-17_COIN_4H_RECLAIM_CONFIRMATION_RECOVERY_ZONES.png': ('../reports/coin_elliott_wave_2026_11_17/2026-11-17_COIN_4H_RECLAIM_CONFIRMATION_RECOVERY_ZONES.png', 'image/png'),
+    '/chart-review-assets/2026-11-17_COIN_DAILY_OCT2025_LARGER_SCENARIOS.png': ('../reports/coin_elliott_wave_2026_11_17/2026-11-17_COIN_DAILY_OCT2025_LARGER_SCENARIOS.png', 'image/png'),
+})
+
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"

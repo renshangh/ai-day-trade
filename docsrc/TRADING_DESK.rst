@@ -29,6 +29,69 @@ are saved through the main desk’s existing local revisioned research store.
 Overview
 --------
 
+Daily chart review
+~~~~~~~~~~~~~~~~~~
+
+Open ``/chart-review`` or **Daily Review** on the v3 home page for the saved
+NDX, SPX, BTC, COIN, POWL and CRCL studies. Each card separates its dated quote from the
+last completed daily session, shows confirmation and invalidation levels, and
+links the original full-size TradingView drawings. Earlier captures remain
+available as dated history. Cash index levels use points and disclose the
+separate quote/chart delay; index volume is not tradable volume. NDX’s fifth
+wave and SPX’s tentative local C remain developing. NDX’s larger scenarios
+separate a final-C recovery from an A/1 ending followed by B/2 and C/3. The
+final low is unknown; each invalidation explicitly names the affected count. A past-date snapshot is labeled historical; page
+refresh does not turn an old price or unfinished candle into fresh evidence.
+
+The November 17 review preserves the owner's watch-only decision and initial
+POWL $149–$156 range. Elliott counts are provisional. CRCL's former simple
+impulse is already invalid below $54.87. Its updated larger3/C is provisional;
+$68.90 ends or relabels the specified still-running smaller third, not the
+invalid old fifth-wave reading. Reclaiming $54.87 cannot restore that count.
+Dashed paths and their horizontal spacing are examples, not future price bars
+or predicted dates. Source, session, timestamp and venue limitations accompany
+the observations. The existing daily after-close review maintains the studies;
+the stopped hourly/half-hour monitors remain stopped. No orders are submitted.
+
+Original versus updated drawings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Daily Review and the full gallery show paired original/updated BTC, COIN,
+CRCL, NDX and SPX captures, with the preferred working count, what changed,
+evidence and the next confirmation/invalidation test. Desktop views display
+the pair side by side; narrow screens stack them. Click an image to inspect
+the original full-size file. Other dated captures remain expandable history.
+
+A failed fixed bottom does not necessarily invalidate the impulse: COIN's
+extended fifth remains the simpler working count, while its nested-third
+alternative needs evidence. NDX retains the local fifth with separate larger
+degree alternatives. BTC's Saturday low survives, but its former X pivot
+failed. CRCL needed a rule-based recount; SPX retains a tentative ABC. New
+NDX/SPX cash captures update observed lows, without claiming final endings.
+
+Separate December2026 ``/NQZ26`` and ``/ESZ26`` panels provide individually
+timestamped Schwab quotes, delayed native15m captures and futures-specific
+reference points. Cash levels are never converted or spliced into futures.
+Front-contract history is labeled separately; missing maintenance rows and
+unfinished candles are excluded. Inconsistent current futures daily OHLC is
+reported as rejected, never filled or repaired. Unreconciled previous-close
+and settlement references do not produce a percentage-return comparison.
+Saved quotes and captures remain dated evidence; refreshing the page does not
+refresh market data or authorize orders.
+
+Next-session plan
+^^^^^^^^^^^^^^^^^
+
+Daily Review and the full gallery place the dated next-session plan above the
+saved comparisons. COIN, CRCL and IBIT cards show hold, trim-review, warning and
+bottom-hypothesis invalidation levels. Separate NQ/ES futures and BTC cards name
+the completed-candle confirmation required. The plan retains its original
+evidence time, event/calendar reminder and source/delay limitations. Refreshing
+the page does not refresh prices. Past plans are marked historical after their
+New York session date. Future opening-range and VWAP values remain unknown;
+review levels are not approved broker stops and no orders are created.
+
+
 Daily review now prioritizes the verified SOLT addition as a separate day-trade
 sleeve. Replaced orders are not fills. The trade entry, whole-position average,
 earlier holdings and other accounts remain distinct. Intraday references carry

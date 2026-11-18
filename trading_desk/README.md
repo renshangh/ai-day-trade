@@ -1,5 +1,68 @@
 # Trading Desk
 
+## Daily chart review
+
+Open `/chart-review`, or **Daily Review** on v3 and `/board?view=review`, for
+the dated NDX, SPX, BTC, COIN, POWL and CRCL research. `chart_review.json` holds source-
+and time-labeled observations, the owner decision, completed-session metrics,
+confirmation/invalidation tests, issuer links and a manifest of native chart
+captures. `chart_review.js` renders compact desk cards or the full gallery.
+Original saved screenshots remain in `reports/`; explicit static routes serve
+only those public images. Private journal files are never exposed by this view.
+
+The November17 owner decision is watch-only, with POWL's initial $149–$156
+range kept separate from a confirmed full-day range. Today's forming daily
+bars cannot confirm an Elliott ending. CRCL’s former simple count was invalidated intraday below $54.87; its orange
+labels are invalidated history and its current-chart future paths were withdrawn.
+A later reclaim cannot restore that count. The13:28 recount separately tests larger1/A (Oct30),2/B (Nov4) and developing3/C, with unverified internal subwaves. Conditional46.20/43.34/40.84 are projection examples, not proven support. A future standard smalleriv must remain below63.56 and larger4 below71;68.90/77.59 end or relabel the corresponding still-runningiii/3C. Final low and future dates remain unknown. COIN’s fixed $117.32 bottom failed
+while its local impulse remains provisional. The16:00 COIN capture compares an extended local5 with a tentative nested Oct2 larger3.117.32 failed only the fixed bottom.105.25/88.44 are conditional examples; B future smalleriv must stay below135.46, larger4 below184.29, and153.33/200.3514 end or relabel still-running smalleriii/larger3. No validated final low or whole October2025 reversal is claimed. Future dashed paths are illustrative,
+not synthetic bars.
+Cash NDX and SPX are quoted in points, with separate quote/chart delays.
+NDX has a provisional developing fifth; SPX uses a tentative local A–B–C
+because the analogous impulse overlaps wave1. Neither marks a confirmed bottom. NDX’s latest larger-count capture separates
+a possible final C from larger A/1 → B/2 → C/3. The eventual low L is unknown;
+31,361.37 invalidates only the Oct6 larger1→2 count, not every bearish
+correction. A break of L rejects only the selected fixed-bottom hypothesis.
+The next New York date labels the previous snapshot historical automatically;
+opening or refreshing the page never advances its evidence date or quotes.
+
+The existing after-close review maintains these saved studies, preserving dated
+snapshots privately and retaining earlier captures as superseded where needed.
+It must refresh prices and issuer evidence before changing a current conclusion.
+This does not restart the stopped BTC hourly or COIN/CRCL half-hour monitors,
+alter the separate BTC scenario review, refresh holdings, or authorize orders.
+The desk's proposed North Star remains sourced thesis decisions: each count
+must identify what evidence would confirm it and precisely which count a level
+invalidates. A missing observation is unavailable, never carried forward.
+
+### Original versus updated drawings
+
+BTC, COIN, CRCL, NDX and SPX now show the original and updated native captures
+side by side in both Daily Review cards and the full gallery. Narrow screens
+stack the pair; each image opens at full size. The explanation names what
+changed, which count fits better, the supporting evidence and the next test.
+Comparison captures are excluded from the expandable duplicate history list.
+Original screenshots are immutable dated history; a new capture does not turn
+an illustrative future path into a forecast or establish a final wave ending.
+
+November17 evening: retain the simpler local fifth interpretations for COIN
+and NDX; BTC's Saturday low survives but its old X pivot failed. CRCL's old
+simple impulse is invalid under the shortest-third rule; larger3/C remains
+provisional. SPX retains tentative ABC. New native cash captures move only the
+last observed-low points to NDX26,580.86 and SPX7,288.34, without declaring
+either final. Historical paths and earlier captures remain available.
+
+NDX and SPX have separate December2026 `/NQZ26` and `/ESZ26` panels with current
+Schwab quote timestamps, delayed native15m captures and contract-specific
+reference points. Futures never replace cash bars or cash invalidation levels.
+Yahoo front-contract history is labeled separately from the December quote;
+missing maintenance rows, incomplete candles and non-aligned pseudo-bars are
+excluded. Inconsistent current daily futures OHLC after the18:00 rollover is
+rejected, not repaired. Unreconciled settlement/previous-close baselines do not
+produce a futures percentage return. Opening Daily Review remains read-only
+and does not start a recurring monitor or refresh these saved observations.
+
+
 ## BTC Live Paper
 
 Open <http://127.0.0.1:8799/btc-live>, verify **Running** and fresh data, then

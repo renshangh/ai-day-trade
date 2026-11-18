@@ -1,5 +1,20 @@
 # Changelog
 
+## Daily Chart Review Gallery - Unreleased
+
+### Changed
+- Add the dated November18 COIN/CRCL/IBIT hold, trim and bottom-invalidation plan above the existing comparisons, with independent NQ/ES/BTC confirmation tests and the FOMC-minutes reminder. Preserve November17 evidence times, exclude account details and mark expired plans historical; no quote refresh or orders.
+- Show original and updated BTC/CRCL/COIN/NDX/SPX captures side by side in Daily Review with count-specific judgments, evidence and next tests. Update native NDX/SPX observed-low points after the close and add separately timestamped December NQ/ES futures quotes, delayed15m captures and independent levels; preserve original captures and exclude missing/inconsistent observations.
+- Recount COIN as extended local5 versus a tentative nested larger3, with native conditional paths, explicit wave-degree limits and completed closing IEX evidence. Keep117.32 fixed-bottom failure separate from impulse validity and preserve all earlier captures.
+- Add a separate provisional CRCL larger3/C recount with degree-specific invalidation, conditional downside math and native red/green scenarios. Preserve the failed count and dated evidence; no fixed final low or forecast dates.
+- Update COIN after the $117.32 fixed-bottom failure and mark CRCL’s former simple count invalid below $54.87. Save new native captures, withdraw CRCL’s invalid-count projections and retain dated history with separate live-venue / delayed-consolidated evidence.
+- Save both larger NDX interpretations, an unknown final-low reference, staged recovery confirmation and count-specific invalidation; preserve the earlier drawing as superseded history.
+- Add cash NDX and SPX Elliott scenarios with count-specific invalidation, point units, quote/chart delay labels and native exports. CRCL now includes exact reclaim/repair zones. Gallery totals follow the saved manifest; preserve every earlier capture.
+
+### Added
+- Add a dated watch-only BTC, COIN, POWL and CRCL review on v3 and the Daily Review, with original chart captures, source/time/session labels, completed-session metrics, issuer events and count-specific confirmation/invalidation tests. Preserve older plans privately and original drawings as dated history. CRCL includes provisional Elliott recovery and extension paths with the $54.87 simple-impulse boundary; no orders or restarted intraday monitors.
+
+
 ## IBIT Hours Display on BTC Live Paper - Unreleased
 
 ### Added
