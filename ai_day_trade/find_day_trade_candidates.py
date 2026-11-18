@@ -4,8 +4,9 @@ import argparse
 import json
 import math
 from dataclasses import asdict, dataclass
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -33,6 +34,9 @@ DEFAULT_SYMBOLS = (
     "SMCI",
 )
 INDEX_SYMBOL = "QQQ"
+LOCAL_MODEL = "qwen3.5:35b"
+LOCAL_MODEL_BASE_URL = "http://127.0.0.1:11436/v1"
+DEFAULT_REPORT = Path("reports/day_trade_candidates_latest.json")
 
 
 @dataclass(frozen=True)
@@ -276,7 +280,9 @@ def rank_candidates(symbols: list[str], *, feed: DataFeed) -> list[Candidate]:
     return ranked
 
 
-def _llm_rerank(candidates: list[Candidate], *, top: int, model: str) -> dict[str, Any] | None:
+def _llm_rerank(
+    candidates: list[Candidate], *, top: int, model: str | None = None
+) -> dict[str, Any] | None:
     if not candidates:
         return None
     try:
@@ -310,7 +316,16 @@ def _llm_rerank(candidates: list[Candidate], *, top: int, model: str) -> dict[st
         "candidates": payload,
     }
     try:
-        client = OpenAI()
+        if model is None:
+            client = OpenAI(
+                base_url=LOCAL_MODEL_BASE_URL,
+                api_key="ollama",
+                timeout=180.0,
+                max_retries=0,
+            )
+            model = LOCAL_MODEL
+        else:
+            client = OpenAI()
         response = client.chat.completions.create(
             model=model,
             messages=[
@@ -372,15 +387,33 @@ def _write_report(
     candidates: list[Candidate],
     top: int,
     llm_result: dict[str, Any] | None,
+    model: str | None,
+    feed: str,
 ) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    generated_at = datetime.now().astimezone()
+    reranker = None
+    if llm_result is not None:
+        reranker = {"model": model or LOCAL_MODEL, "route": "explicit" if model else "local"}
     payload = {
-        "generated_at": datetime.now().astimezone().isoformat(),
+        "generated_at": generated_at.isoformat(),
         "top": top,
+        "feed": feed,
+        "reranker": reranker,
         "llm_result": llm_result,
         "candidates": [asdict(candidate) for candidate in candidates],
     }
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with NamedTemporaryFile(dir=path.parent, mode="w", encoding="utf-8", delete=False) as output:
+        temporary_path = Path(output.name)
+        try:
+            json.dump(payload, output, indent=2)
+            output.close()
+            if path == DEFAULT_REPORT:
+                stamp = generated_at.astimezone(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+                path.with_name(f"day_trade_candidates_history_{stamp}.json").hardlink_to(temporary_path)
+            temporary_path.replace(path)
+        finally:
+            temporary_path.unlink(missing_ok=True)
 
 
 def main() -> None:
@@ -392,10 +425,14 @@ def main() -> None:
     parser.add_argument("--top", type=int, default=3, help="Number of candidates to print")
     parser.add_argument("--feed", choices=["iex", "sip", "delayed_sip"], default="iex", help="Alpaca market data feed")
     parser.add_argument("--no-llm", action="store_true", help="Use deterministic scores only")
-    parser.add_argument("--model", default="gpt-5.4-mini", help="OpenAI model for optional JSON rerank")
+    parser.add_argument(
+        "--model",
+        help=f"Override local {LOCAL_MODEL} with a model on the configured OpenAI-compatible endpoint",
+    )
     parser.add_argument(
         "--report",
-        default="reports/day_trade_candidates_latest.json",
+        default=DEFAULT_REPORT,
+        type=Path,
         help="Path to write the JSON candidate report",
     )
     args = parser.parse_args()
@@ -416,7 +453,10 @@ def main() -> None:
         llm_result = _llm_rerank(candidates, top=top, model=args.model)
 
     _print_report(candidates, top=top, llm_result=llm_result)
-    _write_report(Path(args.report), candidates=candidates, top=top, llm_result=llm_result)
+    _write_report(
+        args.report, candidates=candidates, top=top, llm_result=llm_result,
+        model=args.model, feed=args.feed,
+    )
     print(f"\nWrote report: {args.report}")
 
 

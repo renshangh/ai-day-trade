@@ -87,6 +87,87 @@ async function renderLivePulse(){
  $('live-pulse').innerHTML=boardCard+cycleCard;
 }
 void renderLivePulse();
+const watchlistTime = new Intl.DateTimeFormat('en-US', {
+ month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short'
+});
+
+function describeWatchlistMove(latest, previous) {
+ if (!latest || !previous) return '';
+ const changes = [];
+ if (typeof latest.above_vwap === 'boolean' && typeof previous.above_vwap === 'boolean'
+     && latest.above_vwap !== previous.above_vwap) {
+  changes.push(latest.above_vwap ? 'Moved above VWAP' : 'Moved below VWAP');
+ }
+ const metrics = [
+  ['relative_strength_pct', 'vs QQQ', ' pp'],
+  ['return_from_open_pct', 'from open', ' pp'],
+  ['near_high_of_day_pct', 'from session high', ' pp'],
+  ['volume_vs_avg_daily_pct', 'of avg. daily volume', ' pp']
+ ];
+ for (const [key, label, unit] of metrics) {
+  if (!Number.isFinite(latest[key]) || !Number.isFinite(previous[key]) || latest[key] === previous[key]) continue;
+  const delta = latest[key] - previous[key];
+  const direction = key === 'near_high_of_day_pct'
+   ? `${Math.abs(delta).toFixed(2)}${unit} ${delta < 0 ? 'closer to' : 'farther from'} session high`
+   : `${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(2)}${unit} ${label}`;
+  changes.push(direction);
+ }
+ return changes.join(' · ');
+}
+
+function watchlistRow({symbol, latest, previous}, hasPrevious) {
+ const priorRank = previous?.rank;
+ const rank = latest?.rank;
+ const rankChange = hasPrevious && (rank || priorRank)
+  ? `${priorRank ? '#' + priorRank : '—'} → ${rank ? '#' + rank : '—'}`
+  : (rank ? '#' + rank : '—');
+ const status = !hasPrevious ? '' : !priorRank ? 'Entered watchlist' : !rank ? 'Left watchlist' : '';
+ const score = value => Number.isFinite(value) ? value.toFixed(2) : '—';
+ const scoreChange = hasPrevious
+  ? `${score(previous?.score)} → ${score(latest?.score)}`
+  : score(latest?.score);
+ const scoreRank = item => item?.score_rank ? '#' + item.score_rank : '—';
+ const scoreRanks = hasPrevious
+  ? `Rank ${scoreRank(previous)} → ${scoreRank(latest)}`
+  : `Rank ${scoreRank(latest)}`;
+ const movement = describeWatchlistMove(latest, previous);
+ const commentary = latest?.reason ? `<p class="watchlist-reason">${esc(latest.reason)}</p>` : '';
+ return `<tr><th scope="row">${esc(symbol)}</th><td>${esc(rankChange)}${status ? `<small>${status}</small>` : ''}</td>
+  <td>${esc(scoreChange)}<small>${esc(scoreRanks)}</small></td><td>${movement ? `<p class="watchlist-move">${esc(movement)}</p>` : ''}${commentary || (!movement ? '—' : '')}</td></tr>`;
+}
+
+async function renderWatchlist() {
+ const button = $('watchlist-refresh');
+ const status = $('watchlist-status');
+ const results = $('watchlist-results');
+ button.disabled = true;
+ try {
+  const response = await fetch('/api/v3/watchlist');
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const {latest, previous, rows} = await response.json();
+  if (!latest) {
+   status.textContent = 'No saved model rankings are available yet.';
+   results.textContent = '';
+   return;
+  }
+  const scanLabel = scan => `${watchlistTime.format(new Date(scan.generated_at))} · ${scan.model || 'model unrecorded'}`;
+  status.textContent = `Alpaca intraday snapshots · ${scanLabel(latest)}${latest.feed ? ` · ${latest.feed.toUpperCase()}` : ''}`;
+  const comparison = previous ? `Compared with ${scanLabel(previous)}` : 'No previous saved model ranking.';
+  results.innerHTML = `<p class="watchlist-comparison muted">${esc(comparison)}</p>
+   <div class="watchlist-table" tabindex="0" role="region" aria-label="Watchlist rankings and changes">
+    <table class="data-table"><thead><tr><th scope="col">Ticker</th><th scope="col">Model rank</th><th scope="col">Scanner score</th><th scope="col">Metric changes and model rationale</th></tr></thead>
+    <tbody>${rows.map(row => watchlistRow(row, Boolean(previous))).join('')}</tbody></table>
+   </div>`;
+ } catch {
+  status.textContent = 'Saved watchlist scans are unavailable. Try refreshing.';
+  results.textContent = '';
+ } finally {
+  button.disabled = false;
+ }
+}
+$('watchlist-refresh').addEventListener('click', renderWatchlist);
+void renderWatchlist();
+
 function renderReport(){
  const reports = [...records.reports].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
  const latest = reports[0];

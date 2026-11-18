@@ -194,6 +194,7 @@
 ## 4.5.30 - Unreleased
 
 ### Added
+- **Trading Desk shows saved Qwen watchlist rankings.** The panel compares the two latest saved scans and shows changes in rank, score, and underlying Alpaca metrics. Default scans keep a dated snapshot for future comparisons.
 - Replay E1 and E2 independently through the same frozen 30-day BTC stream with unchanged release-0.1 entries, risk, original protection, partial targets and 2bps-per-side friction. Both full sequences retain 38 entries/19 winners/19 losers with no replacement buys; E1 nets $4,159.67 and E2 $4,195.15 versus $3,516.46. Record every freed holding window and partition actual holding/context-gap exposure separately: clean groups have 36/37/37 trades, so subgroup differences are not matched-trade gains. Keep release 0.1 selected and immutable. Replace active desk history panels and downloads with the three current sequences and one five-sheet formula-reconciled workbook; preserve old files behind an archive index.
 - Compare unchanged E1/E2 exits on all 38 frozen BTC release-0.1 entries without a strategy/monthly replay. E1 changes three losses (+$643.21 fixed-entry delta); E2 changes two (+$678.69); all 19 original winners retain their exits. Preserve #12 gap limitations and no-holding-gap subset deltas, add all-row desk review and independent formula-reconciled workbook, and keep all release/results/original workbooks and active/latest pointers unchanged.
 - Add unpromoted E1 continuous-weakness and E2 failed-reclaim early-exit studies on frozen BTC #32/#30 only. Record complete-bar confirmation, next actual minute opening, direction/inside checks, costs and alternative full exits. #32 models -$211.35 at 12:15 or -$330.24 at 15:15; #30 retains original +$1,454.49. Prefix and missing-minute checks preserve causality; no release modification, new monthly result or workbook rewrite.
@@ -250,6 +251,7 @@
 - **QNT is visible as a watch-only holding in Daily Review.** It is excluded from paper-agent recommendations and guarded trade preparation.
 
 ### Changed
+- **The ai-day-trade watchlist scanner defaults to local Qwen.** It uses Ollama on the Mac mini loopback interface and falls back to deterministic scores on model errors. Pass `--model` to select a model on the configured OpenAI-compatible endpoint.
 - Added sourced AI Power debt resilience: restricted-cash exclusions, cash/debt, operating interest coverage, repayments and floating-rate stress scenarios; unknown financing inputs remain unavailable.
 - AI Power now shows CORZ, GLXY, HUT and RIOT with dated positive diluted-EPS evidence, cash-quality notes and shared chart links. Replaces the nuclear watchlist and standing allocation plan; historical notes remain intact and market data is never substituted.
 - Daily Review displays the October 23 trading plan with account tools collapsed; dated summaries are preserved in a separate linked HTML archive.

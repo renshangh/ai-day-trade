@@ -136,6 +136,21 @@ Decision Log, and links into the existing market views. See [V3.md](V3.md) for
 its scoring and data rules. The Hot Sector Board documented below remains at
 `/board`.
 
+## Qwen watchlist
+
+The Trading Desk home page compares the two latest saved local Qwen rankings
+and lists tickers that entered or left the watchlist. The rank comes from the
+model, the score comes from the scanner, and the changes in VWAP, relative
+strength versus QQQ, return from the open, volume participation, and distance
+from the session high come from the saved Alpaca scan metrics.
+
+The panel reads `reports/day_trade_candidates_latest.json` and dated
+`day_trade_candidates_YYYYMMDD_HHMMSS.json` reports, including branch-prefixed
+and scanner history files. Use **Refresh** after a scan. The dashboard reads
+saved reports and does not run the scanner or submit orders. Reports created
+before model metadata was added show “model unrecorded.” Explicit model
+overrides and deterministic-only scans with metadata are excluded.
+
 ## AI Power — Neocloud
 
 Open `/board?view=ai-power` for CORZ, GLXY, HUT and RIOT, the dated
