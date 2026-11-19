@@ -557,6 +557,83 @@
       "benchmark_note": "Completed November 18 Alpaca SIP close $154.95, low $149.49, high $159.06. November 19 intraday evidence uses 38 observed one-minute SIP bars from 09:30 through 10:12:00 EST with 16-minute access delay. Missing minute bars are omitted. The separately dated IEX last trade was $162.22 at 10:28:12 EST."
     },
     {
+      "symbol": "NVDA",
+      "quote": {
+        "price": 151.87,
+        "time": "2026-11-19T15:46:47.833677779Z",
+        "source": "Alpaca IEX last trade",
+        "session": "November 19 regular session, intraday trade",
+        "delay": "Single venue with no intentional delay. Timestamp is the observed trade time"
+      },
+      "previous_close": 150.96,
+      "change_pct": 0.6028086910439878,
+      "daily": {
+        "date": "2026-11-18",
+        "open": 159.19,
+        "high": 159.7,
+        "low": 150.4,
+        "close": 150.96,
+        "volume": 350570842,
+        "volume_ratio": 1.4744834668690385,
+        "sma20": 189.04,
+        "sma50": 210.3032,
+        "sma200": 203.7182,
+        "five_session_pct": -13.106544638231732,
+        "twentyone_session_pct": -30.262853975146665
+      },
+      "status": "REBOUND UNCONFIRMED · provisional wave 5 low",
+      "summary": "The October 6–November 12 decline fits a provisional local five-wave count. The November 12 low at $148.80 is the candidate wave 5 endpoint. The checks support the count at this degree. Smaller subdivisions and a larger trend turn remain unresolved.",
+      "benchmark_note": "Completed November 18 consolidated close $150.96, range $150.40–$159.70. The November 19 SIP opening-session range through 10:30:00 EST was $152.54–$158.13, from 60 completed one-minute bars with 16-minute access delay. The later observed IEX trade was $151.87 at 10:46:47 EST.",
+      "levels": [
+        [
+          "$150.33–$150.40",
+          "November 17–18 lows. Losing this area exposes the November 12 low."
+        ],
+        [
+          "$159.70–$163.20",
+          "Reclaim box. The November 18 high is the lower edge. The November 16 high is the upper edge."
+        ],
+        [
+          "$177.54",
+          "The November 11 wave 4 high. A daily close above it with a held retest strengthens the larger recovery case."
+        ],
+        [
+          "$148.80",
+          "Any trade below the November 12 low invalidates the fixed wave 5 endpoint at that price."
+        ]
+      ],
+      "confirmation": "Require a daily close above $163.20 and a held retest of the $159.70–$163.20 box. A confirmed break of the $177.54 wave 4 high would carry more weight.",
+      "invalidation": "A strict trade below $148.80 defeats the fixed November 12 bottom and reopens extension. The orange path is illustrative.",
+      "fundamentals": "NVIDIA reported November 17 fiscal Q3 revenue of $115.8 billion and Data Center revenue of $107.6 billion. The $130 billion ±3% Q4 revenue guide includes an extra week and no China Data Center compute revenue. Guided gross margin of 71%–72% is below the reported 74.9% non-GAAP Q3 margin.",
+      "chart_note": "The TradingView headline shows the forming November 19 bar on Cboe One. Completed pivots use split-adjusted Alpaca SIP. Dashed scenario dates and prices are illustrative.",
+      "sources": [
+        [
+          "Live NVDA Daily layout",
+          "https://www.tradingview.com/chart/TY00JGr6/?symbol=NASDAQ%3ANVDA&interval=D"
+        ],
+        [
+          "NVIDIA fiscal Q3 release",
+          "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-third-quarter-fiscal-2027"
+        ],
+        [
+          "Alpaca market bars",
+          "https://docs.alpaca.markets/reference/stockbars"
+        ],
+        [
+          "Elliott Wave impulse rules",
+          "https://www.elliottwave.com/waveopedia/extension/"
+        ]
+      ],
+      "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_104846_EST_NVDA_DAILY.png",
+          "title": "NASDAQ:NVDA Daily · Elliott Wave recovery and extension",
+          "captured": "2026-11-19 10:48:46 EST",
+          "state": "Verified native TradingView PNG · both decision-box prices labeled"
+        }
+      ]
+    },
+    {
       "symbol": "BTC",
       "quote": {
         "price": 63874.51,

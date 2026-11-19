@@ -2002,6 +2002,7 @@ STATIC.update({
     "/chart_review.css": ("chart_review.css", "text/css; charset=utf-8"),
     "/chart_review.json": ("chart_review.json", "application/json; charset=utf-8"),
     '/chart-review-assets/2026-11-17_POWL_DAILY_JUNE_NOVEMBER_WAVE_SCENARIOS.png': ('../reports/powl_elliott_wave_2026_11_17/2026-11-17_POWL_DAILY_JUNE_NOVEMBER_WAVE_SCENARIOS.png', 'image/png'),
+    "/chart-review-assets/2026-11-19_104846_EST_NVDA_DAILY.png": ("../reports/nvda_elliott_wave_2026_11_19/2026-11-19_104846_EST_NVDA_DAILY.png", "image/png"),
     "/chart-review-assets/2026-11-19_102347_EST_POWL_DAILY.png": ("../reports/powl_elliott_wave_2026_11_19/2026-11-19_102347_EST_POWL_DAILY.png", "image/png"),
     "/chart-review-assets/2026-11-19_101137_EST_POWL_DAILY.png": ("../reports/powl_elliott_wave_2026_11_19/2026-11-19_101137_EST_POWL_DAILY.png", "image/png"),
     '/chart-review-assets/2026-11-17_POWL_DAILY_RECOVERY_EXTENSION_DETAIL.png': ('../reports/powl_elliott_wave_2026_11_17/2026-11-17_POWL_DAILY_RECOVERY_EXTENSION_DETAIL.png', 'image/png'),
