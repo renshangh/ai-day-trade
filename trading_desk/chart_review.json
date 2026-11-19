@@ -403,14 +403,14 @@
     {
       "symbol": "POWL",
       "quote": {
-        "price": 160.86,
-        "time": "2026-11-19T14:34:57.969272628Z",
+        "price": 162.22,
+        "time": "2026-11-19T15:28:12.336380432Z",
         "source": "Alpaca IEX last trade",
         "session": "November 19 regular session, intraday trade",
         "delay": "Single venue with no intentional delay. Timestamp is the observed trade time"
       },
       "previous_close": 154.95,
-      "change_pct": 3.8141335914811503,
+      "change_pct": 4.691836076153599,
       "daily": {
         "date": "2026-11-18",
         "open": 151.4,
@@ -425,36 +425,36 @@
         "five_session_pct": 6.202878684030155,
         "twentyone_session_pct": -6.056747908330307
       },
-      "status": "WATCH ONLY · initial range floor failed intraday",
-      "summary": "Watch-only owner decision preserved. The first15-minute149–156 observation is historical: actual Nov17 full-session range144.06–156.00,close150.86 (-0.22%).149failed intraday, then price recovered above it;156was touched without a sustained confirmed breakout. The daily high/low exceeded/held above yesterday’s by a small amount, but the session did not confirm a larger Elliott bottom. Primary Nov16 earnings release rechecked; scheduled11ETcall content not fully primary-verified.",
+      "status": "WATCH ONLY · $156 cleared intraday",
+      "summary": "POWL opened at $158.76 on November 19. Observed consolidated one-minute bars through 10:12:00 EST ranged from $157.48 to $165.61, above $156 throughout the observed coverage. This clears the early level intraday. The daily close and a held retest are pending. The revised count restores June–September A, the rebound into October 6 as B, and the smaller October–November five-wave decline. The $121.13 low is a candidate C1 or C endpoint.",
       "levels": [
         [
-          "$149–$156",
-          "Initial owner-observed range; wait for a break, completed close and successful retest."
+          "$156",
+          "Early recovery test. Require a daily close above $156 and a held pullback toward $149.49–$152. The November 19 move through $156 was intraday at the review cutoff."
         ],
         [
-          "$151.20 / $149",
-          "Prior close / opening-range floor review; below $149 with failed reclaim weakens the rebound."
+          "$166.44–$170.46",
+          "Main decision box. Lower $166.44 is the November 3 high. Upper $170.46 is the October 29 wave iv high."
         ],
         [
-          "$155.94–$156 / $159",
-          "Prior regular-session high and opening top / observed Nov16 after-hours high."
+          "$149.49",
+          "A daily close below the rounded November 18 low warns of renewed extension. A failed reclaim strengthens that interpretation."
         ],
         [
-          "$166–$175 / $170.46",
-          "Broader recovery band / saved October29 pivot; not a forecast for today."
+          "$136.04–$138.50",
+          "Historical November pullback lows to revisit only if renewed weakness develops."
         ],
         [
-          "$138.50 / $121.13",
-          "Nov16 daily low / Nov5 low. A new low defeats the fixed Nov5 bottom case."
+          "$121.13",
+          "Any trade below the November 5 low invalidates a bottom fixed at that level."
         ],
         [
           "$207.52",
-          "A move above the October6 origin invalidates the specific bearish C1/C2 interpretation."
+          "Any trade above the October 6 origin invalidates the specific bearish C1/C2 count."
         ]
       ],
-      "confirmation": "After the 11:00 ET call, review completed 15-minute closes above $156 with a held retest, regular-session VWAP and higher lows; a wick alone is not confirmation. Larger recovery needs completed daily repair through $166–$175.",
-      "invalidation": "Loss of $149 and failed reclaim is a tactical warning. A move below $121.13 defeats the fixed Nov5-low bottom case; it is not a prediction that $62 must trade.",
+      "confirmation": "Early recovery requires a daily close above $156 and a held retest. Stronger recovery requires a daily close above $170.46 and a held retest of $166.44–$170.46.",
+      "invalidation": "Clearing $156 intraday weakens the near-term orange extension path. The extension remains a conditional alternative if a daily close below $149.49 and failed reclaim develop. A strict trade below $121.13 invalidates the fixed November 5 bottom. A strict trade above $207.52 invalidates the specific bearish C1/C2 count.",
       "fundamentals": "Nov16 issuer release: revenue $396.7m, EPS $2.23, orders $710m, backlog $2.7bn. FY2027 commentary supports the 31.3% FY2026 margin profile, not explicitly the 34.9% Q4 peak. Ask about capacity, backlog conversion and margin durability. No full-year EPS forecast inferred.",
       "sources": [
         [
@@ -464,21 +464,49 @@
         [
           "Powell 11:00 ET call",
           "https://powellindustriesinc.gcs-web.com/events/event-details/4th-quarter-2026-earnings-conference-call"
+        ],
+        [
+          "Live POWL Daily layout",
+          "https://www.tradingview.com/chart/TY00JGr6/?symbol=NASDAQ%3APOWL&interval=D"
+        ],
+        [
+          "BB reference layout",
+          "https://www.tradingview.com/chart/0dDP0IqD/"
+        ],
+        [
+          "Elliott Wave impulse guidelines",
+          "https://www.elliottwave.com/waveopedia/impulse/"
+        ],
+        [
+          "Alpaca market bars",
+          "https://docs.alpaca.markets/reference/stockbars"
         ]
       ],
-      "chart_note": "Saved Elliott paths are provisional price examples, not future candles or a forecast of the C-wave ending date. The displayed historical subdivisions are preserved for review, not newly validated. Earlier $62 drawings are conditional scenarios, not fair-value targets. After-close Nov17 review: saved screenshot remains a dated count illustration; fresh completed-session evidence above supersedes its price/volume and forming-bar statements. No new future bars or confirmed ending inferred.",
+      "chart_note": "Native TradingView daily capture. Its Cboe One headline is the forming November 19 candle. The last completed daily candle is November 18. Both dashed scenarios are illustrative. The earlier single-degree drawing and November 17 captures remain dated history.",
       "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_102347_EST_POWL_DAILY.png",
+          "title": "NASDAQ:POWL Daily · revised Elliott Wave count",
+          "captured": "2026-11-19 10:23:47 EST",
+          "state": "Verified native TradingView PNG · larger A and B, smaller i–v, both decision-box prices labeled"
+        },
+        {
+          "url": "/chart-review-assets/2026-11-19_101137_EST_POWL_DAILY.png",
+          "title": "NASDAQ:POWL Daily · earlier simplified Elliott Wave count",
+          "captured": "2026-11-19 10:11:37 EST",
+          "state": "Historical native TradingView capture · superseded by the two-degree count"
+        },
         {
           "url": "/chart-review-assets/2026-11-17_POWL_DAILY_RECOVERY_EXTENSION_DETAIL.png",
           "title": "2026-11-17 POWL DAILY RECOVERY EXTENSION DETAIL",
           "captured": "2026-11-17",
-          "state": "Latest saved native scenario drawing — screenshot time retained; Nov17 completed-session evidence supersedes its quote"
+          "state": "Historical November 17 native TradingView capture"
         },
         {
           "url": "/chart-review-assets/2026-11-17_POWL_DAILY_JUNE_NOVEMBER_WAVE_SCENARIOS.png",
           "title": "2026-11-17 POWL DAILY JUNE NOVEMBER WAVE SCENARIOS",
           "captured": "2026-11-17",
-          "state": "Preserved earlier capture — superseded where inconsistent"
+          "state": "Historical November 17 native TradingView capture"
         }
       ],
       "intraday": {
@@ -526,7 +554,7 @@
         "opening_low_lost": true,
         "opening_high_broken": false
       },
-      "benchmark_note": "Completed Nov17 consolidated SIP close $150.86 (-0.22%), range$144.06–$156.00; volume1.65× prior20 complete sessions. 5/21-session excess SPY +11.48/-4.55pp; QQQ +11.79/-0.44pp. 78/78 complete RTH5m; final close above09:30EST SIP VWAP$149.11; last3 structure mixed. Latest IEX quote and consolidated close differ by venue."
+      "benchmark_note": "Completed November 18 Alpaca SIP close $154.95, low $149.49, high $159.06. November 19 intraday evidence uses 38 observed one-minute SIP bars from 09:30 through 10:12:00 EST with 16-minute access delay. Missing minute bars are omitted. The separately dated IEX last trade was $162.22 at 10:28:12 EST."
     },
     {
       "symbol": "BTC",
