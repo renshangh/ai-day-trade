@@ -45,6 +45,12 @@
       "fundamentals": "NVIDIA reports Nov17 after the close, with the issuer scheduling results around16:20 ET and its call17:00 ET. The event can gap either direction; wave labels do not predict its outcome.",
       "charts": [
         {
+          "url": "/chart-review-assets/2026-11-19_0720_ET_NDX_DAILY_LOCAL_QWEN.png",
+          "title": "NDX daily · Elliott Wave recovery and extension",
+          "captured": "2026-11-19 07:33:52 EST",
+          "state": "Latest saved native TradingView drawing · Local Qwen"
+        },
+        {
           "url": "/chart-review-assets/2026-11-17_NDX_DAILY_CLOSE_REVIEW.jpg",
           "title": "NDX daily close review: observed fifth low updated; larger alternatives remain provisional",
           "captured": "2026-11-17 18:34 ET",
@@ -136,14 +142,14 @@
       "daily": null,
       "comparison": {
         "original_url": "/chart-review-assets/2026-11-17_NDX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
-        "updated_url": "/chart-review-assets/2026-11-17_NDX_DAILY_CLOSE_REVIEW.jpg",
+        "updated_url": "/chart-review-assets/2026-11-19_0720_ET_NDX_DAILY_LOCAL_QWEN.png",
         "original_label": "Original drawing · dated history",
-        "updated_label": "Updated cash drawing · Nov17 completed-session evidence",
-        "verdict": "Keep the original local 1–2–3–4–5 as the working structure; the update adds larger-degree alternatives, not a forced larger-third recount.",
-        "changes": "The solid final observed point is now Nov17 low26,580.86, replacing the old forming27,063.42. Updated green/red scenarios ask whether local wave 5 ends larger C or only larger A/1. Final Elliott low L remains unknown.",
+        "updated_label": "Nov 19 · daily · saved TradingView update",
+        "verdict": "Keep the local five-wave decline as the working count. The endpoint at 26,580.86 is provisional.",
+        "changes": "The updated chart labels 27,259 as the reclaim, 26,580.86 as invalidation of a bottom fixed there, and 27,149–27,259 as the retest zone.",
         "reason": "The old chart explicitly allowed a fifth-wave extension. Undercutting Nov5 26,606.43 is consistent with that path. The same local five-wave decline can sit inside either larger scenario; a new low alone cannot choose them.",
-        "evidence": "Completed cash close27,001.79 recovered above Nov5 low26,606.43 but stayed below27,149–27,259. Separate /NQ evidence below held its own Nov5 low and rebounded after18:00; that cannot be used to rewrite cash points or confirm tomorrow's cash session.",
-        "confirmation": "First cash reclaim27,149–27,259, then27,609–27,650 and27,940–28,078 with a higher low. Above28,593.52 ends/relabels only the still-running Nov11 fifth. Use /NQ's own points below for overnight review; never copy a futures number onto NDX.",
+        "evidence": "The Nov 18 completed cash session closed at 27,116.26 after a low of 26,848.92. TradingView cash-index data is delayed 15 minutes.",
+        "confirmation": "A daily close above 27,259 and a held retest of 27,149–27,259 support the recovery path. A trade below 26,580.86 activates the extension alternative.",
         "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
       },
       "futures": {
@@ -220,6 +226,12 @@
       "fundamentals": "NVIDIA reports Nov17 after the close, with the issuer scheduling results around16:20 ET and its call17:00 ET. The event can gap either direction; wave labels do not predict its outcome.",
       "charts": [
         {
+          "url": "/chart-review-assets/2026-11-19_0720_ET_SPX_DAILY_LOCAL_QWEN.png",
+          "title": "SPX daily · Elliott Wave recovery and extension",
+          "captured": "2026-11-19 07:32:33 EST",
+          "state": "Latest saved native TradingView drawing · Local Qwen"
+        },
+        {
           "url": "/chart-review-assets/2026-11-17_SPX_DAILY_CLOSE_REVIEW.jpg",
           "title": "SPX daily close review: observed C low updated; same tentative ABC",
           "captured": "2026-11-17 18:31 ET",
@@ -293,14 +305,14 @@
       "daily": null,
       "comparison": {
         "original_url": "/chart-review-assets/2026-11-17_SPX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
-        "updated_url": "/chart-review-assets/2026-11-17_SPX_DAILY_CLOSE_REVIEW.jpg",
+        "updated_url": "/chart-review-assets/2026-11-19_0720_ET_SPX_DAILY_LOCAL_QWEN.png",
         "original_label": "Original drawing · dated history",
-        "updated_label": "Updated cash drawing · Nov17 completed-session evidence",
-        "verdict": "The original tentative ABC remains the useful structure; the update changes the observed endpoint and evidence, not the count.",
-        "changes": "Updated solid C? reference to Nov17 observed low7,288.34 from old forming7,381.94 and added completed close7,340.53. It is not a declaration that C finished. An evening /ES panel now accompanies the cash view.",
+        "updated_label": "Nov 19 · daily · saved TradingView update",
+        "verdict": "Keep the ABC correction as the working count. Wave C remains provisional at 7,285.76.",
+        "changes": "The updated chart adds a 7,400–7,417 decision box and a 7,285.76 invalidation line for a bottom fixed at the Nov 18 low.",
         "reason": "The analogous Oct6 standard impulse was already unsuitable because the proposed wave4 overlapped wave1. Keeping the local Oct21 A–B–C avoids forcing SPX into NDX's different pattern. A daily support break extends C; it does not automatically prove a larger wave 3.",
-        "evidence": "Cash closed7,340.53 below Nov5 7,350.35 after reaching7,288.34. The separate /ES evening rebound is encouraging tactically, but no new cash daily close has confirmed a reversal.",
-        "confirmation": "Cash reclaim7,400–7,417, then7,499–7,516 with a held higher low. Above7,652.76 ends/relabels a still-running Nov12 C. /ES's corresponding references are contract-specific and listed separately below.",
+        "evidence": "The Nov 18 completed cash candle closed at 7,323.63 with a low of 7,285.76. TradingView cash-index data is delayed 10 minutes.",
+        "confirmation": "A daily close above 7,417 and a held retest of 7,400–7,417 support recovery. A trade below 7,285.76 opens the extension path. The 7,232.71 C=A projection is illustrative.",
         "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
       },
       "futures": {
@@ -540,6 +552,12 @@
       "chart_note": "Nov16 original and larger-count captures are dated references, compared side by side. Original X63,833.47 was undercut Nov17; keep the possible local fifth ending at61,946.17 separate from that failed X pivot. Updated larger scenarios add wave degree and do not independently prove a larger third. UTC4h source boundaries differ from native TradingView. No projected dates are forecasts.",
       "charts": [
         {
+          "url": "/chart-review-assets/2026-11-19_0720_ET_BTCUSD_4H_LOCAL_QWEN.png",
+          "title": "Coinbase BTC-USD 4-hour · Elliott Wave recovery and extension",
+          "captured": "2026-11-19 07:38:53 EST",
+          "state": "Latest saved native TradingView drawing · Local Qwen"
+        },
+        {
           "url": "/chart-review-assets/2026-11-16_BTC_4H_SUPPORT_CONFIRMATION_DECISION_ZONES.jpg",
           "title": "2026-11-16 BTC 4H SUPPORT CONFIRMATION DECISION ZONES",
           "captured": "2026-11-16",
@@ -698,14 +716,14 @@
       },
       "comparison": {
         "original_url": "/chart-review-assets/2026-11-16_1532_ET_BTC_4H_CORRECTED.jpg",
-        "updated_url": "/chart-review-assets/2026-11-16_BTC_4H_SUPPORT_CONFIRMATION_DECISION_ZONES.jpg",
+        "updated_url": "/chart-review-assets/2026-11-19_0720_ET_BTCUSD_4H_LOCAL_QWEN.png",
         "original_label": "Original drawing · dated history",
-        "updated_label": "Updated drawing · dated history",
-        "verdict": "Original local fifth-ending hypothesis remains useful; updated larger scenarios provide risk context. Exact original W-X-Y path needs revision.",
-        "changes": "The original November decline ends a possible local wave 5 at Saturday61,946.17, followed by W-X-Y recovery. The update zooms out to OctoberABC-ending versus September larger wave 3→4→5, and clarifies82,510.37 as the specific orange wave4 invalidation.",
+        "updated_label": "Nov 19 · 4-hour · saved TradingView update",
+        "verdict": "Keep the October ABC and September larger-degree alternate in play. The fixed $61,946.17 bottom survived the checked candles.",
+        "changes": "The chart marks $66,369 for reclaim, $61,946.17 for fixed-bottom invalidation, and $67,918–$71,612 as a decision zone shared by both paths.",
         "reason": "These counts describe different wave degrees and can coexist. A completed local wave 5 can end a larger C or only a smaller part of larger wave 3. No break of61,946.17 has forced rejection of the Saturday low.",
-        "evidence": "Fresh Coinbase spot 64,863.06 at 18:35:47 ET remains above61,946.17. But63,833.47 X/support failed at today's63,256.75 low; latest completed UTC4h close63,675.22 was below it. The subsequent reclaim is in an unfinished bar.",
-        "confirmation": "Require completed 4h repair through66,100–66,369 and a held retest. Both larger scenarios can rally into67,918–71,612. Below61,946.17 rejects the fixed Saturday bottom; above82,510.37 rejects only the specified September standard-wave4 interpretation.",
+        "evidence": "The Nov 19 03:00–07:00 EST Coinbase candle opened at $63,669.05, reached $64,013.74, held above the $62,425–$62,557 band with a $63,494.37 low, and closed at $63,881.30. The separate 07:22:43 EST quote was $63,657.83, below the $63,833.47 local reclaim.",
+        "confirmation": "Recovery requires a completed four-hour close above $66,369 and a held retest. Any lower trade than $61,946.17 invalidates the fixed bottom. A move above $82,510.37 invalidates the specific September wave 4 interpretation.",
         "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
       }
     },
@@ -784,6 +802,12 @@
       ],
       "chart_note": "Native TradingView Cboe One RTH4h export16:00 ET, not consolidated SIP. Header115.06/225.2K describes the last4h candle, not full-day volume or official closing auction. Solid blue observed-pivot guide; green A allows local5 to end followed by recovery, red B allows smalleriii →iv below135.46 →v. Illustrative lows near105/88 and laterred endpoint near80 do not predict timing or establish support; later v endpoint and final L are UNKNOWN. Screenshot114.11 FORMING note refers to the earlier15:38 delayed-SIP daily cutoff, not a newly verified final consolidated session low. Earlier native charts retained as dated history; new count does not prove the whole October2025 correction ended. After-close Nov17 review: saved screenshot remains a dated count illustration; fresh completed-session evidence above supersedes its price/volume and forming-bar statements. No new future bars or confirmed ending inferred.",
       "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_0720_ET_COIN_DAILY_LOCAL_QWEN.png",
+          "title": "COIN daily · Elliott Wave recovery and extension",
+          "captured": "2026-11-19 07:28:58 EST",
+          "state": "Latest saved native TradingView drawing · Local Qwen"
+        },
         {
           "url": "/chart-review-assets/2026-11-17_COIN_4H_RECOUNT_FIFTH_OR_NESTED_THIRD.png",
           "title": "COIN4h: extended fifth versus tentative nested third, conditional downside and count-specific limits",
@@ -904,14 +928,14 @@
       },
       "comparison": {
         "original_url": "/chart-review-assets/2026-11-17_COIN_4H_ELLIOTT_RECOVERY_AND_EXTENSION.png",
-        "updated_url": "/chart-review-assets/2026-11-17_COIN_4H_RECOUNT_FIFTH_OR_NESTED_THIRD.png",
+        "updated_url": "/chart-review-assets/2026-11-19_0720_ET_COIN_DAILY_LOCAL_QWEN.png",
         "original_label": "Original drawing · dated history",
-        "updated_label": "Updated drawing · dated history",
-        "verdict": "Original extended fifth is the simpler working count; nested larger third remains an unverified alternative.",
-        "changes": "The original labels Nov2 135.46 as3 and Nov4 153.33 as4. The update retains this as A, and adds B: those same pivots become smaller i/ii inside a larger third fromOct2.",
+        "updated_label": "Nov 19 · daily · saved TradingView update",
+        "verdict": "On the daily chart, the extended fifth remains the working count. A nested third remains an alternative.",
+        "changes": "The new daily view marks $125.38 as reclaim and $109.94 as invalidation of a bottom fixed there. The $122.99–$125.38 decision box follows earlier gates at $114.11 and $117.32.",
         "reason": "Breaking117.32 disproved a fixed Nov16 bottom, not the impulse. Wave 3 length 64.8914 exceeds wave 1 length 24.04, so a lower fifth does not create the shortest-third violation seen in CRCL. The original already included a lower-low red path; a new low alone does not validate nested wave 3.",
-        "evidence": "Completed Nov17 close115.02, low114.11, volume1.07× prior20 sessions, below consolidated RTH VWAP116.79. After-hours 118.3344 at 18:35:41 ET reclaimed117.32, but is not completed RTH confirmation.",
-        "confirmation": "Hold a higher low, repair122.99–125.38, then130.60 on completed RTH4h bars. Above153.33 ends/relabels A still-running5 or B smaller iii. B's future standard smaller iv must stay below135.46.105.25/88.44 are optional projection examples, not support or necessary destinations.",
+        "evidence": "The Nov 18 regular-session candle opened at $115.20, reached $115.70, and closed at $110.51 after a low of $109.94. The screenshot labels the premarket quote separately.",
+        "confirmation": "A daily close above $125.38 and a held retest of $122.99–$125.38 support recovery. A trade below $109.94 keeps the extension path open.",
         "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
       }
     },
@@ -990,6 +1014,12 @@
       ],
       "chart_note": "Native TradingView Cboe One daily export13:28 ET; daily candle unfinished, not consolidated SIP. Blue line connects observed pivots, tentative internal subdivisions remain unverified. Red dashed path: developing larger3 →4 below71 →later5. Green dashed path: C ends →sustained recovery. Future dates and vertices are illustrative, not market bars or confirmed targets; later5 endpoint is unknown. Projection math:46.19946=68.90−1.618×(77.59−63.56);43.33694=77.59−1.618×(92.17−71);40.84=68.90−2×(77.59−63.56). The illustration may turn before any projected level. Original invalidated count and earlier screenshots remain dated history. After-close Nov17 review: saved screenshot remains a dated count illustration; fresh completed-session evidence above supersedes its price/volume and forming-bar statements. No new future bars or confirmed ending inferred.",
       "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_0720_ET_CRCL_DAILY_LOCAL_QWEN.png",
+          "title": "CRCL daily · Elliott Wave recovery and extension",
+          "captured": "2026-11-19 07:42:24 EST",
+          "state": "Latest saved native TradingView drawing · Local Qwen"
+        },
         {
           "url": "/chart-review-assets/2026-11-17_CRCL_DAILY_RECOUNT_LARGER_3_OR_C.png",
           "title": "CRCL daily recount: provisional larger3 or C, conditional extension and recovery alternatives",
@@ -1086,14 +1116,14 @@
       },
       "comparison": {
         "original_url": "/chart-review-assets/2026-11-17_CRCL_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
-        "updated_url": "/chart-review-assets/2026-11-17_CRCL_DAILY_RECOUNT_LARGER_3_OR_C.png",
+        "updated_url": "/chart-review-assets/2026-11-19_0720_ET_CRCL_DAILY_LOCAL_QWEN.png",
         "original_label": "Original drawing · dated history",
-        "updated_label": "Updated drawing · dated history",
-        "verdict": "The updated larger wave 3/C hypothesis is preferable to the invalid original simple impulse; its internal count remains unproven.",
-        "changes": "Original Nov10 63.56=3 and Nov11 68.90=4 became tentative smaller i/ii within a developing larger wave 3/C fromNov4 77.59. Original chart already warned of the54.87 failure boundary.",
+        "updated_label": "Nov 19 · daily · saved TradingView update",
+        "verdict": "Keep the larger wave 3 or C as provisional. The prior count with a $54.87 limit has already failed.",
+        "changes": "The new chart marks $57.66 as reclaim, $52.78 as invalidation of a bottom fixed there, and $57.08–$57.66 as the retest zone. The inner $63.56 and $68.90 labels remain provisional.",
         "reason": "Original wave 1 = 21.17 and wave 3 = 14.03. Below54.87, wave 5 from68.90 exceeds14.03, making3 shortest: the standard impulse labels are invalid. A recovery can still happen, but reclaim54.87 cannot restore those labels. The revised count removes that flaw without proving a crash target.",
-        "evidence": "Nov17 low53.305 and completed close54.63 breached the rule boundary. After-hours 56.48 at 18:35:39 ET was still below the $57.08–$57.66 reclaim range.",
-        "confirmation": "Daily reclaim of $57.08–$57.66, then $59.80–$60.56 and $63.83 with held retests improves recovery. Future standard smalleriv must stay below63.56; above68.90 ends/relabels still-running smaller iii.46.20/43.34/40.84 remain conditional math, not required lows.",
+        "evidence": "The Nov 18 regular-session candle opened at $55.12, reached $55.52 and closed at $53.31 after a low of $52.78. The screenshot labels the premarket quote separately.",
+        "confirmation": "A daily close above $57.66 and a held retest of $57.08–$57.66 support recovery. A trade below $52.78 opens the extension path. The $46.20 projection is illustrative.",
         "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
       }
     }
@@ -1144,8 +1174,8 @@
       "evidence": "New board committee and independent experts. Governance/export-policy evidence,not proof of broad customer-demand cancellations."
     }
   ],
-  "comparison_review_at": "2026-11-17T23:37:55.822011+00:00",
-  "comparison_note": "Prefer still-valid simpler local counts for BTC, COIN and NDX; use larger-degree alternatives as risk context. CRCL required a rule-based recount. SPX retains tentativeABC with an updated observed low. A failed fixed bottom is not automatically a failed impulse. Fresh after-hours equity/BTC and Globex quotes carry individual timestamps; they do not revise the completed cash session. No orders or new monitor.",
+  "comparison_review_at": "2026-11-19T12:42:24+00:00",
+  "comparison_note": "The Nov 19 local Qwen review updates four daily charts and Coinbase BTC-USD on the four-hour timeframe. The equity charts use the completed Nov 18 regular session. BTC uses the Nov 19 07:00 EST close. Each new TradingView capture shows the recovery and extension paths, reclaim, invalidation and a decision box. The market snapshot, session plan and intraday evidence retain their original dates.",
   "next_session_plan": {
     "date": "2026-11-18",
     "title": "Wednesday, November 18 · COIN, CRCL and IBIT",
