@@ -1,9 +1,9 @@
 {
-  "date": "2026-11-17",
-  "published_at": "2026-11-17T23:37:55.822011+00:00",
-  "market_observed_at": "2026-11-17T21:28:21.858406+00:00",
-  "owner_decision": "Watch only today. No new buy/sell orders requested. Observe POWL around the initial $149–$156 range; reassess after Powell’s 11:00 ET call and NVIDIA earnings.",
-  "market": "Completed Nov17: SPY732.44 (-1.01%),QQQ656.95 (-0.73%),cashNDX27,001.79 (-0.72%),SPX7,340.53 (-1.03%). COIN115.02 (-4.02%),CRCL54.63 (-5.24%),POWL150.86 (-0.22%). Opticsday+1.79% but0%SMA50 breadth;no broad recovery. Fresh NVIDIA primary release115.8bn revenue and130bn Q4guide supports shipped demand, with guided margins71–72% and extra-week caveat;17ETcall not yet reviewed.",
+  "date": "2026-11-19",
+  "published_at": "2026-11-19T14:46:01+00:00",
+  "market_observed_at": "2026-11-18T16:00:00-05:00",
+  "owner_decision": "Review the November 19 opening-session evidence and the saved Elliott Wave scenarios.",
+  "market": "November 19 opening snapshot at 09:39 EST. Cash NDX 27,619.67 and SPX 7,387.52 from Yahoo. IEX last trades COIN $114.60, CRCL $56.17, POWL $160.86 (09:34:57 EST), and NVDA $156.84. BTC $63,874.51, ETH $1,806.83 and SOL $75.30 on Coinbase. Each chart card gives its own source timestamp. The daily counts still use completed November 18 candles.",
   "events": [
     [
       "Powell release / call",
@@ -16,7 +16,7 @@
       "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-third-quarter-fiscal-2027"
     ]
   ],
-  "data_note": "After-close Nov17 refresh. Equities: adjusted consolidated SIP daily and completeRTH5m,16-minute access delay,retrieved16:28ET;individual current quotes are separately timestamped IEX last trades and may differ from SIP closes. CashNDX/SPX Yahoo timestamps/latency unverified,points not futures;SMA50/200 unavailable in current one-month response. BTC Coinbase spot observed16:28:34ET;completed UTC1h/4h separated from unfinished candles. Original native chart screenshots remain historical drawings. Schwab OAuth restored and all5accounts refreshed17:31ET;account-specific risk checklist is separately dated and remains private to the desk. No new market refresh is implied by authentication recovery. Evening comparison refresh: actual cash low points updated in new native NDX/SPX captures; December /NQZ26 and /ESZ26 are separately labeled. The completed-session metrics remain the16:28 observation; individual later quotes retain their own source timestamps. POWL and earlier issuer-check times remain unchanged.",
+  "data_note": "The November 19 date applies to this review and its timestamped intraday observations. November 18 was the latest completed US regular session at the cutoff. The three Coinbase four-hour candles completed at 07:00 EST. Their later spot trades and developing 07:00 bars are shown separately.",
   "daily_checklist": [
     "Refresh each quote with source, last-trade time, session and delay.",
     "Compare the next completed session with this dated baseline; preserve prior rows and captures.",
@@ -32,18 +32,24 @@
       "symbol": "NDX",
       "unit": "points",
       "quote": {
-        "price": 27001.785,
-        "time": "2026-11-17T21:28:20+00:00",
+        "price": 27619.67,
+        "time": "2026-11-19T14:39:05+00:00",
         "source": "Yahoo Finance cash index",
-        "session": "Post-close snapshot of completed Nov17 cash session",
-        "delay": "Provider latency unverified; native chart captures retain their separate10/15-minute delays"
+        "session": "November 19 regular session, intraday update",
+        "delay": "Yahoo latency unverified. Native TradingView chart delay is 15 minutes"
       },
-      "previous_close": 27197.150390625,
-      "change_pct": -0.7183297940005606,
+      "previous_close": 27116.26,
+      "change_pct": 1.8564875834646832,
       "status": "TWO LARGER HYPOTHESES · wave5 / final low unconfirmed",
       "benchmark_note": "Completed Nov17 cash index: close27,001.79, range26,580.86–27,258.84points;5session-2.66%,21session-8.56%. SMA2028,347.28; freshSMA50/200 unavailable from this one-month response. Index displayed volume is not directly tradable consolidated volume. Cash drawings retain their own timestamps; separate December futures evidence below never substitutes for cash points.",
       "fundamentals": "NVIDIA reports Nov17 after the close, with the issuer scheduling results around16:20 ET and its call17:00 ET. The event can gap either direction; wave labels do not predict its outcome.",
       "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_094017_EST_NDX_DAILY_SEVEN.png",
+          "title": "NASDAQ:NDX Daily · November 19 Elliott Wave review",
+          "captured": "2026-11-19 09:40:17 EST",
+          "state": "Verified native TradingView PNG · both prices labeled on every decision box"
+        },
         {
           "url": "/chart-review-assets/2026-11-19_090854_EST_NDX_DAILY_TRIAL.png",
           "title": "NASDAQ:NDX Daily · Elliott Wave trial",
@@ -148,9 +154,9 @@
       "daily": null,
       "comparison": {
         "original_url": "/chart-review-assets/2026-11-17_NDX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
-        "updated_url": "/chart-review-assets/2026-11-19_090854_EST_NDX_DAILY_TRIAL.png",
+        "updated_url": "/chart-review-assets/2026-11-19_094017_EST_NDX_DAILY_SEVEN.png",
         "original_label": "Original drawing · dated history",
-        "updated_label": "Nov 19 · Daily · verified trial capture",
+        "updated_label": "Nov 19 · Daily · verified native capture",
         "verdict": "Keep the local five-wave decline as the working count. The endpoint at 26,580.86 is provisional.",
         "changes": "The updated chart labels 27,259 as the reclaim, 26,580.86 as invalidation of a bottom fixed there, and 27,149–27,259 as the retest zone. This trial labels both boundaries of 27,149.00–27,259.00.",
         "reason": "The old chart explicitly allowed a fifth-wave extension. Undercutting Nov5 26,606.43 is consistent with that path. The same local five-wave decline can sit inside either larger scenario; a new low alone cannot choose them.",
@@ -219,18 +225,24 @@
       "symbol": "SPX",
       "unit": "points",
       "quote": {
-        "price": 7340.53,
-        "time": "2026-11-17T21:20:01+00:00",
+        "price": 7387.52,
+        "time": "2026-11-19T14:39:07+00:00",
         "source": "Yahoo Finance cash index",
-        "session": "Post-close snapshot of completed Nov17 cash session",
-        "delay": "Provider latency unverified; native chart captures retain their separate10/15-minute delays"
+        "session": "November 19 regular session, intraday update",
+        "delay": "Yahoo latency unverified. Native TradingView chart delay is 10 minutes"
       },
-      "previous_close": 7416.58984375,
-      "change_pct": -1.0255395026037006,
+      "previous_close": 7323.63,
+      "change_pct": 0.8723815921885869,
       "status": "SUPPORT FAILED · localC provisional",
       "benchmark_note": "Completed Nov17 cash index: close7,340.53, range7,288.34–7,415.37points;5session-2.40%,21session-4.55%. SMA207,580.95; freshSMA50/200 unavailable from this one-month response. Index displayed volume is not directly tradable consolidated volume. Cash drawings retain their own timestamps; separate December futures evidence below never substitutes for cash points.",
       "fundamentals": "NVIDIA reports Nov17 after the close, with the issuer scheduling results around16:20 ET and its call17:00 ET. The event can gap either direction; wave labels do not predict its outcome.",
       "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_094027_EST_SPX_DAILY_SEVEN.png",
+          "title": "SP:SPX Daily · November 19 Elliott Wave review",
+          "captured": "2026-11-19 09:40:27 EST",
+          "state": "Verified native TradingView PNG · both prices labeled on every decision box"
+        },
         {
           "url": "/chart-review-assets/2026-11-19_090907_EST_SPX_DAILY_TRIAL.png",
           "title": "SP:SPX Daily · Elliott Wave trial",
@@ -317,13 +329,13 @@
       "daily": null,
       "comparison": {
         "original_url": "/chart-review-assets/2026-11-17_SPX_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
-        "updated_url": "/chart-review-assets/2026-11-19_090907_EST_SPX_DAILY_TRIAL.png",
+        "updated_url": "/chart-review-assets/2026-11-19_094027_EST_SPX_DAILY_SEVEN.png",
         "original_label": "Original drawing · dated history",
-        "updated_label": "Nov 19 · Daily · verified trial capture",
+        "updated_label": "Nov 19 · Daily · verified native capture",
         "verdict": "Keep the ABC correction as the working count. Wave C remains provisional at 7,285.76.",
         "changes": "The updated chart adds a 7,400–7,417 decision box and a 7,285.76 invalidation line for a bottom fixed at the Nov 18 low. This trial labels both boundaries of 7,400.00–7,417.00.",
         "reason": "The analogous Oct6 standard impulse was already unsuitable because the proposed wave4 overlapped wave1. Keeping the local Oct21 A–B–C avoids forcing SPX into NDX's different pattern. A daily support break extends C; it does not automatically prove a larger wave 3.",
-        "evidence": "The Nov 18 completed cash candle closed at 7,323.63 with a low of 7,285.76. TradingView cash-index data is delayed 10 minutes.",
+        "evidence": "The Nov 18 completed cash candle closed at 7,323.63 with a low of 7,285.76. TradingView cash-index data is delayed 10 minutes. Today’s chart headline can show the forming November 19 bar on its own feed.",
         "confirmation": "A daily close above 7,417 and a held retest of 7,400–7,417 support recovery. A trade below 7,285.76 opens the extension path. The 7,232.71 C=A projection is illustrative.",
         "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
       },
@@ -391,26 +403,27 @@
     {
       "symbol": "POWL",
       "quote": {
-        "price": 150.845,
-        "time": "2026-11-17T20:59:55.521974889Z",
-        "source": "Alpaca IEX last trade; single venue",
-        "session": "Last observed regular-session trade; retrieved after close",
-        "delay": "No intentional IEX delay; separate completed daily metrics use consolidated SIP"
+        "price": 160.86,
+        "time": "2026-11-19T14:34:57.969272628Z",
+        "source": "Alpaca IEX last trade",
+        "session": "November 19 regular session, intraday trade",
+        "delay": "Single venue with no intentional delay. Timestamp is the observed trade time"
       },
-      "previous_close": 151.2,
-      "change_pct": -0.23478835978835155,
+      "previous_close": 154.95,
+      "change_pct": 3.8141335914811503,
       "daily": {
-        "date": "2026-11-17",
-        "close": 150.86,
-        "high": 156,
-        "low": 144.06,
-        "volume": 1347170,
-        "volume_ratio": 1.6487793015332874,
-        "sma20": 150.705,
-        "sma50": 170.4032,
-        "sma200": 213.28535,
-        "five_session_pct": 9.152738586209397,
-        "twentyone_session_pct": -8.988899613899603
+        "date": "2026-11-18",
+        "open": 151.4,
+        "close": 154.95,
+        "high": 159.055,
+        "low": 149.4939,
+        "volume": 1197448,
+        "volume_ratio": 1.4147563426812717,
+        "sma20": 149.9365,
+        "sma50": 169.897,
+        "sma200": 213.40575,
+        "five_session_pct": 6.202878684030155,
+        "twentyone_session_pct": -6.056747908330307
       },
       "status": "WATCH ONLY · initial range floor failed intraday",
       "summary": "Watch-only owner decision preserved. The first15-minute149–156 observation is historical: actual Nov17 full-session range144.06–156.00,close150.86 (-0.22%).149failed intraday, then price recovered above it;156was touched without a sustained confirmed breakout. The daily high/low exceeded/held above yesterday’s by a small amount, but the session did not confirm a larger Elliott bottom. Primary Nov16 earnings release rechecked; scheduled11ETcall content not fully primary-verified.",
@@ -518,14 +531,14 @@
     {
       "symbol": "BTC",
       "quote": {
-        "price": 64863.06,
-        "time": "2026-11-17T23:35:47.654730Z",
-        "source": "Coinbase connected spot BTC-USD ticker",
-        "session": "Continuous crypto market",
-        "delay": "No advertised delay; exchange-specific trades and volume"
+        "price": 63874.51,
+        "time": "2026-11-19T14:39:07.496593901Z",
+        "source": "Coinbase Exchange BTC-USD last trade",
+        "session": "November 19 continuous spot trading",
+        "delay": "No advertised delay. Exchange-specific last trade"
       },
       "status": "RECLAIM ATTEMPT · 4h recovery unconfirmed",
-      "summary": "BTC spot 64,863.06 at 18:35:47 ET. Saturday61,946.17 remains intact. Nov17 low63,256.75 broke the original X/support63,833.47; the latest completed UTC4h11:00–15:00ET closed63,675.22 below it. The15:00–19:00ET candle is still unfinished in this snapshot, so its reclaim cannot confirm recovery. The local fifth-ending hypothesis survives, but the original exact W-X-Y pivots need relabeling. Recovery still requires66,100–66,369 and a held4h retest.",
+      "summary": "The completed 03:00–07:00 EST bar held above the $62,425–$62,557 band. The prior evening 19:00 candle wicked to $62,322.12 and reclaimed the band on its $63,135.26 close. The checked series from November 14 at 19:00 touched $61,946.17 and did not trade lower. Later intraday data remain separate from the completed bar.",
       "levels": [
         [
           "$63,833.47",
@@ -563,6 +576,12 @@
       ],
       "chart_note": "Nov16 original and larger-count captures are dated references, compared side by side. Original X63,833.47 was undercut Nov17; keep the possible local fifth ending at61,946.17 separate from that failed X pivot. Updated larger scenarios add wave degree and do not independently prove a larger third. UTC4h source boundaries differ from native TradingView. No projected dates are forecasts.",
       "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_094005_EST_BTCUSD_4H_SEVEN.png",
+          "title": "COINBASE:BTCUSD 4h · November 19 Elliott Wave review",
+          "captured": "2026-11-19 09:40:05 EST",
+          "state": "Verified native TradingView PNG · both prices labeled on every decision box"
+        },
         {
           "url": "/chart-review-assets/2026-11-19_091112_EST_BTCUSD_4H_TRIAL.png",
           "title": "COINBASE:BTCUSD 4h · Elliott Wave trial",
@@ -734,40 +753,129 @@
       },
       "comparison": {
         "original_url": "/chart-review-assets/2026-11-16_1532_ET_BTC_4H_CORRECTED.jpg",
-        "updated_url": "/chart-review-assets/2026-11-19_091112_EST_BTCUSD_4H_TRIAL.png",
+        "updated_url": "/chart-review-assets/2026-11-19_094005_EST_BTCUSD_4H_SEVEN.png",
         "original_label": "Original drawing · dated history",
-        "updated_label": "Nov 19 · 4h · verified trial capture",
+        "updated_label": "Nov 19 · 4h · verified native capture",
         "verdict": "Keep the October ABC and September larger-degree alternate in play. The fixed $61,946.17 bottom survived the checked candles.",
         "changes": "Both boundaries of the $62,425–$62,557 support band and the $67,918–$71,612 decision zone are labeled.",
         "reason": "These counts describe different wave degrees and can coexist. A completed local wave 5 can end a larger C or only a smaller part of larger wave 3. No break of61,946.17 has forced rejection of the Saturday low.",
-        "evidence": "The Nov 19 03:00–07:00 EST candle held above the band: open $63,669.05, high $64,013.74, low $63,494.37 and close $63,881.30. The later chart headline shows the unfinished 07:00 candle. No Coinbase low breached $61,946.17 during the review.",
+        "evidence": "The completed 03:00–07:00 EST bar held above the $62,425–$62,557 band. The prior evening 19:00 candle wicked to $62,322.12 and reclaimed the band on its $63,135.26 close. The checked series from November 14 at 19:00 touched $61,946.17 and did not trade lower. Later intraday data remain separate from the completed bar.",
         "confirmation": "Require a completed four-hour close above $66,369.12 and a held retest. Any trade below $61,946.17 defeats the fixed October bottom. A trade above $82,510.37 invalidates the specified September wave 4.",
         "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
       }
     },
     {
+      "symbol": "ETH",
+      "status": "Provisional four-hour A–B–C",
+      "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_094509_EST_ETHUSD_4H_SEVEN.png",
+          "title": "COINBASE:ETHUSD 4h · November 19 Elliott Wave review",
+          "captured": "2026-11-19 09:45:09 EST",
+          "state": "Verified native TradingView PNG · both prices labeled on every decision box"
+        }
+      ],
+      "summary": "The $1,730.87 November 18 candidate C stayed above the $1,709.48 November 14 low. The completed November 19 03:00–07:00 bar closed at $1,805.35, short of the $1,834.27–$1,865.12 reclaim zone.",
+      "levels": [
+        [
+          "$1,834.27–$1,865.12",
+          "Reclaim decision box"
+        ],
+        [
+          "$1,730.87",
+          "Completed four-hour close below supports extension"
+        ],
+        [
+          "$1,709.48",
+          "Any lower Coinbase trade invalidates the fixed-low hypothesis"
+        ]
+      ],
+      "confirmation": "Require a completed 4h close above $1,865.12 and a held retest.",
+      "invalidation": "A 4h close below $1,730.87 supports extension. A strict trade below $1,709.48 defeats a bottom fixed at that price.",
+      "fundamentals": "Coinbase spot market structure.",
+      "sources": [
+        [
+          "Coinbase spot",
+          "https://www.coinbase.com/advanced-trade/spot/ETH-USD"
+        ]
+      ],
+      "chart_note": "Dashed forward paths and dates are illustrative. The native TradingView headline captured the forming 07:00 EST candle.",
+      "quote": {
+        "price": 1806.83,
+        "time": "2026-11-19T14:39:05.767771026Z",
+        "source": "Coinbase Exchange ETH-USD last trade",
+        "session": "November 19 continuous spot trading",
+        "delay": "No advertised delay. Exchange-specific last trade"
+      }
+    },
+    {
+      "symbol": "SOL",
+      "status": "Provisional four-hour A–B–C",
+      "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_094525_EST_SOLUSD_4H_SEVEN.png",
+          "title": "COINBASE:SOLUSD 4h · November 19 Elliott Wave review",
+          "captured": "2026-11-19 09:45:25 EST",
+          "state": "Verified native TradingView PNG · both prices labeled on every decision box"
+        }
+      ],
+      "summary": "The rebound from $67.37 reached $75.70 before the $72.12 higher low. The completed November 19 03:00–07:00 bar closed at $74.78, below the $75.25–$75.70 reclaim zone.",
+      "levels": [
+        [
+          "$75.25–$75.70",
+          "Reclaim decision box"
+        ],
+        [
+          "$72.12",
+          "Completed four-hour close below supports extension"
+        ],
+        [
+          "$67.37",
+          "Any lower Coinbase trade invalidates the fixed-low hypothesis"
+        ]
+      ],
+      "confirmation": "Require a completed 4h close above $75.70 and a held retest.",
+      "invalidation": "A 4h close below $72.12 supports extension. A strict trade below $67.37 defeats a bottom fixed at that price.",
+      "fundamentals": "Coinbase spot market structure.",
+      "sources": [
+        [
+          "Coinbase spot",
+          "https://www.coinbase.com/advanced-trade/spot/SOL-USD"
+        ]
+      ],
+      "chart_note": "Dashed forward paths and dates are illustrative. The native TradingView headline captured the forming 07:00 EST candle.",
+      "quote": {
+        "price": 75.3,
+        "time": "2026-11-19T14:39:07.031727830Z",
+        "source": "Coinbase Exchange SOL-USD last trade",
+        "session": "November 19 continuous spot trading",
+        "delay": "No advertised delay. Exchange-specific last trade"
+      }
+    },
+    {
       "symbol": "COIN",
       "quote": {
-        "price": 118.3344,
-        "time": "2026-11-17T23:35:41.609000+00:00",
-        "source": "Schwab market data; NBBO quote response, last reported equity trade",
-        "session": "After-hours, separate from completed Nov17 regular session",
-        "delay": "API realtime flag true; late reports remain possible; not a completed daily or RTH4h candle"
+        "price": 114.6,
+        "time": "2026-11-19T14:39:05.16219971Z",
+        "source": "Alpaca IEX last trade",
+        "session": "November 19 regular session, intraday trade",
+        "delay": "Single venue with no intentional delay. Timestamp is the observed trade time"
       },
-      "previous_close": 119.84,
-      "change_pct": -1.2563417890520734,
+      "previous_close": 110.51,
+      "change_pct": 3.7010225318975465,
       "daily": {
-        "date": "2026-11-17",
-        "close": 115.02,
-        "high": 121.605,
-        "low": 114.11,
-        "volume": 9100503,
-        "volume_ratio": 1.0729739854386142,
-        "sma20": 145.08975,
-        "sma50": 167.8113,
-        "sma200": 173.314025,
-        "five_session_pct": -12.949368046620757,
-        "twentyone_session_pct": -31.71861086375779
+        "date": "2026-11-18",
+        "open": 115.2,
+        "close": 110.51,
+        "high": 115.7,
+        "low": 109.94,
+        "volume": 9606042,
+        "volume_ratio": 1.1156700280599192,
+        "sma20": 141.76125,
+        "sma50": 166.5271,
+        "sma200": 172.968275,
+        "five_session_pct": -18.903647171057457,
+        "twentyone_session_pct": -35.31752999707345
       },
       "status": "FAILED REBOUND · extended5 versus tentative nested3",
       "summary": "Nov17 completed-session review:117.32 fixed-bottom case remains failed. Prior extended-fifth and tentative nested Oct2 larger-third alternatives remain separate; no count is validated just by a lower low. Consolidated close115.02 and low114.11, with late lower highs/lows and a close below RTH VWAP, leave recovery unconfirmed. Conditional105.25/88.44 remain illustrations, not support or required lows. A future B smalleriv must stay below135.46;153.33 ends/relabels still-running A5 or Biii. See saved recount for larger184.29/200.3514/208.33 degree-specific limits. After-hours last 118.3344 at 18:35:41 ET is a separate rebound observation; it does not revise the regular-session close or confirm the next RTH wave ending.",
@@ -820,6 +928,12 @@
       ],
       "chart_note": "Native TradingView Cboe One RTH4h export16:00 ET, not consolidated SIP. Header115.06/225.2K describes the last4h candle, not full-day volume or official closing auction. Solid blue observed-pivot guide; green A allows local5 to end followed by recovery, red B allows smalleriii →iv below135.46 →v. Illustrative lows near105/88 and laterred endpoint near80 do not predict timing or establish support; later v endpoint and final L are UNKNOWN. Screenshot114.11 FORMING note refers to the earlier15:38 delayed-SIP daily cutoff, not a newly verified final consolidated session low. Earlier native charts retained as dated history; new count does not prove the whole October2025 correction ended. After-close Nov17 review: saved screenshot remains a dated count illustration; fresh completed-session evidence above supersedes its price/volume and forming-bar statements. No new future bars or confirmed ending inferred.",
       "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_094039_EST_COIN_DAILY_SEVEN.png",
+          "title": "NASDAQ:COIN Daily · November 19 Elliott Wave review",
+          "captured": "2026-11-19 09:40:39 EST",
+          "state": "Verified native TradingView PNG · both prices labeled on every decision box"
+        },
         {
           "url": "/chart-review-assets/2026-11-19_090926_EST_COIN_DAILY_TRIAL.png",
           "title": "NASDAQ:COIN Daily · Elliott Wave trial",
@@ -952,13 +1066,13 @@
       },
       "comparison": {
         "original_url": "/chart-review-assets/2026-11-17_COIN_4H_ELLIOTT_RECOVERY_AND_EXTENSION.png",
-        "updated_url": "/chart-review-assets/2026-11-19_090926_EST_COIN_DAILY_TRIAL.png",
+        "updated_url": "/chart-review-assets/2026-11-19_094039_EST_COIN_DAILY_SEVEN.png",
         "original_label": "Original drawing · dated history",
-        "updated_label": "Nov 19 · Daily · verified trial capture",
+        "updated_label": "Nov 19 · Daily · verified native capture",
         "verdict": "On the daily chart, the extended fifth remains the working count. A nested third remains an alternative.",
         "changes": "The new daily view marks $125.38 as reclaim and $109.94 as invalidation of a bottom fixed there. The $122.99–$125.38 decision box follows earlier gates at $114.11 and $117.32. This trial labels both boundaries of 122.99–125.38.",
         "reason": "Breaking117.32 disproved a fixed Nov16 bottom, not the impulse. Wave 3 length 64.8914 exceeds wave 1 length 24.04, so a lower fifth does not create the shortest-third violation seen in CRCL. The original already included a lower-low red path; a new low alone does not validate nested wave 3.",
-        "evidence": "The Nov 18 regular-session candle opened at $115.20, reached $115.70, and closed at $110.51 after a low of $109.94. The screenshot labels the premarket quote separately.",
+        "evidence": "The Nov 18 regular-session candle opened at $115.20, reached $115.70, and closed at $110.51 after a low of $109.94. Today’s chart headline can show the forming November 19 bar on its own feed.",
         "confirmation": "A daily close above $125.38 and a held retest of $122.99–$125.38 support recovery. A trade below $109.94 keeps the extension path open.",
         "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
       }
@@ -966,26 +1080,27 @@
     {
       "symbol": "CRCL",
       "quote": {
-        "price": 56.48,
-        "time": "2026-11-17T23:35:39.222000+00:00",
-        "source": "Schwab market data; NBBO quote response, last reported equity trade",
-        "session": "After-hours, separate from completed Nov17 regular session",
-        "delay": "API realtime flag true; late reports remain possible; not a completed daily or RTH4h candle"
+        "price": 56.17,
+        "time": "2026-11-19T14:39:04.331345656Z",
+        "source": "Alpaca IEX last trade",
+        "session": "November 19 regular session, intraday trade",
+        "delay": "Single venue with no intentional delay. Timestamp is the observed trade time"
       },
-      "previous_close": 57.65,
-      "change_pct": -2.029488291413706,
+      "previous_close": 53.31,
+      "change_pct": 5.364847120615268,
       "daily": {
-        "date": "2026-11-17",
-        "close": 54.63,
-        "high": 57.66,
-        "low": 53.305,
-        "volume": 10466285,
-        "volume_ratio": 1.0454527733565555,
-        "sma20": 72.832,
-        "sma50": 80.9592,
-        "sma200": 85.8204,
-        "five_session_pct": -15.927977839335183,
-        "twentyone_session_pct": -32.8622342386629
+        "date": "2026-11-18",
+        "open": 55.115,
+        "close": 53.31,
+        "high": 55.52,
+        "low": 52.78,
+        "volume": 7688200,
+        "volume_ratio": 0.7593184208049415,
+        "sma20": 71.012,
+        "sma50": 80.1656,
+        "sma200": 85.80615,
+        "five_session_pct": -20.575089392133496,
+        "twentyone_session_pct": -37.91778269477116
       },
       "status": "FAILED RECLAIM · larger3/C provisional",
       "summary": "Nov17 completed close54.63,low53.305: the old simple impulse is ALREADY INVALID below54.87, and the close again lies below that reference. Separate tentative larger1/A Oct30 71.00,2/B Nov4 77.59,3/C developing remains unverified internally. Conditional46.20/43.34/40.84 are not mandatory lows. Today does not establish a final bottom. Earlier13:28 quote55.325 is superseded by fresh evidence; future smalleriv below63.56/larger4 below71 and still-runningiii/3C limits68.90/77.59 apply only to those specified counts. After-hours last 56.48 at 18:35:39 ET is a separate rebound observation; it does not revise the regular-session close or confirm the next RTH wave ending.",
@@ -1038,6 +1153,12 @@
       ],
       "chart_note": "Native TradingView Cboe One daily export13:28 ET; daily candle unfinished, not consolidated SIP. Blue line connects observed pivots, tentative internal subdivisions remain unverified. Red dashed path: developing larger3 →4 below71 →later5. Green dashed path: C ends →sustained recovery. Future dates and vertices are illustrative, not market bars or confirmed targets; later5 endpoint is unknown. Projection math:46.19946=68.90−1.618×(77.59−63.56);43.33694=77.59−1.618×(92.17−71);40.84=68.90−2×(77.59−63.56). The illustration may turn before any projected level. Original invalidated count and earlier screenshots remain dated history. After-close Nov17 review: saved screenshot remains a dated count illustration; fresh completed-session evidence above supersedes its price/volume and forming-bar statements. No new future bars or confirmed ending inferred.",
       "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-19_093729_EST_CRCL_DAILY_SEVEN.png",
+          "title": "NYSE:CRCL Daily · November 19 Elliott Wave review",
+          "captured": "2026-11-19 09:37:29 EST",
+          "state": "Verified native TradingView PNG · both prices labeled on every decision box"
+        },
         {
           "url": "/chart-review-assets/2026-11-19_090939_EST_CRCL_DAILY_TRIAL.png",
           "title": "NYSE:CRCL Daily · Elliott Wave trial",
@@ -1146,20 +1267,20 @@
       },
       "comparison": {
         "original_url": "/chart-review-assets/2026-11-17_CRCL_DAILY_ELLIOTT_RECOVERY_EXTENSION.png",
-        "updated_url": "/chart-review-assets/2026-11-19_090939_EST_CRCL_DAILY_TRIAL.png",
+        "updated_url": "/chart-review-assets/2026-11-19_093729_EST_CRCL_DAILY_SEVEN.png",
         "original_label": "Original drawing · dated history",
-        "updated_label": "Nov 19 · Daily · verified trial capture",
+        "updated_label": "Nov 19 · Daily · verified native capture",
         "verdict": "Keep the larger wave 3 or C as provisional. The prior count with a $54.87 limit has already failed.",
         "changes": "The new chart marks $57.66 as reclaim, $52.78 as invalidation of a bottom fixed there, and $57.08–$57.66 as the retest zone. The inner $63.56 and $68.90 labels remain provisional. This trial labels both boundaries of 57.08–57.66.",
         "reason": "Original wave 1 = 21.17 and wave 3 = 14.03. Below54.87, wave 5 from68.90 exceeds14.03, making3 shortest: the standard impulse labels are invalid. A recovery can still happen, but reclaim54.87 cannot restore those labels. The revised count removes that flaw without proving a crash target.",
-        "evidence": "The Nov 18 regular-session candle opened at $55.12, reached $55.52 and closed at $53.31 after a low of $52.78. The screenshot labels the premarket quote separately.",
+        "evidence": "The Nov 18 regular-session candle opened at $55.12, reached $55.52 and closed at $53.31 after a low of $52.78. Today’s chart headline can show the forming November 19 bar on its own feed.",
         "confirmation": "A daily close above $57.66 and a held retest of $57.08–$57.66 support recovery. A trade below $52.78 opens the extension path. The $46.20 projection is illustrative.",
         "limits": "Counts are provisional. More labels and deeper dashed targets do not establish higher probability. Future path dates/prices are illustrations, not market bars."
       }
     }
   ],
   "archives": [],
-  "quote_refresh_at": "2026-11-17T15:04:04.901920+00:00",
+  "quote_refresh_at": "2026-11-19T14:39:08.463551+00:00",
   "afterclose_sources": [
     {
       "date": "2026-11-17",
@@ -1204,8 +1325,8 @@
       "evidence": "New board committee and independent experts. Governance/export-policy evidence,not proof of broad customer-demand cancellations."
     }
   ],
-  "comparison_review_at": "2026-11-19T12:42:24+00:00",
-  "comparison_note": "The Nov 19 local Qwen review updates four daily charts and Coinbase BTC-USD on the four-hour timeframe. The equity charts use the completed Nov 18 regular session. BTC uses the Nov 19 07:00 EST close. Each new TradingView capture shows the recovery and extension paths, reclaim, invalidation and a decision box. The market snapshot, session plan and intraday evidence retain their original dates.",
+  "comparison_review_at": "2026-11-19T14:46:01+00:00",
+  "comparison_note": "Seven native TradingView captures checked in the saved layout. ETH/USD and SOL/USD have independent four-hour counts. Each decision box shows its exact upper and lower prices.",
   "next_session_plan": {
     "date": "2026-11-18",
     "title": "Wednesday, November 18 · COIN, CRCL and IBIT",
@@ -1303,447 +1424,607 @@
     "limits": "Proposed review levels only, not owner-approved stops or verified broker protection. Completed Nov17 equity structure came from consolidated SIP 5-minute bars with 16-minute access delay; after-hours completed coverage ended 6:35 p.m. ET. Quotes above are later, separately timestamped observations. Issuer evidence was checked in the saved research, but complete fresh-news clearance is unavailable. Refresh news, quotes and completed candles before acting. No new orders or recurring monitor."
   },
   "intraday_update": {
-    "date": "2026-11-18",
-    "retrieved_at": "2026-11-18T18:32:18.992845+00:00",
+    "date": "2026-11-19",
+    "retrieved_at": "2026-11-19T14:39:08.463551+00:00",
     "assets": {
       "NDX": {
         "bars": [
-          [1795012200, 27137.5703125, 27213.43359375, 27125.486328125, 27125.486328125],
-          [1795012500, 27138.583984375, 27138.583984375, 26960.76171875, 27032.875],
-          [1795012800, 27024.1171875, 27031.732421875, 26927.306640625, 26927.306640625],
-          [1795013100, 26930.1015625, 26974.05078125, 26895.814453125, 26937.857421875],
-          [1795013400, 26935.26953125, 27054.232421875, 26879.869140625, 27024.822265625],
-          [1795013700, 27023.96875, 27156.337890625, 26984.3359375, 27154.728515625],
-          [1795014000, 27172.0703125, 27230.85546875, 27115.53515625, 27118.630859375],
-          [1795014300, 27113.0, 27152.921875, 27090.349609375, 27090.349609375],
-          [1795014600, 27100.43359375, 27159.7890625, 27077.08203125, 27147.8359375],
-          [1795014900, 27145.5, 27185.4453125, 27095.96875, 27139.91015625],
-          [1795015200, 27151.705078125, 27199.203125, 27078.701171875, 27078.701171875],
-          [1795015500, 27079.197265625, 27122.53125, 27058.6484375, 27104.28125],
-          [1795015800, 27111.78515625, 27124.927734375, 27033.7109375, 27083.3125],
-          [1795016100, 27084.69140625, 27084.69140625, 27011.537109375, 27014.552734375],
-          [1795016400, 27011.26171875, 27011.380859375, 26933.849609375, 26979.27734375],
-          [1795016700, 26977.890625, 26981.224609375, 26933.88671875, 26949.921875],
-          [1795017000, 26952.765625, 27014.5234375, 26952.31640625, 26983.232421875],
-          [1795017300, 26989.841796875, 27061.095703125, 26989.841796875, 27060.15234375],
-          [1795017600, 27054.515625, 27065.15625, 27009.546875, 27013.337890625],
-          [1795017900, 27021.21875, 27073.18359375, 27021.21875, 27058.041015625],
-          [1795018200, 27055.1796875, 27060.7109375, 26972.2265625, 26988.416015625],
-          [1795018500, 26980.853515625, 26982.82421875, 26902.61328125, 26930.392578125],
-          [1795018800, 26920.94921875, 26990.28125, 26855.34765625, 26990.28125],
-          [1795019100, 26976.4296875, 26976.4296875, 26909.1796875, 26939.24609375],
-          [1795019400, 26933.51953125, 27001.380859375, 26916.001953125, 26958.28515625],
-          [1795019700, 26967.34765625, 26974.84765625, 26897.94921875, 26897.94921875],
-          [1795020000, 26900.939453125, 26910.17578125, 26880.515625, 26895.705078125],
-          [1795020300, 26895.482421875, 26927.921875, 26889.287109375, 26916.751953125],
-          [1795020600, 26917.953125, 26946.470703125, 26855.119140625, 26863.310546875],
-          [1795020900, 26864.81640625, 26963.888671875, 26848.923828125, 26963.888671875],
-          [1795021200, 26960.78515625, 27025.71875, 26955.21875, 27022.462890625],
-          [1795021500, 27022.041015625, 27056.890625, 27002.1953125, 27002.58984375],
-          [1795021800, 27003.447265625, 27021.021484375, 26974.4375, 26995.068359375],
-          [1795022100, 26994.15234375, 27064.044921875, 26991.052734375, 27058.259765625],
-          [1795022400, 27068.1171875, 27142.08203125, 27064.099609375, 27140.9453125],
-          [1795022700, 27150.5625, 27209.80859375, 27150.5625, 27188.84765625],
-          [1795023000, 27192.384765625, 27235.912109375, 27182.361328125, 27207.4296875],
-          [1795023300, 27204.93359375, 27208.365234375, 27113.462890625, 27121.517578125],
-          [1795023600, 27120.111328125, 27126.658203125, 27079.2421875, 27090.564453125],
-          [1795023900, 27095.90625, 27120.798828125, 27082.455078125, 27100.751953125],
-          [1795024200, 27098.83203125, 27113.615234375, 27068.3984375, 27113.154296875],
-          [1795024500, 27118.955078125, 27134.12890625, 27086.486328125, 27086.486328125],
-          [1795024800, 27078.09375, 27087.53125, 27051.740234375, 27069.509765625],
-          [1795025100, 27072.15234375, 27077.83203125, 27028.97265625, 27047.044921875],
-          [1795025400, 27045.6796875, 27047.52734375, 27012.302734375, 27030.232421875],
-          [1795025700, 27032.0, 27076.8984375, 27032.0, 27076.8984375],
-          [1795026000, 27076.955078125, 27118.404296875, 27076.01953125, 27113.197265625],
-          [1795026300, 27107.51171875, 27124.689453125, 27099.62109375, 27112.56640625]
+          [
+            1795098600,
+            27561.630859375,
+            27731.4296875,
+            27559.931640625,
+            27722.26953125
+          ]
         ],
         "interval_seconds": 300,
+        "last": 27722.26953125,
+        "as_of": "2026-11-19T14:35:00+00:00",
         "source": "Yahoo Finance cash index",
-        "delay": "Provider latency not verified",
-        "session": "Cash session, completed 5-minute bars",
-        "prior_close": 26996.8984,
-        "as_of": "2026-11-18T18:30:00+00:00",
-        "open": 27137.5703125,
-        "high": 27235.912109375,
-        "low": 26848.923828125,
-        "last": 27112.56640625,
-        "change_pct": 0.428,
+        "session": "November 19 regular session",
+        "delay": "Provider latency unverified",
         "missing_inside": 0,
         "references": [
           {
-            "value": 27149,
-            "label": "First reclaim"
+            "value": 27259,
+            "label": "Reclaim"
           },
           {
-            "value": 27259,
-            "label": "Upper reclaim band"
+            "value": 26580.86,
+            "label": "Fixed-low test"
           }
         ],
         "review": {
-          "observation": "NDX traded into the 27,149–27,259 reclaim band and was back below it at the cutoff.",
-          "recovery": "A recovery scenario requires a held reclaim of 27,149–27,259 and a higher low above the observed 26,848.92.",
-          "extension": "A break of 26,848.92 would extend the observed decline. The final low of the provisional fifth remains open."
-        }
+          "observation": "The first available completed five-minute November 19 cash bar is shown. The source price beside it is a later intraday observation. A move through a reclaim level during the open session does not establish a daily close or held retest.",
+          "recovery": "Require a completed daily close above 27,259.00 and a held retest.",
+          "extension": "A strict trade below 26,580.86 defeats a bottom fixed at that price."
+        },
+        "methodology": "Only completed source intervals are charted. The price in this section is the last completed bar close."
       },
       "SPX": {
         "bars": [
-          [1795012200, 7355.68994140625, 7367.68017578125, 7345.7001953125, 7352.3798828125],
-          [1795012500, 7352.27978515625, 7355.8701171875, 7330.60986328125, 7339.43017578125],
-          [1795012800, 7339.080078125, 7339.5, 7320.08984375, 7323.31982421875],
-          [1795013100, 7322.8701171875, 7324.240234375, 7304.64990234375, 7313.39013671875],
-          [1795013400, 7313.3798828125, 7336.14990234375, 7303.22021484375, 7330.2900390625],
-          [1795013700, 7330.41015625, 7354.6298828125, 7322.52001953125, 7354.6298828125],
-          [1795014000, 7354.47998046875, 7366.7099609375, 7340.509765625, 7342.85009765625],
-          [1795014300, 7342.5, 7349.740234375, 7331.7998046875, 7331.81982421875],
-          [1795014600, 7331.72021484375, 7344.89013671875, 7327.43017578125, 7340.97998046875],
-          [1795014900, 7340.93017578125, 7347.91015625, 7331.919921875, 7340.080078125],
-          [1795015200, 7339.66015625, 7350.080078125, 7327.8701171875, 7327.8701171875],
-          [1795015500, 7327.83984375, 7337.52978515625, 7324.39990234375, 7335.669921875],
-          [1795015800, 7336.169921875, 7338.77001953125, 7322.6201171875, 7329.56982421875],
-          [1795016100, 7328.77978515625, 7328.77978515625, 7315.47021484375, 7318.81005859375],
-          [1795016400, 7319.009765625, 7319.41015625, 7302.64990234375, 7313.91015625],
-          [1795016700, 7313.77978515625, 7313.830078125, 7301.52001953125, 7304.2998046875],
-          [1795017000, 7303.97998046875, 7315.14013671875, 7302.06005859375, 7311.18017578125],
-          [1795017300, 7311.10986328125, 7324.759765625, 7311.10986328125, 7324.14990234375],
-          [1795017600, 7323.77978515625, 7325.330078125, 7312.8701171875, 7316.85009765625],
-          [1795017900, 7316.93994140625, 7326.08984375, 7315.5, 7320.39990234375],
-          [1795018200, 7320.5, 7321.72021484375, 7306.0, 7307.77001953125],
-          [1795018500, 7307.6201171875, 7310.509765625, 7296.10009765625, 7300.9599609375],
-          [1795018800, 7300.7001953125, 7315.4501953125, 7285.759765625, 7315.4501953125],
-          [1795019100, 7315.3798828125, 7315.3798828125, 7298.85009765625, 7304.10986328125],
-          [1795019400, 7304.25, 7317.490234375, 7299.3798828125, 7309.43994140625],
-          [1795019700, 7309.509765625, 7311.60009765625, 7297.18017578125, 7297.18994140625],
-          [1795020000, 7297.490234375, 7299.919921875, 7293.75, 7296.2998046875],
-          [1795020300, 7296.330078125, 7304.60986328125, 7295.41015625, 7300.919921875],
-          [1795020600, 7300.8701171875, 7306.58984375, 7290.259765625, 7292.16015625],
-          [1795020900, 7292.14013671875, 7311.81005859375, 7289.3798828125, 7311.81005859375],
-          [1795021200, 7311.6201171875, 7321.7998046875, 7309.68994140625, 7321.02978515625],
-          [1795021500, 7320.7900390625, 7326.81005859375, 7316.10009765625, 7316.64013671875],
-          [1795021800, 7316.759765625, 7321.759765625, 7310.89013671875, 7315.7001953125],
-          [1795022100, 7315.97021484375, 7328.6298828125, 7314.4501953125, 7327.93994140625],
-          [1795022400, 7327.97998046875, 7342.68017578125, 7327.97998046875, 7342.41015625],
-          [1795022700, 7342.72998046875, 7352.08984375, 7342.72998046875, 7349.4501953125],
-          [1795023000, 7349.3798828125, 7357.60009765625, 7347.31005859375, 7352.64013671875],
-          [1795023300, 7352.47021484375, 7353.080078125, 7337.1298828125, 7338.81982421875],
-          [1795023600, 7338.93017578125, 7339.4599609375, 7330.330078125, 7333.35009765625],
-          [1795023900, 7333.39990234375, 7337.52001953125, 7330.35986328125, 7333.10986328125],
-          [1795024200, 7333.22021484375, 7338.60009765625, 7327.72998046875, 7338.0],
-          [1795024500, 7338.31982421875, 7341.52001953125, 7331.66015625, 7331.7998046875],
-          [1795024800, 7331.919921875, 7333.10986328125, 7326.22021484375, 7329.64990234375],
-          [1795025100, 7329.60009765625, 7330.60009765625, 7319.93017578125, 7322.14013671875],
-          [1795025400, 7322.14990234375, 7322.31005859375, 7315.52978515625, 7319.02978515625],
-          [1795025700, 7318.97998046875, 7329.39990234375, 7318.97998046875, 7329.169921875],
-          [1795026000, 7329.2099609375, 7338.259765625, 7328.490234375, 7336.72021484375],
-          [1795026300, 7336.77001953125, 7340.81005859375, 7334.75, 7338.56982421875]
+          [
+            1795098600,
+            7389.259765625,
+            7415.64013671875,
+            7389.259765625,
+            7411.14990234375
+          ]
         ],
         "interval_seconds": 300,
+        "last": 7411.14990234375,
+        "as_of": "2026-11-19T14:35:00+00:00",
         "source": "Yahoo Finance cash index",
-        "delay": "Provider latency not verified",
-        "session": "Cash session, completed 5-minute bars",
-        "prior_close": 7340.6299,
-        "as_of": "2026-11-18T18:30:00+00:00",
-        "open": 7355.68994140625,
-        "high": 7367.68017578125,
-        "low": 7285.759765625,
-        "last": 7338.56982421875,
-        "change_pct": -0.028,
+        "session": "November 19 regular session",
+        "delay": "Provider latency unverified",
         "missing_inside": 0,
         "references": [
           {
-            "value": 7350.35,
-            "label": "Prior support"
+            "value": 7417,
+            "label": "Reclaim"
+          },
+          {
+            "value": 7285.76,
+            "label": "Fixed-low test"
           }
         ],
         "review": {
-          "observation": "SPX traded below 7,350.35. The last completed five-minute bar closed at 7,338.57.",
-          "recovery": "Recovery requires retaking the level of 7,350.35 and subsequently holding above the 7,400–7,417 range.",
-          "extension": "A break of today's 7,285.76 low would support the tentative C-extension case. The saved 7,232.71 C=A level is conditional."
-        }
-      },
-      "BTC": {
-        "bars": [
-          [1794978000, 64353.13, 64532.73, 64266.69, 64524.68],
-          [1794978900, 64524.68, 64725.34, 64524.68, 64646.61],
-          [1794979800, 64646.61, 64775.93, 64602.86, 64626.62],
-          [1794980700, 64626.63, 64652.44, 64555.34, 64600.17],
-          [1794981600, 64600.17, 64634.65, 64507.78, 64633.26],
-          [1794982500, 64633.26, 64655.25, 64571.43, 64607.69],
-          [1794983400, 64607.69, 64624.46, 64500, 64574.97],
-          [1794984300, 64574.97, 64632.27, 64459.02, 64535.36],
-          [1794985200, 64535.37, 64712.13, 64495.4, 64710.29],
-          [1794986100, 64710.28, 64731.47, 64632.71, 64664.43],
-          [1794987000, 64664.42, 64667.69, 64404.23, 64520.46],
-          [1794987900, 64520.46, 64889.54, 64515.05, 64809.77],
-          [1794988800, 64809.77, 64809.77, 64454.08, 64541.25],
-          [1794989700, 64541.26, 64693.3, 64508.53, 64689.78],
-          [1794990600, 64689.78, 64721.49, 64575.65, 64659.43],
-          [1794991500, 64659.43, 64745.51, 64548.59, 64610.79],
-          [1794992400, 64610.8, 64707.36, 64591.33, 64631.46],
-          [1794993300, 64631.46, 64675.3, 64556.15, 64604.53],
-          [1794994200, 64604.53, 64650.09, 64555.33, 64575.41],
-          [1794995100, 64575.41, 64576.29, 64479.22, 64550.02],
-          [1794996000, 64556.4, 64580.76, 64477.66, 64511.21],
-          [1794996900, 64511.21, 64521, 64261.99, 64265.03],
-          [1794997800, 64265.03, 64265.04, 64094.88, 64232.98],
-          [1794998700, 64232.99, 64371.25, 64191.6, 64289.56],
-          [1794999600, 64291.27, 64294.33, 64034.79, 64096.47],
-          [1795000500, 64096.46, 64186.77, 64063.99, 64068.44],
-          [1795001400, 64068.43, 64165.47, 64025.23, 64120.39],
-          [1795002300, 64120.27, 64215.24, 64082.73, 64154.06],
-          [1795003200, 64154.39, 64187.32, 64023.9, 64176.73],
-          [1795004100, 64176.97, 64317.03, 64154.15, 64160.7],
-          [1795005000, 64160.71, 64197.59, 63882.03, 63988.43],
-          [1795005900, 63988.43, 64104.75, 63930.65, 64009.51],
-          [1795006800, 64009.51, 64082.63, 63906.75, 64021.56],
-          [1795007700, 64021.56, 64023.6, 63879.78, 63996.25],
-          [1795008600, 63996.56, 64120.08, 63910.26, 63942.58],
-          [1795009500, 63942.59, 63970.17, 63836.75, 63864.79],
-          [1795010400, 63864.78, 63934.19, 63811.09, 63849.98],
-          [1795011300, 63849.98, 63953.26, 63810.77, 63914.29],
-          [1795012200, 63914.53, 64006.69, 63001, 63236.86],
-          [1795013100, 63236.87, 63622.91, 63077, 63602.82],
-          [1795014000, 63602.82, 63815.94, 63434, 63562.35],
-          [1795014900, 63562.35, 63683.46, 63337.31, 63517.44],
-          [1795015800, 63517.76, 63596.58, 63108.22, 63208.62],
-          [1795016700, 63211.61, 63211.61, 62918.28, 63048.31],
-          [1795017600, 63048.32, 63060.42, 62690.15, 62719.22],
-          [1795018500, 62719.54, 62782.84, 62248.03, 62476.12],
-          [1795019400, 62476.12, 62528.25, 62202.64, 62356.37],
-          [1795020300, 62356.38, 62694.55, 62271.23, 62689.64],
-          [1795021200, 62689.63, 62849.99, 62521.82, 62589.1],
-          [1795022100, 62590.82, 63309.12, 62581.73, 63275.52],
-          [1795023000, 63275.53, 63457.75, 63115.75, 63121.01],
-          [1795023900, 63121.01, 63193.75, 62973, 63037.3],
-          [1795024800, 63037.29, 63156.86, 63003.5, 63092.47],
-          [1795025700, 63092.46, 63197, 62989.32, 63063.62],
-          [1795026600, 63063.62, 63216.35, 63043.5, 63192.34],
-          [1795027500, 63192.33, 63200.15, 63064.23, 63098.21],
-          [1795028400, 63098.21, 63098.22, 62648.25, 62772.17],
-          [1795029300, 62771.82, 62819.45, 62690.87, 62780],
-          [1795030200, 62779.03, 62826.24, 62597.21, 62641.92],
-          [1795031100, 62641.49, 62743.43, 62467.3, 62664.08],
-          [1795032000, 62664.36, 62720.18, 62600, 62685.91],
-          [1795032900, 62685.91, 62718, 62430, 62480.65],
-          [1795033800, 62480.65, 62567.46, 62424.74, 62452.15],
-          [1795034700, 62452.16, 62540.81, 62356, 62534.24],
-          [1795035600, 62534.24, 62572.09, 62316.62, 62379.83],
-          [1795036500, 62379.83, 62544.57, 62304.79, 62327.96],
-          [1795037400, 62327.1, 62425.19, 62216.61, 62243.41],
-          [1795038300, 62243.41, 62366, 62210, 62257.06],
-          [1795039200, 62257.06, 62365.55, 62228, 62289.61],
-          [1795040100, 62289.62, 62463.63, 62289.51, 62426.58],
-          [1795041000, 62426.59, 62557.02, 62400.48, 62420.14],
-          [1795041900, 62420.33, 62430.3, 62000, 62166.39],
-          [1795042800, 62166.38, 62560.68, 62164.32, 62517.91],
-          [1795043700, 62517.96, 62772.08, 62433.83, 62696.41],
-          [1795044600, 62696.41, 63000.23, 62656.2, 62987.08],
-          [1795045500, 62987.08, 63232.26, 62924.32, 62981.71],
-          [1795046400, 62981.71, 62984.35, 62616.5, 62727.19],
-          [1795047300, 62727.19, 62835.86, 62576, 62807.09],
-          [1795048200, 62807.08, 63141.09, 62733.51, 63092.52],
-          [1795049100, 63092.53, 63226.63, 63035, 63116.3],
-          [1795050000, 63116.3, 63213.43, 62973.44, 63073.05],
-          [1795050900, 63073.04, 63073.04, 62515, 62599.14],
-          [1795051800, 62599.13, 62779.2, 62343.12, 62715.52],
-          [1795052700, 62715.52, 62834.45, 62602.69, 62781.12],
-          [1795053600, 62781.11, 62863.42, 62635.33, 62817.36],
-          [1795054500, 62817.35, 62823.19, 62662.71, 62675.34],
-          [1795055400, 62675.34, 62675.34, 62507.67, 62563.22],
-          [1795056300, 62563.22, 62635.52, 62476.85, 62527.41],
-          [1795057200, 62527.41, 62614.3, 62370, 62406.61],
-          [1795058100, 62406.61, 62903.41, 62322.12, 62877.58],
-          [1795059000, 62877.58, 63013.18, 62842.88, 62941.19],
-          [1795059900, 62941.19, 63220, 62931.58, 63135.26]
-        ],
-        "interval_seconds": 900,
-        "source": "Coinbase Exchange BTC-USD",
-        "delay": "Exchange-specific; latency not verified",
-        "session": "Spot session since midnight ET, completed 15-minute bars",
-        "prior_close": 64353.13,
-        "as_of": "2026-11-19T04:00:00+00:00",
-        "open": 64353.13,
-        "high": 64889.54,
-        "low": 62000,
-        "last": 63135.26,
-        "change_pct": -1.892,
-        "missing_inside": 0,
-        "references": [
-          {
-            "value": 63833.47,
-            "label": "Prior recovery support, now overhead"
-          },
-          {
-            "value": 62557,
-            "label": "Local band upper edge"
-          },
-          {
-            "value": 62425,
-            "label": "Local band lower edge"
-          },
-          {
-            "value": 61946.17,
-            "label": "Fixed Saturday-bottom invalidation"
-          }
-        ],
-        "review": {
-          "observation": "The November 18 7–11 p.m. EST four-hour candle traded down to $62,322.12, below the $62,425–$62,557 band, then closed above it at $63,135.26. The session low through the close was $62,000.",
-          "recovery": "The green path stays viable. The 11 p.m. close reclaimed the local band. Prior support at $63,833.47 remains overhead. Larger recovery still requires a completed four-hour close above $66,369 and a held retest.",
-          "extension": "The $61,946.17 fixed bottom held through the close. A trade below it invalidates the green fixed-bottom path. The orange September extension remains provisional, with its own invalidation above $82,510.37."
-        }
+          "observation": "The first available completed five-minute November 19 cash bar is shown. The source price beside it is a later intraday observation. A move through a reclaim level during the open session does not establish a daily close or held retest.",
+          "recovery": "Require a completed daily close above 7,417.00 and a held retest.",
+          "extension": "A strict trade below 7,285.76 defeats a bottom fixed at that price."
+        },
+        "methodology": "Only completed source intervals are charted. The price in this section is the last completed bar close."
       },
       "COIN": {
         "bars": [
-          [1795012200, 115.2, 115.7, 113.4, 113.47],
-          [1795012500, 113.5385, 113.85, 111.8, 112.21],
-          [1795012800, 112.1778, 112.65, 110.8, 111.9075],
-          [1795013100, 111.93, 112.51, 111.5243, 112.48],
-          [1795013400, 112.5, 113.15, 111.66, 112.645],
-          [1795013700, 112.74, 113.7099, 112.51, 113.41],
-          [1795014000, 113.47, 114.5, 113.3, 113.512],
-          [1795014300, 113.474, 113.5899, 112.59, 112.69],
-          [1795014600, 112.69, 113.345, 112.57, 112.975],
-          [1795014900, 112.95, 113.52, 112.27, 112.76],
-          [1795015200, 113, 113.08, 111.88, 112.08],
-          [1795015500, 112.03, 112.38, 111.595, 112.28],
-          [1795015800, 112.34, 112.4951, 111.8, 112.14],
-          [1795016100, 112.13, 112.15, 111.54, 111.59],
-          [1795016400, 111.55, 112.0875, 111.332, 111.9838],
-          [1795016700, 112, 112.18, 111.46, 111.84],
-          [1795017000, 111.911, 112.45, 111.84, 112.31],
-          [1795017300, 112.275, 113.135, 112.24, 112.69],
-          [1795017600, 112.65, 112.71, 112.3302, 112.34],
-          [1795017900, 112.38, 112.78, 112.12, 112.4],
-          [1795018200, 112.475, 112.48, 111.92, 112.035],
-          [1795018500, 112.06, 112.06, 111.37, 111.4317],
-          [1795018800, 111.4, 111.5864, 110.85, 111.535],
-          [1795019100, 111.54, 111.619, 110.8726, 111.08],
-          [1795019400, 111.06, 111.15, 110.27, 110.33],
-          [1795019700, 110.38, 110.695, 110.1, 110.16],
-          [1795020000, 110.145, 110.51, 110.06, 110.37],
-          [1795020300, 110.42, 110.7694, 110.05, 110.37],
-          [1795020600, 110.36, 110.59, 110.19, 110.2101],
-          [1795020900, 110.24, 111.01, 109.94, 111.01],
-          [1795021200, 110.99, 111.875, 110.82, 111.705],
-          [1795021500, 111.675, 111.7753, 111.37, 111.43],
-          [1795021800, 111.45, 111.51, 111.05, 111.32],
-          [1795022100, 111.3196, 112.1834, 111.31, 111.96],
-          [1795022400, 111.9531, 113.03, 111.9531, 112.8],
-          [1795022700, 112.88, 113.59, 112.88, 113.52],
-          [1795023000, 113.52, 114.37, 113.42, 113.94],
-          [1795023300, 113.97, 114.03, 113.31, 113.43],
-          [1795023600, 113.39, 113.4, 113.11, 113.225],
-          [1795023900, 113.28, 113.5, 112.92, 112.975],
-          [1795024200, 112.97, 113.02, 112.658, 112.945],
-          [1795024500, 112.98, 113.13, 112.655, 112.72],
-          [1795024800, 112.63, 112.68, 112.2501, 112.46],
-          [1795025100, 112.41, 112.52, 112.12, 112.32],
-          [1795025400, 112.24, 112.245, 111.79, 111.995]
+          [
+            1795098600,
+            114.555,
+            114.555,
+            113.73,
+            114.26
+          ],
+          [
+            1795098660,
+            114.05,
+            114.435,
+            113.92,
+            114.435
+          ],
+          [
+            1795098720,
+            114.06,
+            114.78,
+            114.06,
+            114.72
+          ],
+          [
+            1795098780,
+            115.17,
+            115.17,
+            114.52,
+            114.75
+          ],
+          [
+            1795098840,
+            114.99,
+            115.1,
+            114.36,
+            114.595
+          ],
+          [
+            1795098900,
+            114.68,
+            114.68,
+            114.68,
+            114.68
+          ],
+          [
+            1795098960,
+            115.28,
+            115.35,
+            114.94,
+            114.94
+          ],
+          [
+            1795099020,
+            114.915,
+            114.915,
+            114.57,
+            114.57
+          ],
+          [
+            1795099080,
+            114.31,
+            114.685,
+            114.29,
+            114.63
+          ]
         ],
-        "interval_seconds": 300,
-        "source": "Alpaca consolidated SIP",
-        "delay": "16-minute query delay",
-        "session": "Regular session, completed 5-minute bars",
-        "prior_close": 115.02,
-        "as_of": "2026-11-18T18:15:00+00:00",
-        "open": 115.2,
-        "high": 115.7,
-        "low": 109.94,
-        "last": 111.995,
-        "change_pct": -2.63,
+        "interval_seconds": 60,
+        "last": 114.63,
+        "as_of": "2026-11-19T14:39:00+00:00",
+        "source": "Alpaca IEX trades",
+        "session": "November 19 regular session",
+        "delay": "Single-venue minute bars",
         "missing_inside": 0,
         "references": [
           {
-            "value": 114.11,
-            "label": "Nov 17 session low"
+            "value": 125.38,
+            "label": "Reclaim"
           },
           {
-            "value": 117.32,
-            "label": "Previously broken fixed bottom"
+            "value": 109.94,
+            "label": "Fixed-low test"
           }
         ],
         "review": {
-          "observation": "COIN fell to $109.94 and was still below the prior $114.11 session low at the cutoff.",
-          "recovery": "Recovery must start with a reclaim of $114.11 followed by holding the $116.79–$117.32 range after the $117.32 fixed bottom failed.",
-          "extension": "The saved $105.25 level is a conditional extended-fifth illustration."
-        }
+          "observation": "The minute bars show observed IEX trades during the opening session. The latest observed IEX trade can differ from the chart’s Cboe One feed. Regular-session daily confirmation remains pending.",
+          "recovery": "Require a completed daily close above $125.38 and a held retest.",
+          "extension": "A strict trade below $109.94 defeats a bottom fixed at that price."
+        },
+        "methodology": "Only completed source intervals are charted. The price in this section is the last completed bar close."
       },
       "CRCL": {
         "bars": [
-          [1795012200, 55.115, 55.52, 54.67, 54.67],
-          [1795012500, 54.7874, 54.915, 54.13, 54.31],
-          [1795012800, 54.3414, 54.4, 53.7, 54],
-          [1795013100, 54.02, 54.18, 53.62, 54.18],
-          [1795013400, 54.2, 54.59, 53.75, 54.355],
-          [1795013700, 54.29, 54.82, 54.28, 54.76],
-          [1795014000, 54.77, 55.15, 54.55, 54.59],
-          [1795014300, 54.595, 54.64, 54.23, 54.24],
-          [1795014600, 54.28, 54.61, 54.15, 54.44],
-          [1795014900, 54.445, 54.77, 54.24, 54.49],
-          [1795015200, 54.56, 54.7319, 53.97, 54],
-          [1795015500, 53.9938, 54.1, 53.7177, 54.08],
-          [1795015800, 54.08, 54.14, 53.83, 54.08],
-          [1795016100, 54.08, 54.17, 53.74, 53.795],
-          [1795016400, 53.82, 53.87, 53.46, 53.87],
-          [1795016700, 53.88, 53.91, 53.585, 53.69],
-          [1795017000, 53.695, 54.1299, 53.695, 53.89],
-          [1795017300, 53.9, 54.36, 53.9, 54.045],
-          [1795017600, 54.01, 54.07, 53.76, 53.76],
-          [1795017900, 53.76, 53.965, 53.5985, 53.965],
-          [1795018200, 54, 54, 53.6, 53.655],
-          [1795018500, 53.655, 53.68, 53.3, 53.355],
-          [1795018800, 53.31, 53.47, 52.96, 53.465],
-          [1795019100, 53.45, 53.45, 53.11, 53.33],
-          [1795019400, 53.3325, 53.53, 53.185, 53.185],
-          [1795019700, 53.21, 53.28, 52.93, 52.93],
-          [1795020000, 52.94, 52.98, 52.8, 52.93],
-          [1795020300, 52.93, 53.12, 52.8, 52.915],
-          [1795020600, 52.97, 53.05, 52.82, 52.87],
-          [1795020900, 52.8911, 53.37, 52.78, 53.37],
-          [1795021200, 53.36, 53.68, 53.35, 53.615],
-          [1795021500, 53.625, 53.65, 53.385, 53.4],
-          [1795021800, 53.4, 53.47, 53.24, 53.4],
-          [1795022100, 53.39, 53.82, 53.36, 53.745],
-          [1795022400, 53.74, 54.18, 53.7145, 54.06],
-          [1795022700, 54.115, 54.4, 54.115, 54.3],
-          [1795023000, 54.298, 54.56, 54.1998, 54.49],
-          [1795023300, 54.455, 54.5, 54.12, 54.25],
-          [1795023600, 54.15, 54.185, 53.99, 54.11],
-          [1795023900, 54.14, 54.21, 53.92, 53.93],
-          [1795024200, 53.93, 53.96, 53.75, 53.91],
-          [1795024500, 53.95, 53.9924, 53.72, 53.7975],
-          [1795024800, 53.77, 53.785, 53.63, 53.69],
-          [1795025100, 53.69, 53.73, 53.55, 53.64],
-          [1795025400, 53.61, 53.63, 53.39, 53.47]
+          [
+            1795098600,
+            55.59,
+            55.91,
+            55.44,
+            55.91
+          ],
+          [
+            1795098660,
+            56.06,
+            56.38,
+            55.92,
+            56.38
+          ],
+          [
+            1795098720,
+            56.28,
+            56.48,
+            56.16,
+            56.305
+          ],
+          [
+            1795098780,
+            56.385,
+            56.385,
+            56.2,
+            56.285
+          ],
+          [
+            1795098840,
+            56.51,
+            56.6,
+            56.48,
+            56.49
+          ],
+          [
+            1795098900,
+            56.61,
+            56.63,
+            56.275,
+            56.43
+          ],
+          [
+            1795098960,
+            56.62,
+            56.62,
+            56.27,
+            56.27
+          ],
+          [
+            1795099020,
+            56.26,
+            56.32,
+            56.26,
+            56.26
+          ],
+          [
+            1795099080,
+            56.15,
+            56.22,
+            56.12,
+            56.17
+          ]
         ],
-        "interval_seconds": 300,
-        "source": "Alpaca consolidated SIP",
-        "delay": "16-minute query delay",
-        "session": "Regular session, completed 5-minute bars",
-        "prior_close": 54.62,
-        "as_of": "2026-11-18T18:15:00+00:00",
-        "open": 55.115,
-        "high": 55.52,
-        "low": 52.78,
-        "last": 53.47,
-        "change_pct": -2.105,
+        "interval_seconds": 60,
+        "last": 56.17,
+        "as_of": "2026-11-19T14:39:00+00:00",
+        "source": "Alpaca IEX trades",
+        "session": "November 19 regular session",
+        "delay": "Single-venue minute bars",
         "missing_inside": 0,
         "references": [
           {
-            "value": 53.305,
-            "label": "Nov 17 session low"
+            "value": 57.66,
+            "label": "Reclaim"
           },
           {
-            "value": 54.87,
-            "label": "Invalidated old count threshold"
+            "value": 52.78,
+            "label": "Fixed-low test"
           }
         ],
         "review": {
-          "observation": "CRCL fell to $52.78, below the prior $53.305 low, then recovered above $53.305 by the cutoff.",
-          "recovery": "Reclaim the $57.08–$57.66 range and hold the retest. The upper bound is the November 17 regular-session high.",
-          "extension": "A renewed loss of today's observed low favors extension within a provisional larger 3/C structure as the old simple impulse is already invalid."
-        }
+          "observation": "The minute bars show observed IEX trades during the opening session. The latest observed IEX trade can differ from the chart’s Cboe One feed. Regular-session daily confirmation remains pending.",
+          "recovery": "Require a completed daily close above $57.66 and a held retest.",
+          "extension": "A strict trade below $52.78 defeats a bottom fixed at that price."
+        },
+        "methodology": "Only completed source intervals are charted. The price in this section is the last completed bar close."
+      },
+      "BTC": {
+        "bars": [
+          [
+            1794916800,
+            64927.86,
+            65383.29,
+            63256.75,
+            64047.12
+          ],
+          [
+            1794931200,
+            64047.12,
+            64417.21,
+            63377.2,
+            63675.22
+          ],
+          [
+            1794945600,
+            63675.22,
+            65199.37,
+            63583.92,
+            64873.18
+          ],
+          [
+            1794960000,
+            64873.18,
+            64933.39,
+            64033.57,
+            64374.87
+          ],
+          [
+            1794974400,
+            64374.87,
+            64889.54,
+            64233.86,
+            64809.77
+          ],
+          [
+            1794988800,
+            64809.77,
+            64809.77,
+            64025.23,
+            64154.06
+          ],
+          [
+            1795003200,
+            64154.39,
+            64317.03,
+            62918.28,
+            63048.31
+          ],
+          [
+            1795017600,
+            63048.32,
+            63457.75,
+            62202.64,
+            62664.08
+          ],
+          [
+            1795032000,
+            62664.36,
+            63232.26,
+            62000,
+            62981.71
+          ],
+          [
+            1795046400,
+            62981.71,
+            63226.63,
+            62322.12,
+            63135.26
+          ],
+          [
+            1795060800,
+            63135.26,
+            63807.63,
+            63130.88,
+            63669.05
+          ],
+          [
+            1795075200,
+            63669.05,
+            64013.74,
+            63494.37,
+            63881.3
+          ]
+        ],
+        "interval_seconds": 14400,
+        "last": 63881.3,
+        "as_of": "2026-11-19T12:00:00+00:00",
+        "source": "Coinbase Exchange BTC-USD",
+        "session": "Continuous spot market",
+        "delay": "Verified aggregate of four observed Coinbase hourly bars for each complete interval",
+        "missing_inside": 0,
+        "references": [
+          {
+            "value": 66369.12,
+            "label": "Reclaim"
+          },
+          {
+            "value": 61946.17,
+            "label": "Fixed-low test"
+          },
+          {
+            "value": 62425,
+            "label": "Support lower"
+          },
+          {
+            "value": 62557,
+            "label": "Support upper"
+          }
+        ],
+        "review": {
+          "observation": "The completed 03:00–07:00 EST bar held above the $62,425–$62,557 band. The prior evening 19:00 candle wicked to $62,322.12 and reclaimed the band on its $63,135.26 close. The checked series from November 14 at 19:00 touched $61,946.17 and did not trade lower. Later intraday data remain separate from the completed bar.",
+          "recovery": "Require a completed 4h close above $66,369.12 and a held retest.",
+          "extension": "A strict trade below $61,946.17 defeats a bottom fixed at that price."
+        },
+        "methodology": "Only completed source intervals are charted. The price in this section is the last completed bar close."
+      },
+      "ETH": {
+        "bars": [
+          [
+            1794916800,
+            1820.66,
+            1831.56,
+            1749.32,
+            1783.87
+          ],
+          [
+            1794931200,
+            1783.35,
+            1803.5,
+            1765.4,
+            1788.94
+          ],
+          [
+            1794945600,
+            1788.79,
+            1834.27,
+            1786.56,
+            1822.15
+          ],
+          [
+            1794960000,
+            1822.76,
+            1824.75,
+            1794.7,
+            1803
+          ],
+          [
+            1794974400,
+            1802.86,
+            1817.84,
+            1796.11,
+            1815.22
+          ],
+          [
+            1794988800,
+            1815.16,
+            1815.5,
+            1793,
+            1799.02
+          ],
+          [
+            1795003200,
+            1799,
+            1803.8,
+            1753.91,
+            1767
+          ],
+          [
+            1795017600,
+            1766.71,
+            1785.81,
+            1730.87,
+            1753.8
+          ],
+          [
+            1795032000,
+            1753.84,
+            1781.5,
+            1745.11,
+            1774.64
+          ],
+          [
+            1795046400,
+            1774.55,
+            1792.6,
+            1762.01,
+            1791.8
+          ],
+          [
+            1795060800,
+            1791.96,
+            1809.47,
+            1791.71,
+            1802.35
+          ],
+          [
+            1795075200,
+            1802.16,
+            1812.58,
+            1795.72,
+            1805.35
+          ]
+        ],
+        "interval_seconds": 14400,
+        "last": 1805.35,
+        "as_of": "2026-11-19T12:00:00+00:00",
+        "source": "Coinbase Exchange ETH-USD",
+        "session": "Continuous spot market",
+        "delay": "Verified aggregate of four observed Coinbase hourly bars for each complete interval",
+        "missing_inside": 0,
+        "references": [
+          {
+            "value": 1865.12,
+            "label": "Reclaim"
+          },
+          {
+            "value": 1709.48,
+            "label": "Fixed-low test"
+          },
+          {
+            "value": 1730.87,
+            "label": "Extension close"
+          }
+        ],
+        "review": {
+          "observation": "The $1,730.87 November 18 candidate C stayed above the $1,709.48 November 14 low. The completed November 19 03:00–07:00 bar closed at $1,805.35, short of the $1,834.27–$1,865.12 reclaim zone.",
+          "recovery": "Require a completed 4h close above $1,865.12 and a held retest.",
+          "extension": "A 4h close below $1,730.87 supports extension. A strict trade below $1,709.48 defeats a bottom fixed at that price."
+        },
+        "methodology": "Only completed source intervals are charted. The price in this section is the last completed bar close."
+      },
+      "SOL": {
+        "bars": [
+          [
+            1794916800,
+            73.43,
+            74.27,
+            70.93,
+            72.38
+          ],
+          [
+            1794931200,
+            72.38,
+            72.97,
+            71.63,
+            72.75
+          ],
+          [
+            1794945600,
+            72.76,
+            75.7,
+            72.62,
+            75.11
+          ],
+          [
+            1794960000,
+            75.1,
+            75.35,
+            73.98,
+            74.74
+          ],
+          [
+            1794974400,
+            74.72,
+            75.59,
+            74.53,
+            75.11
+          ],
+          [
+            1794988800,
+            75.09,
+            75.16,
+            74.26,
+            74.34
+          ],
+          [
+            1795003200,
+            74.36,
+            74.97,
+            73.07,
+            73.4
+          ],
+          [
+            1795017600,
+            73.39,
+            74.19,
+            72.12,
+            73.02
+          ],
+          [
+            1795032000,
+            73.02,
+            73.88,
+            72.24,
+            73.55
+          ],
+          [
+            1795046400,
+            73.53,
+            74.22,
+            72.81,
+            74.16
+          ],
+          [
+            1795060800,
+            74.16,
+            75.25,
+            74.15,
+            74.85
+          ],
+          [
+            1795075200,
+            74.85,
+            75.01,
+            74.19,
+            74.78
+          ]
+        ],
+        "interval_seconds": 14400,
+        "last": 74.78,
+        "as_of": "2026-11-19T12:00:00+00:00",
+        "source": "Coinbase Exchange SOL-USD",
+        "session": "Continuous spot market",
+        "delay": "Verified aggregate of four observed Coinbase hourly bars for each complete interval",
+        "missing_inside": 0,
+        "references": [
+          {
+            "value": 75.7,
+            "label": "Reclaim"
+          },
+          {
+            "value": 67.37,
+            "label": "Fixed-low test"
+          },
+          {
+            "value": 72.12,
+            "label": "Extension close"
+          }
+        ],
+        "review": {
+          "observation": "The rebound from $67.37 reached $75.70 before the $72.12 higher low. The completed November 19 03:00–07:00 bar closed at $74.78, below the $75.25–$75.70 reclaim zone.",
+          "recovery": "Require a completed 4h close above $75.70 and a held retest.",
+          "extension": "A 4h close below $72.12 supports extension. A strict trade below $67.37 defeats a bottom fixed at that price."
+        },
+        "methodology": "Only completed source intervals are charted. The price in this section is the last completed bar close."
       }
     },
-    "model": "qwen3.5:35b"
+    "model": "observed-data evidence review"
   }
 }

@@ -1963,6 +1963,13 @@ STATIC = {
 
 # Explicit public chart exports only; never expose private trading_records or arbitrary files.
 STATIC.update({
+    "/chart-review-assets/2026-11-19_094017_EST_NDX_DAILY_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_094017_EST_NDX_DAILY_SEVEN.png", "image/png"),
+    "/chart-review-assets/2026-11-19_094027_EST_SPX_DAILY_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_094027_EST_SPX_DAILY_SEVEN.png", "image/png"),
+    "/chart-review-assets/2026-11-19_094039_EST_COIN_DAILY_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_094039_EST_COIN_DAILY_SEVEN.png", "image/png"),
+    "/chart-review-assets/2026-11-19_093729_EST_CRCL_DAILY_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_093729_EST_CRCL_DAILY_SEVEN.png", "image/png"),
+    "/chart-review-assets/2026-11-19_094005_EST_BTCUSD_4H_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_094005_EST_BTCUSD_4H_SEVEN.png", "image/png"),
+    "/chart-review-assets/2026-11-19_094509_EST_ETHUSD_4H_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_094509_EST_ETHUSD_4H_SEVEN.png", "image/png"),
+    "/chart-review-assets/2026-11-19_094525_EST_SOLUSD_4H_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_094525_EST_SOLUSD_4H_SEVEN.png", "image/png"),
     "/chart-review-assets/2026-11-19_090854_EST_NDX_DAILY_TRIAL.png": ("../reports/elliott_wave_2026_11_19/TRIAL_0852_EST/2026-11-19_090854_EST_NDX_DAILY_TRIAL.png", "image/png"),
     "/chart-review-assets/2026-11-19_090907_EST_SPX_DAILY_TRIAL.png": ("../reports/elliott_wave_2026_11_19/TRIAL_0852_EST/2026-11-19_090907_EST_SPX_DAILY_TRIAL.png", "image/png"),
     "/chart-review-assets/2026-11-19_090926_EST_COIN_DAILY_TRIAL.png": ("../reports/elliott_wave_2026_11_19/TRIAL_0852_EST/2026-11-19_090926_EST_COIN_DAILY_TRIAL.png", "image/png"),
