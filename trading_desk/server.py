@@ -1963,6 +1963,11 @@ STATIC = {
 
 # Explicit public chart exports only; never expose private trading_records or arbitrary files.
 STATIC.update({
+    "/chart-review-assets/2026-11-19_090854_EST_NDX_DAILY_TRIAL.png": ("../reports/elliott_wave_2026_11_19/TRIAL_0852_EST/2026-11-19_090854_EST_NDX_DAILY_TRIAL.png", "image/png"),
+    "/chart-review-assets/2026-11-19_090907_EST_SPX_DAILY_TRIAL.png": ("../reports/elliott_wave_2026_11_19/TRIAL_0852_EST/2026-11-19_090907_EST_SPX_DAILY_TRIAL.png", "image/png"),
+    "/chart-review-assets/2026-11-19_090926_EST_COIN_DAILY_TRIAL.png": ("../reports/elliott_wave_2026_11_19/TRIAL_0852_EST/2026-11-19_090926_EST_COIN_DAILY_TRIAL.png", "image/png"),
+    "/chart-review-assets/2026-11-19_090939_EST_CRCL_DAILY_TRIAL.png": ("../reports/elliott_wave_2026_11_19/TRIAL_0852_EST/2026-11-19_090939_EST_CRCL_DAILY_TRIAL.png", "image/png"),
+    "/chart-review-assets/2026-11-19_091112_EST_BTCUSD_4H_TRIAL.png": ("../reports/elliott_wave_2026_11_19/TRIAL_0852_EST/2026-11-19_091112_EST_BTCUSD_4H_TRIAL.png", "image/png"),
     "/chart-review-assets/2026-11-19_0720_ET_NDX_DAILY_LOCAL_QWEN.png": ("../reports/elliott_wave_2026_11_19/2026-11-19_0720_ET_NDX_DAILY_LOCAL_QWEN.png", "image/png"),
     "/chart-review-assets/2026-11-19_0720_ET_SPX_DAILY_LOCAL_QWEN.png": ("../reports/elliott_wave_2026_11_19/2026-11-19_0720_ET_SPX_DAILY_LOCAL_QWEN.png", "image/png"),
     "/chart-review-assets/2026-11-19_0720_ET_BTCUSD_4H_LOCAL_QWEN.png": ("../reports/elliott_wave_2026_11_19/2026-11-19_0720_ET_BTCUSD_4H_LOCAL_QWEN.png", "image/png"),
