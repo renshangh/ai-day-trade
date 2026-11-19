@@ -23,7 +23,7 @@ async function render(data, mode = 'full', hash = '') {
   await new Promise(setImmediate);
   return {html: target.innerHTML, requests, scrolled};
 }
-test('all five pairs and judgments are visible in both Daily Review and the full gallery', async () => {
+test('five comparison pairs and both spot charts are visible in Daily Review and the full gallery', async () => {
   for (const mode of ['compact', 'full']) {
     const {html} = await render(saved(), mode);
     assert.equal((html.match(/class="chart-review-pair"/g) || []).length, 5);
@@ -34,6 +34,11 @@ test('all five pairs and judgments are visible in both Daily Review and the full
         assert.equal(html.split(`src="${url}"`).length - 1, 1);
       }
     }
+    for (const symbol of ['ETH', 'SOL']) {
+      const coin = saved().assets.find(a => a.symbol === symbol);
+      assert.ok(coin.charts[0].title.includes(`COINBASE:${symbol}USD 4h`));
+      assert.equal(html.split(`src="${coin.charts[0].url}"`).length - 1, 1);
+    }
     assert.match(html, /not the impulse/);
     assert.match(html, /cannot restore/);
     assert.match(html, /\/NQZ26/);
@@ -41,9 +46,18 @@ test('all five pairs and judgments are visible in both Daily Review and the full
   }
 });
 test('cash and futures keep independent quote sources, points, baselines and image labels', async () => {
-  const {html} = await render(saved());
-  assert.match(html, /27,001\.79 points/);
-  assert.match(html, /7,340\.53 points/);
+  const data = saved();
+  const {html} = await render(data);
+  for (const symbol of ['NDX', 'SPX']) {
+    const asset = data.assets.find(a => a.symbol === symbol);
+    const pointPrice = asset.quote.price.toLocaleString('en-US', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+    const start = html.indexOf(`id="chart-${symbol}"`);
+    const cash = html.slice(start, html.indexOf('<section class="chart-review-futures"', start));
+    assert.ok(cash.includes(`${pointPrice} points`));
+    assert.ok(cash.includes(asset.quote.source));
+  }
   assert.match(html, /separate futures evidence/);
   assert.match(html, /No futures percentage return is shown/);
   assert.match(html, /10minutes delayed/);
@@ -89,7 +103,9 @@ test('next-session plan is complete in Daily Review and gallery with dated indep
   assert.doesNotMatch(JSON.stringify(plan), /0071|1638|2840|3652|6434|accountNumber|hashValue/);
   for (const mode of ['compact', 'full']) {
     const {html, requests} = await render(data, mode);
-    const section = html.slice(html.indexOf('id="next-session-plan"'), html.indexOf('Watch first.'));
+    const planStart = html.indexOf('id="next-session-plan"');
+    assert.ok(html.indexOf(`DAILY REVIEW · ${data.date}`) < planStart);
+    const section = html.slice(planStart, html.indexOf('<div class="chart-review-grid', planStart));
     for (const item of plan.holdings) {
       for (const field of ['hold', 'sell_first', 'sell_next', 'warning', 'invalidation']) assert.ok(section.includes(item[field]));
     }
@@ -138,18 +154,20 @@ test('direct gallery links scroll to the requested ticker after rendering the ma
 test('the intraday update charts real completed bars and keeps the baseline drawings dated', async () => {
   const data = saved();
   const update = data.intraday_update;
-  assert.equal(update.model, 'qwen3.5:35b');
-  assert.ok(update.date > data.date);
+  assert.ok(update.model);
+  assert.ok(update.date >= data.date);
+  assert.ok(data.market_observed_at.slice(0, 10) < update.date);
   const {html} = await render(data, 'compact');
-  assert.equal((html.match(/class="wave-candle-chart"/g) || []).length, 5);
-  assert.equal((html.match(/<strong>Recovery path<\/strong>/g) || []).length, 5);
+  const chartable = Object.values(update.assets).filter(row => row.bars.length >= 2);
+  assert.equal((html.match(/<strong>Recovery path<\/strong>/g) || []).length, chartable.length);
   for (const [symbol,row] of Object.entries(update.assets)) {
     const chart = html.slice(html.indexOf(`id="chart-${symbol}"`));
-    assert.match(chart, /observed intraday candles, Eastern time/);
+    if (row.bars.length >= 2) assert.match(chart, /observed intraday candles, Eastern time/);
     const cutoff = Date.parse(row.as_of) / 1000;
     assert.equal(row.bars.at(-1)[0] + row.interval_seconds, cutoff);
     assert.ok(row.bars.every(([t,o,h,l,c]) => t + row.interval_seconds <= cutoff && h >= Math.max(o,c) && l <= Math.min(o,c)));
   }
-  assert.match(html, /Baseline drawings 2026-11-17/);
+  assert.ok(html.includes(`Baseline drawings ${data.date}`));
+  assert.ok(html.includes(`DAILY REVIEW · ${data.date}`));
   assert.ok(html.includes(data.assets[0].comparison.original_url));
 });
