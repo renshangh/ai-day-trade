@@ -620,7 +620,44 @@ function labelTiming(t) {
 
 // ------------------------------------------------------------- daily review
 async function fetchReview(force) {
-  await Promise.all([fetchReviewData(force), fetchSessionVwap(force), fetchSchwabStatus(), fetchPaperRecommendations(force), fetchSoltExit(force)]);
+  await Promise.all([
+    fetchCreditSpread(force), fetchReviewData(force), fetchSessionVwap(force),
+    fetchSchwabStatus(), fetchPaperRecommendations(force), fetchSoltExit(force),
+  ]);
+}
+
+let creditSpreadRequest = 0;
+async function fetchCreditSpread(force) {
+  const box = $('high-yield-spread-data');
+  if (!box) return;
+  const request = ++creditSpreadRequest;
+  try {
+    const response = await fetch(`/api/high-yield-spread${force ? '?force=1' : ''}`);
+    if (!response.ok) throw new Error('Credit spread unavailable');
+    const data = await response.json();
+    if (request !== creditSpreadRequest) return;
+    const change = data.weekly_change_bp;
+    const weekly = Number.isFinite(change) ? `${change > 0 ? '+' : ''}${change} bp` : 'Unavailable';
+    const alerts = {
+      above_six: ['err', 'High alert · Spread above 6.00%'],
+      rapid_widening: ['warn', 'Watch · Rapid widening toward or beyond 5%'],
+      unavailable: ['warn', 'Weekly comparison unavailable'],
+      none: ['', 'No spread alert triggered'],
+    };
+    const [severity, label] = alerts[data.alert];
+    box.innerHTML = `<div class="rev-stats">
+      <div class="rev-stat"><div class="k">Latest spread</div><div class="v">${data.spread_pct.toFixed(2)}%</div>
+        <span class="lvl-meta">Close on ${esc(data.date)}</span></div>
+      <div class="rev-stat"><div class="k">Weekly change</div><div class="v">${weekly}</div>
+        ${data.weekly_base_date ? `<span class="lvl-meta">Since ${esc(data.weekly_base_date)}</span>` : ''}</div>
+    </div>
+    ${data.stale ? '<p class="notice warn">Stale reading · The latest published close is more than four calendar days old.</p>' : ''}
+    <p class="${severity ? `notice ${severity}` : 'sub'}">${data.stale ? 'At last published close · ' : ''}${label}</p>`;
+  } catch (_error) {
+    if (request === creditSpreadRequest) {
+      box.textContent = 'High-yield spread unavailable. Use Refresh to try FRED again.';
+    }
+  }
 }
 
 async function fetchSoltExit(force = false) {
@@ -3549,6 +3586,9 @@ function init() {
       fetchSessionVwap(false);
     }
   }, 120000);
+  setInterval(() => {
+    if (state.view === 'review' && !document.hidden) fetchCreditSpread(false);
+  }, 900000);
 
   const applyTheme = next => {
     document.documentElement.dataset.theme = next;

@@ -13,6 +13,16 @@ confirmation test and precise invalidation. `/chart-review` and the embedded
 Daily Review render `trading_desk/chart_review.json`; opening the page reads the
 saved manifest only. It does not refresh quotes, accounts, orders or monitors.
 
+The Daily Review board also reads `/api/high-yield-spread` independently of
+the saved charts. The endpoint uses the public ICE BofA series `BAMLH0A0HYM2`
+from FRED. It returns the latest published close and the change in basis points
+from seven calendar days earlier, using the closest preceding observation up
+to three days earlier if necessary. Missing comparisons stay unavailable.
+Daily Review checks on open, on Refresh and every 15 minutes while visible.
+Failed requests report unavailable, and source dates older than four calendar
+days are labeled stale. The watch threshold is at least 4.50% with a weekly
+rise of at least 50 basis points, and the high alert is strictly above 6.00%.
+
 ## Intraday updates
 
 The optional `intraday_update` in the saved manifest adds completed OHLC bars

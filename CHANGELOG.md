@@ -1,5 +1,10 @@
 # Changelog
 
+## Daily Review Credit Risk - Unreleased
+
+### Added
+- Show the latest ICE BofA U.S. high-yield credit spread in Daily Review, with the observed close date, weekly basis-point change, and flags for rapid widening toward 5% or a close above 6%.
+
 ## Trading Desk Source and Chart Publication - Unreleased
 
 ### Added

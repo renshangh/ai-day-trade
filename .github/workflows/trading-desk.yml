@@ -42,6 +42,7 @@ jobs:
         run: |
           python -m pytest -q \
             trading_desk/tests/test_public_dashboard_snapshot.py \
+            trading_desk/tests/test_credit_spread.py \
             trading_desk/tests/test_btc_e3_draft1.py \
             trading_desk/tests/test_btc_e3_failure_controls.py \
             trading_desk/tests/test_btc_e3_support_recovery.py \
