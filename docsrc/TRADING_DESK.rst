@@ -7,6 +7,17 @@ Compare each open holding with its regular-session volume-weighted average price
 :Status: Active
 :Audience: Trading Desk users
 
+U.S. high-yield credit spread
+----------------------------
+
+Daily Review (``/board?view=review``) shows the latest published ICE BofA
+U.S. high-yield option-adjusted spread, its close date, and the change in basis
+points from the close a week earlier. The comparison uses the most recent
+published close within the three days before that date if the exact date is
+missing. The panel shows a watch when the spread is at least 4.50% and up at
+least 50 basis points, and a high alert strictly above 6.00%. Refresh requests a
+new reading from FRED. The panel labels stale readings and missing comparisons.
+
 AI Power — Neocloud
 -------------------
 

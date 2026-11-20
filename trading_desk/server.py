@@ -67,6 +67,7 @@ from trading_desk import crypto_transfer_view  # noqa: E402
 from trading_desk import sol_live  # noqa: E402
 from trading_desk import crypto_live_review  # noqa: E402
 from trading_desk import economic_calendar
+from trading_desk import credit_spread
 from scripts import schwab_cash
 from trading_desk import crypto_live_history  # noqa: E402
 from trading_desk import refined_entry_view  # noqa: E402
@@ -2452,6 +2453,13 @@ class Handler(BaseHTTPRequestHandler):
                 ))
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 502)
+            return
+
+        if path == "/api/high-yield-spread":
+            try:
+                self._json(credit_spread.get(force=qs.get("force", ["0"])[0] == "1"))
+            except (OSError, ValueError):
+                self._json({"error": "FRED high-yield spread data is unavailable."}, 503)
             return
 
         if path == "/api/session-vwap":
