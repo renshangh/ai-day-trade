@@ -12,6 +12,9 @@
 
 ## Daily Chart Review Gallery - Unreleased
 
+### Current captures
+- Show one current native chart per symbol in Daily Review and the full gallery, with older drawings in a separate archive. Add the November 20 NDX and SPX captures with separately sourced NQ and ES overnight warnings.
+
 ### Fixed
 - Align the CRCL recovery range across the November 18 intraday update, next-session plan and confirmation table using the November 17 regular-session high of $57.66 as the upper bound.
 

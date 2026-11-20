@@ -1965,6 +1965,8 @@ STATIC = {
 # Explicit public chart exports only; never expose private trading_records or arbitrary files.
 STATIC.update({
     "/chart-review-assets/2026-11-19_094017_EST_NDX_DAILY_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_094017_EST_NDX_DAILY_SEVEN.png", "image/png"),
+    "/chart-review-assets/2026-11-20_054759_EST_NDX_DAILY.png": ("../reports/elliott_wave_2026_11_20/2026-11-20_054759_EST_NDX_DAILY.png", "image/png"),
+    "/chart-review-assets/2026-11-20_054516_EST_SPX_DAILY.png": ("../reports/elliott_wave_2026_11_20/2026-11-20_054516_EST_SPX_DAILY.png", "image/png"),
     "/chart-review-assets/2026-11-19_094027_EST_SPX_DAILY_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_094027_EST_SPX_DAILY_SEVEN.png", "image/png"),
     "/chart-review-assets/2026-11-19_094039_EST_COIN_DAILY_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_094039_EST_COIN_DAILY_SEVEN.png", "image/png"),
     "/chart-review-assets/2026-11-19_093729_EST_CRCL_DAILY_SEVEN.png": ("../reports/elliott_wave_2026_11_19/SEVEN_TRIAL_0929_EST/2026-11-19_093729_EST_CRCL_DAILY_SEVEN.png", "image/png"),

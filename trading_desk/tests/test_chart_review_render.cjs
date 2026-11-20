@@ -6,11 +6,11 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '../..');
 const source = fs.readFileSync(path.join(root, 'trading_desk/chart_review.js'), 'utf8');
 const saved = () => JSON.parse(fs.readFileSync(path.join(root, 'trading_desk/chart_review.json'), 'utf8'));
-async function render(data, mode = 'full', hash = '') {
+async function render(data, mode = 'full', hash = '', search = '?archive=1') {
   const target = {dataset: {chartReview: mode}, innerHTML: '', textContent: ''};
   const requests = [];
   const scrolled = [];
-  const context = vm.createContext({Intl, Date, URL, Set, location: {hash},
+  const context = vm.createContext({Intl, Date, URL, URLSearchParams, Set, location: {hash, search},
     document: {
       querySelectorAll: () => [target],
       getElementById: id => target.innerHTML.includes(`id="${id}"`)
@@ -23,8 +23,8 @@ async function render(data, mode = 'full', hash = '') {
   await new Promise(setImmediate);
   return {html: target.innerHTML, requests, scrolled};
 }
-test('five comparison pairs and both spot charts are visible in Daily Review and the full gallery', async () => {
-  for (const mode of ['compact', 'full']) {
+test('five comparison pairs and both spot charts remain in the dated archive', async () => {
+  for (const mode of ['full']) {
     const {html} = await render(saved(), mode);
     assert.equal((html.match(/class="chart-review-pair"/g) || []).length, 5);
     assert.equal((html.match(/Which count fits better\?/g) || []).length, 5);
@@ -47,6 +47,24 @@ test('five comparison pairs and both spot charts are visible in Daily Review and
     assert.match(html, /cannot restore/);
     assert.match(html, /\/NQZ26/);
     assert.match(html, /\/ESZ26/);
+  }
+});
+test('Daily Review and gallery show exactly one current capture per asset', async () => {
+  for (const mode of ['compact', 'full']) {
+    const data = saved();
+    const {html} = await render(data, mode, '', '?archive=0');
+    assert.equal((html.match(/<img /g) || []).length, data.assets.length);
+    assert.equal((html.match(/Open live TradingView chart/g) || []).length, data.assets.length);
+    assert.match(html, /DAILY REVIEW · 2026-11-20/);
+    assert.match(html, /26,481\.82/);
+    assert.match(html, /7,173\.63/);
+    assert.match(html, /26,135\.75/);
+    assert.match(html, /7,138\.75/);
+    assert.doesNotMatch(html, /chart-review-pair|wave-candle-chart/);
+    for (const asset of data.assets) {
+      assert.ok(html.includes(`src="${asset.charts[0].url}"`));
+      for (const earlier of asset.charts.slice(1)) assert.ok(!html.includes(earlier.url), earlier.url);
+    }
   }
 });
 test('cash and futures keep independent quote sources, points, baselines and image labels', async () => {
@@ -109,7 +127,7 @@ test('next-session plan is complete in Daily Review and gallery with dated indep
     const {html, requests} = await render(data, mode);
     const planStart = html.indexOf('id="next-session-plan"');
     assert.ok(html.indexOf(`DAILY REVIEW · ${data.date}`) < planStart);
-    const section = html.slice(planStart, html.indexOf('<div class="chart-review-grid', planStart));
+    const section = html.slice(planStart, html.indexOf('</section>', planStart));
     for (const item of plan.holdings) {
       for (const field of ['hold', 'sell_first', 'sell_next', 'warning', 'invalidation']) assert.ok(section.includes(item[field]));
     }
@@ -146,7 +164,6 @@ test('Daily Review puts the Elliott study links ahead of the plan and exposes sa
     assert.ok(shortcuts.includes(`href="#chart-${symbol}"`));
     assert.match(card, /<strong>Confirmation:<\/strong>/);
     assert.match(card, /<strong>Invalidation \/ warning:<\/strong>/);
-    assert.match(card, /<th>Review test<\/th>/);
   }
 });
 
@@ -161,7 +178,7 @@ test('the intraday update charts real completed bars and keeps the baseline draw
   assert.ok(update.model);
   assert.ok(update.date >= data.date);
   assert.ok(data.market_observed_at.slice(0, 10) < update.date);
-  const {html} = await render(data, 'compact');
+  const {html} = await render(data, 'full');
   const chartable = Object.values(update.assets).filter(row => row.bars.length >= 2);
   assert.equal((html.match(/<strong>Recovery path<\/strong>/g) || []).length, chartable.length);
   for (const [symbol,row] of Object.entries(update.assets)) {

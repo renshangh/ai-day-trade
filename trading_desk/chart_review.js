@@ -131,7 +131,45 @@
     const liveLink = liveChart ? `<p class="chart-review-meta">${link('Open live TradingView chart', liveChart)} · live layout may change; dated native captures below remain the historical record.</p>` : '';
     return `<article class="chart-review-asset ${asset.comparison ? 'chart-review-compared' : ''}" id="chart-${escape(asset.symbol)}"><div class="chart-review-heading"><h3>${escape(asset.symbol)}</h3><span class="chart-review-status">${escape(asset.status)}</span></div>${intradayReview(asset, update, price)}<p class="chart-review-price">${price(quote.price)}<small>${change}</small></p><p class="chart-review-meta">${escape(quote.source)} · ${escape(quote.session)} · source timestamp ${escape(time(quote.time))}. ${escape(quote.delay)}.</p>${liveLink}<p>${escape(asset.summary)}</p>${asset.benchmark_note ? `<p>${escape(asset.benchmark_note)}</p>` : ''}${asset.comparison ? comparison(asset) : current ? chart(current) : '<p class="chart-review-meta">Saved chart unavailable; no drawing has been invented.</p>'}${futures(asset)}${full ? dailyText : ''}${levels}${conditions}${full ? `<p><strong>Company / market evidence:</strong> ${escape(asset.fundamentals)}</p><p>${(asset.sources || []).map(([label,url])=>link(label,url)).join(' · ')}</p><p class="chart-review-meta">${escape(asset.chart_note)}</p>` : ''}${otherCharts}${full ? '' : `<p><a href="/chart-review#chart-${escape(asset.symbol)}">Read full ${escape(asset.symbol)} analysis ↗</a></p>`}</article>`;
   }
-  function render(data, full) {
+  function currentCard(asset, full) {
+    const review = asset.current_review || asset;
+    const quote = review.quote || {};
+    const price = value => {
+      if (asset.unit !== 'points') return money(value);
+      return Number.isFinite(value)
+        ? value.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' points'
+        : 'Unavailable';
+    };
+    const capture = asset.charts?.[0];
+    const image = capture ? chart(capture) : '';
+    const liveChart = safeURL(asset.tradingview_url);
+    return `<article class="chart-review-asset" id="chart-${escape(asset.symbol)}">
+      <div class="chart-review-heading"><h3>${escape(asset.symbol)}</h3><span class="chart-review-status">${escape(review.status)}</span></div>
+      ${image || '<p class="chart-review-meta">Saved chart unavailable.</p>'}
+      ${liveChart ? `<p class="chart-review-meta">${link('Open live TradingView chart', liveChart)}</p>` : ''}
+      <p class="chart-review-price">${price(quote.price)}</p>
+      <p class="chart-review-meta">${escape(quote.source)} · ${escape(quote.session)} · ${escape(time(quote.time))}. ${escape(quote.delay)}.</p>
+      <p>${escape(review.summary)}</p>
+      <p><strong>Confirmation:</strong> ${escape(review.confirmation)}</p>
+      <p><strong>Invalidation / warning:</strong> ${escape(review.invalidation)}</p>
+      ${review.overnight_warning ? `<p class="chart-review-meta">${escape(review.overnight_warning)}</p>` : ''}
+      ${full ? `<details><summary>Evidence and review levels</summary><table class="chart-review-table"><thead><tr><th>Level</th><th>Review test</th></tr></thead><tbody>${(review.levels || []).map(([level, test])=>`<tr><th>${escape(level)}</th><td>${escape(test)}</td></tr>`).join('')}</tbody></table><p>${escape(review.chart_note)}</p><p>${(asset.sources || []).map(([label,url])=>link(label,url)).join(' · ')}</p></details>` : `<p><a href="/chart-review#chart-${escape(asset.symbol)}">Read full ${escape(asset.symbol)} analysis ↗</a></p>`}
+    </article>`;
+  }
+
+  function renderCurrent(data, full) {
+    const today = new Intl.DateTimeFormat('en-CA', {timeZone:'America/New_York', year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
+    const date = data.current_capture_date || data.date;
+    return `<div class="chart-review-intro chart-review-scenarios">
+      <span class="chart-review-kicker">DAILY REVIEW · ${escape(date)}${today === date ? '' : ' · HISTORICAL SNAPSHOT'}</span>
+      <h2>Elliott Wave scenarios</h2>
+      <nav class="chart-review-navigation" aria-label="Elliott Wave scenarios">${data.assets.map(asset => `<a href="#chart-${escape(asset.symbol)}">${escape(asset.symbol)}</a>`).join('')}</nav>
+      <p class="chart-review-meta">${escape(data.current_capture_note || 'Latest saved capture for each symbol.')}</p>
+      <p>${full ? '<a href="/board?view=review">Back to Daily Review ↗</a> · <a href="/chart-review?archive=1">Dated chart archive ↗</a>' : '<a href="/chart-review">Full gallery ↗</a>'}</p>
+    </div><div class="chart-review-grid ${full ? 'chart-review-full' : ''}">${data.assets.map(asset => currentCard(asset, full)).join('')}</div>${sessionPlan(data.next_session_plan)}`;
+  }
+
+  function renderArchive(data, full) {
     const assetLinks = data.assets.map(asset => `<a href="#chart-${escape(asset.symbol)}">${escape(asset.symbol)}</a>`).join('');
     const navigation = `<div class="chart-review-intro chart-review-scenarios">
       <h2>Elliott Wave scenarios</h2>
@@ -148,7 +186,11 @@
     return response.json();
   }).then(data=>{
     if (!Array.isArray(data.assets) || !data.date) throw new Error('Invalid saved review');
-    for (const target of targets) target.innerHTML = render(data, target.dataset.chartReview === 'full');
+    for (const target of targets) {
+      const full = target.dataset.chartReview === 'full';
+      const archive = full && new URLSearchParams(location.search).get('archive') === '1';
+      target.innerHTML = archive ? renderArchive(data, full) : renderCurrent(data, full);
+    }
     // Ticker anchors do not exist until the saved manifest finishes loading.
     const anchor = location.hash.slice(1);
     if (anchor.startsWith('chart-')) document.getElementById(anchor)?.scrollIntoView();

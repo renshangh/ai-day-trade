@@ -45,9 +45,17 @@ on the dated TradingView drawings records the earlier recovery test.
 
 ## Comparison records
 
+Daily Review and the default full gallery show one current native capture per
+symbol, with a live TradingView link and the current count's tests. The **Dated
+chart archive** link in the gallery opens the earlier comparisons, intraday
+charts and saved captures separately. Every capture keeps its original date.
+The November 20 NDX and SPX updates use the completed November 19 cash session.
+The overnight NQ and ES warnings use their own futures lows and delayed
+snapshots. Their cash-index invalidation tests remain separate.
+
 Use the **Elliott Wave scenarios** ticker links at the top of Daily Review to
-jump straight to a saved study. The compact view includes each study’s levels,
-confirmation and invalidation alongside the original and updated drawings.
+jump straight to a saved study. The compact view shows confirmation and
+invalidation beside the current drawing.
 Each current asset also provides an **Open live TradingView chart** link for the
 same saved layout, symbol and interval. That live layout can change after the
 review; dated native exports remain the chronological evidence record.
@@ -55,9 +63,9 @@ The full gallery's direct ticker links scroll to the study after its saved data
 loads.
 
 Each asset's optional `comparison` selects an `original_url` and `updated_url`
-from its existing `charts` manifest. Both captures remain visible in compact
-and full views. The renderer shows a verdict, changes, reasoning, dated evidence,
-next test and limitations. Other captures stay in expandable history in either view;
+from its existing `charts` manifest. Both captures are visible in the dated
+archive, with the verdict, reasoning, dated evidence, next test and limitations.
+Other captures stay in expandable history in the archive;
 the selected pair and separately shown futures image are not duplicated there.
 Desktop pairs use two columns; screens below800px stack the images. Long source
 notes and point tables wrap rather than forcing the comparison wider.

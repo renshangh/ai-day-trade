@@ -1,5 +1,7 @@
 {
   "date": "2026-11-19",
+  "current_capture_date": "2026-11-20",
+  "current_capture_note": "NDX and SPX updated Nov. 20 from the completed Nov. 19 cash session. Every other chart retains its own saved capture and quote timestamps.",
   "published_at": "2026-11-19T14:46:01+00:00",
   "market_observed_at": "2026-11-18T16:00:00-05:00",
   "owner_decision": "Review the November 19 opening-session evidence and the saved Elliott Wave scenarios.",
@@ -30,6 +32,35 @@
   "assets": [
     {
       "symbol": "NDX",
+      "current_review": {
+        "status": "Wave 5? · provisional",
+        "quote": {
+          "price": 26517.05,
+          "time": "2026-11-19T16:00:00-05:00",
+          "source": "TradingView NASDAQ cash index",
+          "session": "Nov. 19 completed regular session",
+          "delay": "15-minute chart feed"
+        },
+        "summary": "Nov. 19 cash OHLC: 27,574.24 / 27,749.35 / 26,481.82 / 26,517.05 points. Wave 5 extends to the observed 26,481.82 low.",
+        "confirmation": "Daily close above 27,749.35 and held retest of 27,258.84–27,749.35. Wave 4 high 28,593.52 is the follow-through reference.",
+        "invalidation": "A strict NDX cash print below 26,481.82 invalidates the fixed wave 5 low. The 26,305.44 extension level is illustrative.",
+        "overnight_warning": "NQ futures at 05:47 EST Nov. 20: 26,135.75 low broke the prior 26,436.00 low. Latest displayed value 26,357.75 on the open bar, 10-minute delayed. The separate cash trigger was pending at the check.",
+        "levels": [
+          [
+            "27,258.84–27,749.35",
+            "Cash recovery decision band."
+          ],
+          [
+            "26,481.82",
+            "Observed cash low and strict trade-through trigger."
+          ],
+          [
+            "26,305.44",
+            "Illustrative wave 5 = wave 1 extension."
+          ]
+        ],
+        "chart_note": "TradingView NASDAQ:NDX 1D, 15-minute delay. All six wave vertices were read back against completed cash daily candles. NQ futures use their own session lows and timestamps."
+      },
       "tradingview_url": "https://www.tradingview.com/chart/TY00JGr6/?symbol=NASDAQ%3ANDX&interval=D",
       "unit": "points",
       "quote": {
@@ -45,6 +76,12 @@
       "benchmark_note": "Completed Nov17 cash index: close27,001.79, range26,580.86–27,258.84points;5session-2.66%,21session-8.56%. SMA2028,347.28; freshSMA50/200 unavailable from this one-month response. Index displayed volume is not directly tradable consolidated volume. Cash drawings retain their own timestamps; separate December futures evidence below never substitutes for cash points.",
       "fundamentals": "NVIDIA reports Nov17 after the close, with the issuer scheduling results around16:20 ET and its call17:00 ET. The event can gap either direction; wave labels do not predict its outcome.",
       "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-20_054759_EST_NDX_DAILY.png",
+          "title": "NASDAQ:NDX Daily · November 20 Elliott Wave review",
+          "captured": "2026-11-20 05:47:59 EST",
+          "state": "Verified native TradingView PNG · overnight futures warning"
+        },
         {
           "url": "/chart-review-assets/2026-11-19_094017_EST_NDX_DAILY_SEVEN.png",
           "title": "NASDAQ:NDX Daily · November 19 Elliott Wave review",
@@ -224,6 +261,35 @@
     },
     {
       "symbol": "SPX",
+      "current_review": {
+        "status": "Wave C? · provisional",
+        "quote": {
+          "price": 7175.83,
+          "time": "2026-11-19T16:00:00-05:00",
+          "source": "TradingView SP cash index",
+          "session": "Nov. 19 completed regular session",
+          "delay": "10-minute chart feed"
+        },
+        "summary": "Nov. 19 cash OHLC: 7,389.26 / 7,415.64 / 7,173.63 / 7,175.83 points. Wave C extends to the observed 7,173.63 low.",
+        "confirmation": "Daily close above 7,415.64 and held retest of 7,350.35–7,415.64. Wave B high 7,652.76 is the follow-through reference.",
+        "invalidation": "A strict SPX cash print below 7,173.63 invalidates the fixed C low. The 6,973.12 extension level is illustrative.",
+        "overnight_warning": "ES futures at 05:44 EST Nov. 20: 7,138.75 low broke the prior 7,167.75 low. Latest displayed value 7,172.00 on the open bar, 10-minute delayed. The separate cash trigger was pending at the check.",
+        "levels": [
+          [
+            "7,350.35–7,415.64",
+            "Cash recovery decision band."
+          ],
+          [
+            "7,173.63",
+            "Observed cash low and strict trade-through trigger."
+          ],
+          [
+            "6,973.12",
+            "Illustrative C = 1.618 × A extension."
+          ]
+        ],
+        "chart_note": "TradingView SP:SPX 1D, 10-minute delay. All four A–B–C vertices were read back against completed cash daily candles. ES futures use their own session lows and timestamps."
+      },
       "tradingview_url": "https://www.tradingview.com/chart/TY00JGr6/?symbol=SP%3ASPX&interval=D",
       "unit": "points",
       "quote": {
@@ -239,6 +305,12 @@
       "benchmark_note": "Completed Nov17 cash index: close7,340.53, range7,288.34–7,415.37points;5session-2.40%,21session-4.55%. SMA207,580.95; freshSMA50/200 unavailable from this one-month response. Index displayed volume is not directly tradable consolidated volume. Cash drawings retain their own timestamps; separate December futures evidence below never substitutes for cash points.",
       "fundamentals": "NVIDIA reports Nov17 after the close, with the issuer scheduling results around16:20 ET and its call17:00 ET. The event can gap either direction; wave labels do not predict its outcome.",
       "charts": [
+        {
+          "url": "/chart-review-assets/2026-11-20_054516_EST_SPX_DAILY.png",
+          "title": "SP:SPX Daily · November 20 Elliott Wave review",
+          "captured": "2026-11-20 05:45:16 EST",
+          "state": "Verified native TradingView PNG · overnight futures warning"
+        },
         {
           "url": "/chart-review-assets/2026-11-19_094027_EST_SPX_DAILY_SEVEN.png",
           "title": "SP:SPX Daily · November 19 Elliott Wave review",

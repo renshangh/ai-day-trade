@@ -82,7 +82,7 @@ or predicted dates. Source, session, timestamp and venue limitations accompany
 the observations. The existing daily after-close review maintains the studies;
 the stopped hourly/half-hour monitors remain stopped. No orders are submitted.
 
-An **Intraday update** can appear above the historical drawings. It shows
+An **Intraday update** can appear in the dated archive. It shows
 completed candles with individual feed cutoffs, selected prior levels, and
 conditional recovery and extension tests.
 
@@ -90,14 +90,14 @@ In the November 18 review, the CRCL first-reclaim range is $57.08–$57.66.
 The upper bound is the November 17 regular-session high. Dated TradingView
 drawings show the earlier $57.65 annotation.
 
-Original versus updated drawings
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Current drawings and archive
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Daily Review and the full gallery show paired original/updated BTC, COIN,
-CRCL, NDX and SPX captures, with the preferred working count, what changed,
-evidence and the next confirmation/invalidation test. Desktop views display
-the pair side by side; narrow screens stack them. Click an image to inspect
-the original full-size file. Other dated captures remain expandable history.
+Daily Review and the full gallery show one current capture per symbol. Click
+the image to inspect its full-size file. The full gallery's **Dated chart
+archive** link opens earlier comparisons, captures and intraday charts.
+The November 20 NDX and SPX captures pair completed November 19 cash-index
+bars with separate, timestamped futures warnings.
 Use the **Elliott Wave scenarios** ticker links above the daily plan to jump to
 a study's alternate paths, confirmation and invalidation levels.
 

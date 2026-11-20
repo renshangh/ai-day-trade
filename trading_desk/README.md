@@ -35,15 +35,13 @@ The desk's proposed North Star remains sourced thesis decisions: each count
 must identify what evidence would confirm it and precisely which count a level
 invalidates. A missing observation is unavailable, never carried forward.
 
-### Original versus updated drawings
+### Current drawings and dated archive
 
-BTC, COIN, CRCL, NDX and SPX now show the original and updated native captures
-side by side in both Daily Review cards and the full gallery. Narrow screens
-stack the pair; each image opens at full size. The explanation names what
-changed, which count fits better, the supporting evidence and the next test.
-Comparison captures are excluded from the expandable duplicate history list.
-Original screenshots are immutable dated history; a new capture does not turn
-an illustrative future path into a forecast or establish a final wave ending.
+Daily Review and the full gallery show one current native image per symbol.
+Each image opens full size. The gallery links to the dated archive for
+original/updated comparisons, intraday charts and other historical captures.
+The November 20 NDX and SPX captures add independent NQ and ES overnight
+warnings to the verified November 19 cash-index counts.
 
 November17 evening: retain the simpler local fifth interpretations for COIN
 and NDX; BTC's Saturday low survives but its old X pivot failed. CRCL's old
