@@ -48,6 +48,9 @@ on the dated TradingView drawings records the earlier recovery test.
 Use the **Elliott Wave scenarios** ticker links at the top of Daily Review to
 jump straight to a saved study. The compact view includes each study’s levels,
 confirmation and invalidation alongside the original and updated drawings.
+Each current asset also provides an **Open live TradingView chart** link for the
+same saved layout, symbol and interval. That live layout can change after the
+review; dated native exports remain the chronological evidence record.
 The full gallery's direct ticker links scroll to the study after its saved data
 loads.
 

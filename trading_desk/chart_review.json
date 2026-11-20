@@ -30,6 +30,7 @@
   "assets": [
     {
       "symbol": "NDX",
+      "tradingview_url": "https://www.tradingview.com/chart/TY00JGr6/?symbol=NASDAQ%3ANDX&interval=D",
       "unit": "points",
       "quote": {
         "price": 27619.67,
@@ -223,6 +224,7 @@
     },
     {
       "symbol": "SPX",
+      "tradingview_url": "https://www.tradingview.com/chart/TY00JGr6/?symbol=SP%3ASPX&interval=D",
       "unit": "points",
       "quote": {
         "price": 7387.52,
@@ -402,6 +404,7 @@
     },
     {
       "symbol": "POWL",
+      "tradingview_url": "https://www.tradingview.com/chart/TY00JGr6/?symbol=NASDAQ%3APOWL&interval=D",
       "quote": {
         "price": 162.22,
         "time": "2026-11-19T15:28:12.336380432Z",
@@ -558,6 +561,7 @@
     },
     {
       "symbol": "NVDA",
+      "tradingview_url": "https://www.tradingview.com/chart/TY00JGr6/?symbol=NASDAQ%3ANVDA&interval=D",
       "quote": {
         "price": 151.87,
         "time": "2026-11-19T15:46:47.833677779Z",
@@ -635,6 +639,7 @@
     },
     {
       "symbol": "BTC",
+      "tradingview_url": "https://www.tradingview.com/chart/0dDP0IqD/?symbol=COINBASE%3ABTCUSD&interval=240",
       "quote": {
         "price": 63874.51,
         "time": "2026-11-19T14:39:07.496593901Z",
@@ -871,6 +876,7 @@
     },
     {
       "symbol": "ETH",
+      "tradingview_url": "https://www.tradingview.com/chart/0dDP0IqD/?symbol=COINBASE%3AETHUSD&interval=240",
       "status": "Provisional four-hour A–B–C",
       "charts": [
         {
@@ -915,6 +921,7 @@
     },
     {
       "symbol": "SOL",
+      "tradingview_url": "https://www.tradingview.com/chart/0dDP0IqD/?symbol=COINBASE%3ASOLUSD&interval=240",
       "status": "Provisional four-hour A–B–C",
       "charts": [
         {
@@ -959,6 +966,7 @@
     },
     {
       "symbol": "COIN",
+      "tradingview_url": "https://www.tradingview.com/chart/TY00JGr6/?symbol=NASDAQ%3ACOIN&interval=D",
       "quote": {
         "price": 114.6,
         "time": "2026-11-19T14:39:05.16219971Z",
@@ -1184,6 +1192,7 @@
     },
     {
       "symbol": "CRCL",
+      "tradingview_url": "https://www.tradingview.com/chart/TY00JGr6/?symbol=NYSE%3ACRCL&interval=D",
       "quote": {
         "price": 56.17,
         "time": "2026-11-19T14:39:04.331345656Z",

@@ -39,6 +39,10 @@ test('five comparison pairs and both spot charts are visible in Daily Review and
       assert.ok(coin.charts[0].title.includes(`COINBASE:${symbol}USD 4h`));
       assert.equal(html.split(`src="${coin.charts[0].url}"`).length - 1, 1);
     }
+    for (const asset of saved().assets) {
+      assert.match(asset.tradingview_url, /^https:\/\/www\.tradingview\.com\/chart\//);
+      assert.ok(html.includes(`href="${asset.tradingview_url.replace('&', '&amp;')}"`), asset.symbol);
+    }
     assert.match(html, /not the impulse/);
     assert.match(html, /cannot restore/);
     assert.match(html, /\/NQZ26/);

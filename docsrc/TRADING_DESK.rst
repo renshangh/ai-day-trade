@@ -63,9 +63,11 @@ Open ``/chart-review`` or **Daily Review** on the v3 home page for the saved
 NDX, SPX, BTC, COIN, POWL and CRCL studies. Each card separates its dated quote from the
 last completed daily session, shows confirmation and invalidation levels, and
 links the original full-size TradingView drawings. Earlier captures remain
-available as dated history. Cash index levels use points and disclose the
-separate quote/chart delay; index volume is not tradable volume. NDX’s fifth
-wave and SPX’s tentative local C remain developing. NDX’s larger scenarios
+available as dated history. Each current chart card also provides an **Open live TradingView chart** link
+for its saved layout, symbol and interval. The live layout is mutable, while
+the dated native export remains the chronological research record. Cash index
+levels use points and disclose the separate quote/chart delay; index volume is
+not tradable volume. NDX’s fifth wave and SPX’s tentative local C remain developing. NDX’s larger scenarios
 separate a final-C recovery from an A/1 ending followed by B/2 and C/3. The
 final low is unknown; each invalidation explicitly names the affected count. A past-date snapshot is labeled historical; page
 refresh does not turn an old price or unfinished candle into fresh evidence.
